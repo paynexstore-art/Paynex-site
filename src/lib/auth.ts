@@ -103,54 +103,6 @@ export function loginWithEmail(
 }
 
 /**
- * Phone + OTP login — validates OTP (demo uses "1234")
- */
-export function loginWithPhone(
-  phone: string,
-  otp: string
-): { user: User; error?: string } | { user: null; error: string } {
-
-  // Basic validation
-  if (!phone.match(/^01[0-9]{9}$/)) {
-    logLogin('unknown', phone, 'customer', false);
-    return { user: null, error: 'رقم هاتف غير صحيح' };
-  }
-
-  // Demo OTP validation — in production, verify against SMS service
-  if (otp !== '1234') {
-    logLogin('unknown', phone, 'customer', false);
-    return { user: null, error: 'رمز التحقق غير صحيح' };
-  }
-
-  // Check if customer exists by phone
-  const allUsers = getStoredUsers();
-  const customer = allUsers.find(u => u.phone === phone);
-  
-  if (customer) {
-    setCurrentUser(customer);
-    logLogin(customer.id, customer.name, 'customer', true);
-    return { user: customer };
-  }
-
-  // Auto-create customer on first OTP login
-  const newUser: User = {
-    id: generateId(),
-    name: `مستخدم ${phone}`,
-    email: `user-${phone}@paynex.local`,
-    phone,
-    role: 'customer',
-    avatar: `https://ui-avatars.com/api/?name=Customer+${phone}&background=random`,
-  };
-
-  const updated = [...allUsers, newUser];
-  saveUsers(updated);
-  setCurrentUser(newUser);
-  logLogin(newUser.id, newUser.name, 'customer', true);
-
-  return { user: newUser };
-}
-
-/**
  * User registration — validates inputs and creates customer account
  */
 export function registerUser(data: {
