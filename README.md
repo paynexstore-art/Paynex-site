@@ -68,19 +68,6 @@ npm run build
 npm run preview
 ```
 
-## 🔑 Environment Configuration
-
-Create a `.env.local` file with the following variables:
-
-```
-VITE_SUPABASE_URL=<your-supabase-url>
-VITE_SUPABASE_ANON_KEY=<your-supabase-key>
-VITE_GOOGLE_CLIENT_ID=<your-google-oauth-id>
-VITE_GOOGLE_REDIRECT_URI=<your-redirect-uri>
-```
-
-**Note**: Never commit `.env` files or expose sensitive variables in code.
-
 ## 🧪 Testing
 
 ```bash
