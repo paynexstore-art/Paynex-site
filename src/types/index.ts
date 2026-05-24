@@ -1,10 +1,20 @@
 // ============================================================
-// Application Types — Qastly Platform
+// Application Types — PayNex Platform
 // ============================================================
 
 export type Lang = 'ar' | 'en';
 export type Direction = 'rtl' | 'ltr';
 export type UserRole = 'customer' | 'supervisor' | 'admin';
+
+// ———— CATEGORIES ————
+export interface Category {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  icon?: string;
+  color?: string;
+  order?: number;
+}
 
 // ——— Core User ———
 export interface User {
@@ -95,7 +105,7 @@ export interface Reward {
   criteria: string;
 }
 
-// ——— Product (Aman Scraper) ———
+// ——— Product (Complete Schema) ———
 export interface Product {
   id: string;
   name: string;
@@ -107,7 +117,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   images: string[];
-  category: string;
+  category: string;              // e.g. 'phones', 'laptops', 'tvs', 'appliances', 'gaming'
   categoryAr: string;
   brand: string;
   source: 'aman' | 'btech' | 'manual';
@@ -119,36 +129,9 @@ export interface Product {
   lastSyncedAt?: string;
   createdAt: string;
   adminPriceOverride?: number;
-  syncError?: string;           // Last scraper error for this product
 }
 
-// ——— Financial ———
-export interface InstallmentPlan {
-  months: number;
-  downPayment: number;
-  interestRate: number;         // % annual
-  adminFee: number;             // % of principal
-  adminFeeAmount: number;       // Absolute EGP
-  inquiryFee: number;           // EGP fixed
-  monthlyPayment: number;       // EGP rounded
-  totalAmount: number;          // EGP full cost
-}
-
-// ——— Order Status Workflow ———
-// pending → under-inquiry → admin-review → approved → delivered → rejected
-export type OrderStatus =
-  | 'pending'            // Customer submitted
-  | 'under-inquiry'      // Supervisor doing field visit
-  | 'admin-review'       // Supervisor uploaded docs, waiting admin
-  | 'approved'           // Admin approved
-  | 'delivered'          // Product delivered, installments active
-  | 'rejected'           // Admin rejected
-  // Legacy statuses for backwards compat
-  | 'documents-required'
-  | 'under-review'
-  | 'active'
-  | 'completed';
-
+// ——— Order ———
 export interface Order {
   id: string;
   customerId: string;
@@ -158,27 +141,19 @@ export interface Order {
   customerEmail: string;
   customerProvince: string;
   customerAddress: string;
-  customerAddressGps?: GpsCoords;     // Captured at order time or field visit
   customerJob: string;
-  customerIncome?: number;
   productId: string;
-  product: Product;
+  product?: Product;
   installmentPlan: InstallmentPlan;
-  status: OrderStatus;
+  status: 'pending' | 'under-review' | 'approved' | 'rejected' | 'delivered' | 'admin-review';
   supervisorId?: string;
   documents: OrderDocuments;
-  notes?: string;
-  rejectionReason?: string;
-  rejectedAt?: string;
-  canReapplyAt?: string;
-  approvedAt?: string;
-  deliveredAt?: string;
-  creditScore?: CreditScore;
-  eSignature?: string;                // Base64 e-signature
-  fieldVisitGps?: GpsCoords;         // GPS when supervisor uploaded docs
-  inquiryFeePaidAt?: string;
   createdAt: string;
   updatedAt: string;
+  rejectedAt?: string;
+  approvedAt?: string;
+  deliveredAt?: string;
+  canReapplyAt?: string;
 }
 
 export interface OrderDocuments {
@@ -186,43 +161,20 @@ export interface OrderDocuments {
   nationalIdBack?: string;
   utilityBill?: string;
   incomeProof?: string;
-  customerHousePhoto?: string;       // Photo taken at customer's house
-  uploadedAt?: string;
-  uploadedGps?: GpsCoords;
 }
 
-// ——— Credit Scoring ———
-export interface CreditScore {
-  score: number;            // 0–100
-  risk: 'low' | 'medium' | 'high';
-  factors: CreditFactor[];
-  calculatedAt: string;
+export interface InstallmentPlan {
+  months: number;
+  downPayment: number;
+  interestRate: number;
+  adminFee: number;
+  adminFeeAmount: number;
+  inquiryFee: number;
+  monthlyPayment: number;
+  totalAmount: number;
 }
 
-export interface CreditFactor {
-  name: string;
-  nameAr: string;
-  weight: number;
-  value: number;
-  note?: string;
-}
-
-// ——— Audit Log ———
-export interface AuditLog {
-  id: string;
-  userId: string;
-  userName: string;
-  userRole: UserRole;
-  action: string;
-  entity: string;           // 'order' | 'supervisor' | 'settings' | 'wallet' etc.
-  entityId?: string;
-  before?: string;          // JSON snapshot before
-  after?: string;           // JSON snapshot after
-  ip?: string;
-  timestamp: string;
-}
-
-// ——— Misc ———
+// ——— Site Settings ———
 export interface Banner {
   id: string;
   imageUrl: string;
@@ -230,7 +182,7 @@ export interface Banner {
   titleEn: string;
   subtitleAr: string;
   subtitleEn: string;
-  link?: string;
+  link: string;
   isActive: boolean;
   order: number;
 }
@@ -258,40 +210,54 @@ export interface SiteSettings {
   minDownPaymentPercent: number;
   maxInstallmentMonths: number;
   defaultInstallmentMonths: number;
-  banners: Banner[];
   footerTextAr: string;
   footerTextEn: string;
-  lastSyncDate?: string;
+  lastSyncDate: string;
+  syncJsonUrl: string;
+  autoSyncEnabled: boolean;
+  autoSyncIntervalHours: number;
+  banners: Banner[];
   syncErrorMessage?: string;
-  geofenceRadiusMeters?: number;      // Default 50m for document upload
-  syncJsonUrl?: string;               // Remote URL for auto-sync (GitHub raw, CDN, etc.)
-  autoSyncEnabled?: boolean;          // Trigger sync check on admin page load
-  autoSyncIntervalHours?: number;     // How often to auto-sync (default: 24h)
 }
 
-export interface Notification {
-  id: string;
-  userId: string;
-  type: 'new-order' | 'order-update' | 'system' | 'reminder' | 'wallet' | 'lock-alert';
-  titleAr: string;
-  titleEn: string;
-  messageAr: string;
-  messageEn: string;
-  isRead: boolean;
-  orderId?: string;
-  createdAt: string;
-}
-
+// ——— Province ———
 export interface Province {
   id: string;
   nameAr: string;
   nameEn: string;
-  supervisorId?: string;
-  supervisorName?: string;
-  centerLat?: number;
-  centerLng?: number;
 }
 
+// ——— Credit Score ———
+export interface CreditFactor {
+  name: string;
+  nameAr: string;
+  weight: number;    // max points
+  value: number;     // actual points
+  note?: string;
+}
+
+export interface CreditScore {
+  score: number;     // 0-100
+  factors: CreditFactor[];
+  recommendation: 'approve' | 'review' | 'reject';
+  riskLevel: 'low' | 'medium' | 'high';
+}
+
+// ——— Notification ———
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'new-order' | 'order-update' | 'wallet' | 'lock-alert';
+  titleAr: string;
+  titleEn: string;
+  messageAr: string;
+  messageEn: string;
+  orderId?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+// ——— Analytics ———
 export interface Analytics {
   totalOrders: number;
   pendingOrders: number;
@@ -303,12 +269,4 @@ export interface Analytics {
   topProducts: { product: string; count: number }[];
   supervisorPerformance: { name: string; orders: number; revenue: number; attendance: number }[];
   monthlyTrend: { month: string; orders: number; revenue: number }[];
-}
-
-export interface ScraperStatus {
-  lastRun: string;
-  status: 'success' | 'partial' | 'failed';
-  productsUpdated: number;
-  errors: string[];
-  nextScheduled: string;
 }
