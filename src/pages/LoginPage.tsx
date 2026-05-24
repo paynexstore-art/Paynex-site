@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Phone, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import { Mail, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { loginWithEmail, registerUser } from '@/lib/auth';
@@ -10,7 +10,6 @@ import logoImg from '@/assets/logo.png';
 import heroBanner from '@/assets/hero-banner.jpg';
 
 type Tab = 'login' | 'register';
-type Method = 'email' | 'phone';
 
 export default function LoginPage() {
   const { t } = useApp();
@@ -18,15 +17,11 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>('login');
-  const [method, setMethod] = useState<Method>('email');
   const [showPass, setShowPass] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
@@ -53,33 +48,6 @@ export default function LoginPage() {
       redirectAfterLogin(result.user.role);
     } else {
       toast.error(result.error ?? t('بيانات غير صحيحة', 'Invalid credentials'));
-    }
-  }
-
-  async function handleSendOTP() {
-    if (!phone.match(/^01[0-9]{9}$/)) {
-      toast.error(t('رقم هاتف غير صحيح', 'Invalid phone number'));
-      return;
-    }
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    setOtpSent(true);
-    setLoading(false);
-    toast.success(t('تم إرسال رمز التحقق (1234 للتجربة)', 'OTP sent (use 1234 for demo)'));
-  }
-
-  async function handlePhoneLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 500));
-    const result = loginWithPhone(phone, otp);
-    setLoading(false);
-    if (result.user) {
-      setUser(result.user);
-      toast.success(t('تم تسجيل الدخول', 'Logged in'));
-      redirectAfterLogin(result.user.role);
-    } else {
-      toast.error(result.error ?? t('رمز التحقق غير صحيح', 'Invalid OTP'));
     }
   }
 
@@ -176,66 +144,25 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Method Toggle */}
-              <div className="flex gap-2 mb-6">
-                <button
-                  onClick={() => setMethod('email')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
-                    method === 'email' ? 'border-[#0f2460] bg-[#0f2460] text-white' : 'border-slate-200 text-slate-600'
-                  }`}
-                >
-                  <Mail size={16} />
-                  {t('البريد الإلكتروني', 'Email')}
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">{t('البريد الإلكتروني', 'Email')}</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field" placeholder="example@email.com" required />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">{t('كلمة المرور', 'Password')}</label>
+                  <div className="relative">
+                    <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="input-field pe-10" placeholder="••••••••" required />
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+                <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <LogIn size={18} />}
+                  {t('تسجيل الدخول', 'Login')}
                 </button>
-                <button
-                  onClick={() => setMethod('phone')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
-                    method === 'phone' ? 'border-[#0f2460] bg-[#0f2460] text-white' : 'border-slate-200 text-slate-600'
-                  }`}
-                >
-                  <Phone size={16} />
-                  {t('رقم الهاتف', 'Phone')}
-                </button>
-              </div>
-
-              {method === 'email' ? (
-                <form onSubmit={handleEmailLogin} className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-1.5 block">{t('البريد الإلكتروني', 'Email')}</label>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field" placeholder="example@email.com" required />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-1.5 block">{t('كلمة المرور', 'Password')}</label>
-                    <div className="relative">
-                      <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="input-field pe-10" placeholder="••••••••" required />
-                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400">
-                        {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-                  <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
-                    {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <LogIn size={18} />}
-                    {t('تسجيل الدخول', 'Login')}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={otpSent ? handlePhoneLogin : e => { e.preventDefault(); handleSendOTP(); }} className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-1.5 block">{t('رقم الهاتف', 'Phone Number')}</label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="input-field" placeholder="01xxxxxxxxx" required dir="ltr" />
-                  </div>
-                  {otpSent && (
-                    <div>
-                      <label className="text-sm font-medium text-slate-700 mb-1.5 block">{t('رمز التحقق', 'OTP Code')}</label>
-                      <input type="text" value={otp} onChange={e => setOtp(e.target.value)} className="input-field text-center text-2xl tracking-widest" placeholder="• • • •" maxLength={4} required />
-                    </div>
-                  )}
-                  <button type="submit" disabled={loading} className="btn-primary w-full">
-                    {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" /> :
-                      otpSent ? t('تأكيد', 'Confirm') : t('إرسال رمز التحقق', 'Send OTP')}
-                  </button>
-                </form>
-              )}
+              </form>
 
               <div className="relative my-5">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
