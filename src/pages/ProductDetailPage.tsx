@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Shield, Clock, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Shield, Clock, CheckCircle, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import InstallmentCalculator from '@/components/features/InstallmentCalculator';
@@ -15,16 +15,66 @@ export default function ProductDetailPage() {
   const { t, lang } = useApp();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState<ReturnType<typeof import('@/lib/installment').calculateInstallment> | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     const found = getProducts().find(p => p.id === id);
-    if (!found) navigate('/products');
-    else setProduct(found);
+    if (!found) {
+      setProduct(null);
+    } else {
+      setProduct(found);
+    }
+    setLoading(false);
   }, [id, navigate]);
 
-  if (!product) return null;
+  // حالة التحميل
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-xl font-bold text-[#0f2460] animate-pulse">{t('جاري تحميل المنتج...', 'Loading product...')}</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // حالة المنتج غير موجود
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-card p-8 text-center max-w-md">
+            <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">{t('المنتج غير موجود', 'Product Not Found')}</h2>
+            <p className="text-slate-600 mb-6">{t('عذراً، المنتج الذي تبحث عنه غير متوفر أو تم حذفه.', 'Sorry, the product you are looking for is not available or has been deleted.')}</p>
+            <div className="flex gap-3 flex-col">
+              <button
+                onClick={() => navigate('/products')}
+                className="btn-primary w-full"
+              >
+                {t('العودة للمنتجات', 'Back to Products')}
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="btn-secondary w-full"
+              >
+                {t('الذهاب للرئيسية', 'Go to Home')}
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   const name = lang === 'ar' ? product.nameAr : product.nameEn;
   const desc = lang === 'ar' ? product.descriptionAr : product.descriptionEn;
