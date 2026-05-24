@@ -3,8 +3,8 @@ import { ADMIN_CREDENTIALS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId } from './utils';
 import { logLogin } from './auditLog';
 
-const AUTH_KEY   = 'qastly_auth_user';
-const USERS_KEY  = 'qastly_users';
+const AUTH_KEY   = 'paynex_auth_user';
+const USERS_KEY  = 'paynex_users';
 
 export function getCurrentUser(): User | null {
   const stored = localStorage.getItem(AUTH_KEY);
@@ -28,8 +28,8 @@ export function saveUsers(users: User[]): void {
 
 function getSupervisors(): Supervisor[] {
   try {
-    // Must match KEY.supervisors in storage.ts ('paynix_supervisors')
-    const stored = localStorage.getItem('paynix_supervisors');
+    // Must match KEY.supervisors in storage.ts ('paynex_supervisors')
+    const stored = localStorage.getItem('paynex_supervisors');
     if (stored) return JSON.parse(stored) as Supervisor[];
   } catch (err) {
     console.warn('Failed to parse supervisors from storage:', err);
@@ -37,7 +37,7 @@ function getSupervisors(): Supervisor[] {
   return MOCK_SUPERVISORS;
 }
 function getPasswords(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem('qastly_sup_passwords') ?? '{}'); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem('paynex_sup_passwords') ?? '{}'); } catch { return {}; }
 }
 
 /**
@@ -84,99 +84,20 @@ export function loginWithEmail(
       logLogin(supervisor.id, supervisor.name, 'supervisor', true);
       return { user: supervisor };
     }
-    logLogin(supervisor.id, supervisor.name, 'supervisor', false);
-    return { user: null, error: 'كلمة المرور غير صحيحة' };
   }
 
-  // ——— Customer ———
-  const users = getStoredUsers();
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (!user) {
-    return { user: null, error: 'البريد الإلكتروني غير مسجل' };
+  // ——— Customer (stored in localStorage by registration) ———
+  const allUsers = getStoredUsers();
+  const customer = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (customer) {
+    const storedHash = localStorage.getItem(`paynex_pass_${customer.id}`);
+    if (storedHash === password) {
+      setCurrentUser(customer);
+      logLogin(customer.id, customer.name, 'customer', true);
+      return { user: customer };
+    }
   }
-  const storedPass = localStorage.getItem(`qastly_pass_${user.id}`);
-  if (storedPass !== password) {
-    logLogin(user.id, user.name, 'customer', false);
-    return { user: null, error: 'كلمة المرور غير صحيحة' };
-  }
-  setCurrentUser(user);
-  logLogin(user.id, user.name, 'customer', true);
-  return { user };
+
+  logLogin('unknown', email, 'customer', false);
+  return { user: null, error: 'بريد إلكتروني أو كلمة مرور غير صحيحة' };
 }
-
-/**
- * Phone + OTP login (mock: OTP always 1234 in demo).
- */
-export function loginWithPhone(
-  phone: string,
-  otp: string
-): { user: User; error?: string } | { user: null; error: string } {
-  if (otp !== '1234') {
-    logLogin(`phone:${phone}`, phone, 'customer', false);
-    return { user: null, error: 'رمز التحقق غير صحيح (استخدم 1234 للتجربة)' };
-  }
-  const users = getStoredUsers();
-  let user = users.find(u => u.phone === phone);
-  if (!user) {
-    user = {
-      id: generateId(),
-      name: `مستخدم ${phone.slice(-4)}`,
-      email: '',
-      phone,
-      role: 'customer',
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    };
-    saveUsers([...users, user]);
-  }
-  setCurrentUser(user);
-  return { user };
-}
-
-/**
- * New customer registration.
- */
-export function registerUser(data: {
-  name: string; email: string; phone: string; password: string;
-}): { user: User; error?: string } | { user: null; error: string } {
-  const users = getStoredUsers();
-  if (users.find(u => u.email === data.email)) {
-    return { user: null, error: 'البريد الإلكتروني مستخدم بالفعل' };
-  }
-  const user: User = {
-    id: generateId(),
-    name: data.name,
-    email: data.email,
-    phone: data.phone,
-    role: 'customer',
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  };
-  localStorage.setItem(`qastly_pass_${user.id}`, data.password);
-  saveUsers([...users, user]);
-  setCurrentUser(user);
-  return { user };
-}
-
-/** Mock Google OAuth login (demo only — replaced by real OAuth when configured) */
-export function mockGoogleLogin(): User {
-  const uid = generateId();
-  const googleUser: User = {
-    id: `google-${uid}`,
-    name: 'مستخدم Google',
-    email: `user.${Date.now()}@gmail.com`,
-    role: 'customer',
-    isActive: true,
-    googleId: uid,
-    avatar: `https://ui-avatars.com/api/?name=Google+User&background=0f2460&color=fff`,
-    createdAt: new Date().toISOString(),
-  };
-  const users = getStoredUsers();
-  saveUsers([...users, googleUser]);
-  setCurrentUser(googleUser);
-  return googleUser;
-}
-
-export const isAdmin      = (u: User | null) => u?.role === 'admin';
-export const isSupervisor = (u: User | null) => u?.role === 'supervisor';
-export const isCustomer   = (u: User | null) => u?.role === 'customer';

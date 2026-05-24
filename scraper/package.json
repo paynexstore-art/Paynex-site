@@ -1,5 +1,5 @@
 {
-  "name": "paynix-btech-scraper",
+  "name": "paynex-btech-scraper",
   "version": "3.0.0",
   "description": "BTech.com product scraper — axios + cheerio + residential proxy support",
   "type": "module",

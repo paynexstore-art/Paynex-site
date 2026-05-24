@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qastly-v1';
+const CACHE_NAME = 'paynex-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -18,7 +18,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
-    return (localStorage.getItem('qastly_lang') as Lang) ?? 'ar';
+    return (localStorage.getItem('paynex_lang') as Lang) ?? 'ar';
   });
   const [settings, setSettings] = useState<SiteSettings>(getSiteSettings);
 
@@ -27,7 +27,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
-    localStorage.setItem('qastly_lang', l);
+    localStorage.setItem('paynex_lang', l);
     document.documentElement.lang = l;
     document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
   }, []);

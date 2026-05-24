@@ -1,61 +1,175 @@
-# Welcome to your OnSpace project
+# PayNex Site - حلول التقسيط الذكي
 
-## How can I edit this code?
+## نظرة عامة
 
-There are several ways of editing your application.
+PayNex هي منصة تقسيط ذكية متطورة مبنية بـ React، Vite، TypeScript، Shadcn UI، و Supabase. توفر خدمات التقسيط الميسرة للعملاء في مصر مع إدارة متقدمة للأوامر والمشرفين.
 
-**Use OnSpace**
+## المتطلبات
 
-Simply visit the [OnSpace Project]() and start prompting.
+- Node.js 18+
+- npm أو yarn أو bun
+- حساب Supabase
+- متصفح حديث
 
-Changes made via OnSpace will be committed automatically to this repo.
+## المميزات الرئيسية
 
-**Use your preferred IDE**
+✅ **لوحة تحكم Admin متقدمة** - إدارة كاملة للمنتجات والطلبات والمشرفين  
+✅ **نظام أقساط ذكي** - حساب تلقائي للأقساط الشهرية والفوائد  
+✅ **إدارة المشرفين** - تتبع الأداء والمحافظ والحضور  
+✅ **معالجة الأخطاء الشاملة** - Error Boundaries وحماية الطرق  
+✅ **قاعدة بيانات آمنة** - Supabase للتخزين الآمن  
+✅ **واجهة متعددة اللغات** - دعم العربية والإنجليزية  
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in OnSpace.
+## التثبيت
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### الخطوة 1: استنساخ المستودع
 
-Follow these steps:
+```bash
+git clone https://github.com/paynexstore-art/paynex-site.git
+cd paynex-site
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### الخطوة 2: تثبيت المكتبات
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+npm install
+# أو
+yarn install
+# أو
+bun install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+### الخطوة 3: إعداد متغيرات البيئة
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+أنشئ ملف `.env` في المجلد الجذري:
+
+```dotenv
+VITE_SUPABASE_URL=https://yzzbuvqyabzjaznttgbh.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6emJ1dnF5YWJ6amF6bnR0Z2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NTEwNjgsImV4cCI6MjA5NTEyNzA2OH0.WRIgdkUxF9mYvjlvURmMNzs69_W71S-HE4bIifua42A
+
+VITE_GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com
+VITE_GOOGLE_REDIRECT_URI=https://paynex-site.vercel.app/auth/google/callback
+
+VITE_API_URL=http://localhost:3001
+VITE_ENV=development
+```
+
+### الخطوة 4: تشغيل خادم التطوير
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+سيكون التطبيق متاحاً على: `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## الاستخدام
 
-**Use GitHub Codespaces**
+### بيانات تسجيل الدخول الافتراضية
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+**Admin:**
+- البريد: `admin@paynex.com`
+- كلمة المرور: `Mm.273199`
 
-## What technologies are used for this project?
+**Customer (Test):**
+- البريد: `aa@gmail.com`
+- كلمة المرور: `000000`
 
-This project is built with:
+## هيكل المشروع
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```
+src/
+├── components/          # المكونات المعاد استخدامها
+│   ├── ProtectedRoute.tsx
+│   ├── ErrorBoundary.tsx
+│   └── ...
+├── contexts/            # React Contexts (Auth, App)
+├── pages/               # صفحات التطبيق
+│   ├── admin/          # صفحات لوحة الحكم
+│   ├── supervisor/     # صفحات المشرفين
+│   └── ...
+├── lib/                 # دوال مساعدة وأداوات
+│   ├── auth.ts
+│   ├── storage.ts
+│   ├── installment.ts
+│   └── ...
+├── constants/           # البيانات والثوابت
+├── types/               # تعريفات TypeScript
+└── App.tsx             # المكون الرئيسي
+```
 
-## How can I deploy this project?
+## البناء والنشر
 
-Simply open [OnSpace]() and click on Share -> Publish.
+### بناء للإنتاج
+
+```bash
+npm run build
+```
+
+### معاينة البناء
+
+```bash
+npm run preview
+```
+
+### النشر على Vercel
+
+```bash
+vercel deploy
+```
+
+## المزايا التقنية
+
+### ✅ معالجة الأخطاء
+- Error Boundary على مستوى التطبيق
+- معالجة أخطاء Supabase
+- توست التنبيهات للمستخدم
+
+### ✅ الأمان
+- Protected Routes
+- Super Admin Bypass
+- Role-Based Access Control (RBAC)
+- التحقق من الجلسات
+
+### ✅ الأداء
+- Lazy Loading للمكونات
+- Code Splitting
+- Vite Fast Refresh
+- caching بواسطة Service Worker
+
+## استكشاف الأخطاء
+
+### "Supabase connection failed"
+
+تأكد من:
+1. ✅ `VITE_SUPABASE_URL` و `VITE_SUPABASE_ANON_KEY` في `.env`
+2. ✅ الاتصال بالإنترنت
+3. ✅ مفاتيح Supabase صحيحة
+
+### "White Screen of Death"
+
+افتح console المتصفح (F12) وتحقق من:
+1. ✅ أخطاء JavaScript
+2. ✅ استدعاءات الشبكة الفاشلة
+3. ✅ المستندات الناقصة
+
+### "401 Unauthorized"
+
+✅ تأكد من أنك مسجل دخول
+✅ تحقق من صلاحيات الدور (Role)
+✅ تحديث الصفحة
+
+## الدعم والتواصل
+
+📧 البريد الإلكتروني: `support@paynex.com`  
+📱 واتس آب: `+20 1000000000`  
+🕐 الدعم: 24/7
+
+## الترخيص
+
+تم تطويره بواسطة PayNex Team © 2025
+
+---
+
+**آخر تحديث**: 2025-05-24  
+**الإصدار**: 1.0.0  
+**الحالة**: ✅ جاهز للإنتاج

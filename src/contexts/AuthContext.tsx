@@ -10,6 +10,8 @@ interface AuthContextValue {
   isSupervisor: boolean;
   isCustomer: boolean;
   isLoggedIn: boolean;
+  /** Super Admin can bypass all restrictions */
+  canBypassRestrictions: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -38,6 +40,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSupervisor: user?.role === 'supervisor',
         isCustomer: user?.role === 'customer',
         isLoggedIn: !!user,
+        /** Admin has complete bypass to all resources */
+        canBypassRestrictions: user?.role === 'admin',
       }}
     >
       {children}

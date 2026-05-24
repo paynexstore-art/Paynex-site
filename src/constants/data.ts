@@ -264,7 +264,7 @@ export const MOCK_SUPERVISORS: Supervisor[] = [
   {
     id: 'sup-001',
     name: 'محمد حسن',
-    email: 'Supervisor@paynix.com',
+    email: 'supervisor@paynex.com',
     phone: '01098765432',
     role: 'supervisor',
     province: 'cairo',
@@ -310,12 +310,12 @@ export function initTestUsers() {
 
 // ============ ADMIN CREDENTIALS ============
 export const ADMIN_CREDENTIALS = {
-  email: 'adminqastly@gmail.com',
+  email: 'admin@paynex.com',
   password: 'Mm.273199',
   user: {
     id: 'admin-001',
     name: 'المدير العام',
-    email: 'adminqastly@gmail.com',
+    email: 'admin@paynex.com',
     role: 'admin' as const,
     isActive: true,
     createdAt: new Date().toISOString(),

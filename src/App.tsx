@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AppProvider } from '@/contexts/AppContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { lazy, Suspense, useEffect } from 'react';
 import { initTestUsers } from '@/constants/data';
 
@@ -47,7 +49,7 @@ function PageLoader() {
     <div className="min-h-screen flex items-center justify-center bg-[#0a1628]">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-[#00d4ff]/30 border-t-[#00d4ff] rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-[#00d4ff] text-sm font-semibold tracking-widest uppercase">Paynix</p>
+        <p className="text-[#00d4ff] text-sm font-semibold tracking-widest uppercase">PayNex</p>
       </div>
     </div>
   );
@@ -61,7 +63,9 @@ function AppInner() {
       <Toaster position="top-center" richColors expand duration={4000} />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Public */}
+          {/* ──────────────────────────────────── */}
+          {/* PUBLIC ROUTES (No Auth Required)    */}
+          {/* ──────────────────────────────────── */}
           <Route path="/"              element={<HomePage />} />
           <Route path="/products"      element={<ProductsPage />} />
           <Route path="/products/:id"  element={<ProductDetailPage />} />
@@ -71,11 +75,22 @@ function AppInner() {
           <Route path="/login"         element={<LoginPage />} />
           <Route path="/contact"       element={<ContactPage />} />
 
-          {/* Auth Callbacks */}
+          {/* ──────────────────────────────────── */}
+          {/* AUTH CALLBACKS                       */}
+          {/* ──────────────────────────────────── */}
           <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
 
-          {/* Admin */}
-          <Route path="/admin" element={<AdminLayout />}>
+          {/* ──────────────────────────────────── */}
+          {/* ADMIN ROUTES (Auth Required)         */}
+          {/* ──────────────────────────────────── */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index                     element={<AdminDashboard />} />
             <Route path="products"           element={<AdminProducts />} />
             <Route path="orders"             element={<AdminOrders />} />
@@ -90,14 +105,26 @@ function AppInner() {
             <Route path="testimonials"       element={<AdminTestimonials />} />
           </Route>
 
-          {/* Supervisor */}
-          <Route path="/supervisor" element={<SupervisorLayout />}>
+          {/* ──────────────────────────────────── */}
+          {/* SUPERVISOR ROUTES (Auth Required)    */}
+          {/* ──────────────────────────────────── */}
+          <Route
+            path="/supervisor"
+            element={
+              <ProtectedRoute requiredRole="supervisor">
+                <SupervisorLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index              element={<SupervisorDashboard />} />
             <Route path="orders"      element={<SupervisorOrders />} />
             <Route path="attendance"  element={<SupervisorAttendance />} />
             <Route path="wallet"      element={<SupervisorWalletPage />} />
           </Route>
 
+          {/* ──────────────────────────────────── */}
+          {/* CATCH-ALL (404)                      */}
+          {/* ──────────────────────────────────── */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -107,10 +134,12 @@ function AppInner() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AuthProvider>
-        <AppInner />
-      </AuthProvider>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AuthProvider>
+          <AppInner />
+        </AuthProvider>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
