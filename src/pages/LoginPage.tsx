@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Phone, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Mail, Phone, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { loginWithEmail, loginWithPhone, registerUser } from '@/lib/auth';
@@ -33,6 +33,7 @@ export default function LoginPage() {
   const [regPass, setRegPass] = useState('');
 
   const googleOAuthConfigured = isGoogleOAuthConfigured();
+  const [googleAuthError, setGoogleAuthError] = useState<string | null>(null);
 
   function redirectAfterLogin(role: string) {
     if (role === 'admin') navigate('/admin');
@@ -102,14 +103,20 @@ export default function LoginPage() {
   }
 
   function handleGoogleLogin() {
+    setGoogleAuthError(null);
     if (!googleOAuthConfigured) {
-      toast.error('Google OAuth not configured. See .env.example');
+      const errorMsg = 'Google OAuth not configured. Please set VITE_GOOGLE_CLIENT_ID in your .env file.';
+      setGoogleAuthError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
     try {
       initiateGoogleLogin();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Google login failed');
+      const errorMsg = error instanceof Error ? error.message : 'Google login failed';
+      setGoogleAuthError(errorMsg);
+      toast.error(errorMsg);
+      console.error('Google login error:', error);
     }
   }
 
@@ -161,6 +168,14 @@ export default function LoginPage() {
 
           {tab === 'login' ? (
             <div className="animate-fade-in">
+              {/* Google Auth Error Alert */}
+              {googleAuthError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex gap-3">
+                  <AlertCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-700">{googleAuthError}</div>
+                </div>
+              )}
+
               {/* Method Toggle */}
               <div className="flex gap-2 mb-6">
                 <button
@@ -229,6 +244,7 @@ export default function LoginPage() {
 
               {/* Google Login Button */}
               <button 
+                type="button"
                 onClick={handleGoogleLogin} 
                 disabled={!googleOAuthConfigured}
                 className="w-full flex items-center justify-center gap-3 border-2 border-slate-200 rounded-xl py-3 font-medium text-slate-700 hover:border-[#0f2460] hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
