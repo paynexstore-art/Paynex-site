@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Phone, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { loginWithEmail, loginWithPhone, registerUser } from '@/lib/auth';
+import { loginWithEmail, registerUser } from '@/lib/auth';
 import { initiateGoogleLogin, isGoogleOAuthConfigured } from '@/lib/googleAuth';
 import { toast } from 'sonner';
 import logoImg from '@/assets/logo.png';
