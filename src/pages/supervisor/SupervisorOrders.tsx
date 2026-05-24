@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Eye, DollarSign, Upload, FileCheck, Search, AlertCircle,
   CheckCircle, MapPin, X, Camera, Navigation
@@ -25,10 +25,11 @@ export default function SupervisorOrders() {
   const [fetchingGps, setFetchingGps] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
 
-  function reload() {
+  const reload = useCallback(() => {
     if (user) setOrders(getOrdersBySupervisor(user.id));
-  }
-  useEffect(() => { reload(); }, [user]);
+  }, [user]);
+
+  useEffect(() => { reload(); }, [reload]);
 
   async function fetchGps() {
     setFetchingGps(true);

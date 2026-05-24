@@ -1,4 +1,4 @@
-import type { User, UserRole } from '@/types';
+import type { User, UserRole, Supervisor } from '@/types';
 import { ADMIN_CREDENTIALS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId } from './utils';
 import { logLogin } from './auditLog';
@@ -26,12 +26,14 @@ export function saveUsers(users: User[]): void {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function getSupervisors() {
+function getSupervisors(): Supervisor[] {
   try {
     // Must match KEY.supervisors in storage.ts ('paynix_supervisors')
     const stored = localStorage.getItem('paynix_supervisors');
-    if (stored) return JSON.parse(stored);
-  } catch {}
+    if (stored) return JSON.parse(stored) as Supervisor[];
+  } catch (err) {
+    console.warn('Failed to parse supervisors from storage:', err);
+  }
   return MOCK_SUPERVISORS;
 }
 function getPasswords(): Record<string, string> {
@@ -60,7 +62,7 @@ export function loginWithEmail(
   // ——— Supervisor (dynamic credentials managed by admin) ———
   const allSupervisors = getSupervisors();
   const supervisor = allSupervisors.find(
-    (s: any) => s.email.toLowerCase() === email.toLowerCase()
+    (s: Supervisor) => s.email.toLowerCase() === email.toLowerCase()
   );
   if (supervisor) {
     if (!supervisor.isActive) {

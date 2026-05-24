@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Camera, CheckCircle, Clock, Lock, MapPin, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
@@ -21,13 +21,14 @@ export default function SupervisorAttendance() {
   const [gpsChecking, setGpsChecking] = useState(false);
   const [gpsVerified, setGpsVerified] = useState(false);
 
-  function reload() {
+  const reload = useCallback(() => {
     if (!user) return;
     setRecords(getAttendanceRecords(user.id));
     const sup = getSupervisors().find(s => s.id === user.id);
     setSupervisor(sup ?? null);
-  }
-  useEffect(() => { reload(); }, [user]);
+  }, [user]);
+
+  useEffect(() => { reload(); }, [reload]);
 
   const todayStr = new Date().toDateString();
   const todayRecord = records.find(r => r.date === todayStr);
