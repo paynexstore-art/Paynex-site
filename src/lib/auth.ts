@@ -101,3 +101,109 @@ export function loginWithEmail(
   logLogin('unknown', email, 'customer', false);
   return { user: null, error: 'بريد إلكتروني أو كلمة مرور غير صحيحة' };
 }
+
+/**
+ * Phone + OTP login — validates OTP (demo uses "1234")
+ */
+export function loginWithPhone(
+  phone: string,
+  otp: string
+): { user: User; error?: string } | { user: null; error: string } {
+
+  // Basic validation
+  if (!phone.match(/^01[0-9]{9}$/)) {
+    logLogin('unknown', phone, 'customer', false);
+    return { user: null, error: 'رقم هاتف غير صحيح' };
+  }
+
+  // Demo OTP validation — in production, verify against SMS service
+  if (otp !== '1234') {
+    logLogin('unknown', phone, 'customer', false);
+    return { user: null, error: 'رمز التحقق غير صحيح' };
+  }
+
+  // Check if customer exists by phone
+  const allUsers = getStoredUsers();
+  const customer = allUsers.find(u => u.phone === phone);
+  
+  if (customer) {
+    setCurrentUser(customer);
+    logLogin(customer.id, customer.name, 'customer', true);
+    return { user: customer };
+  }
+
+  // Auto-create customer on first OTP login
+  const newUser: User = {
+    id: generateId(),
+    name: `مستخدم ${phone}`,
+    email: `user-${phone}@paynex.local`,
+    phone,
+    role: 'customer',
+    avatar: `https://ui-avatars.com/api/?name=Customer+${phone}&background=random`,
+  };
+
+  const updated = [...allUsers, newUser];
+  saveUsers(updated);
+  setCurrentUser(newUser);
+  logLogin(newUser.id, newUser.name, 'customer', true);
+
+  return { user: newUser };
+}
+
+/**
+ * User registration — validates inputs and creates customer account
+ */
+export function registerUser(data: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+}): { user: User; error?: string } | { user: null; error: string } {
+
+  // Validate inputs
+  if (!data.name?.trim()) {
+    return { user: null, error: 'الاسم مطلوب' };
+  }
+
+  if (!data.email || !data.email.includes('@')) {
+    return { user: null, error: 'بريد إلكتروني غير صحيح' };
+  }
+
+  if (!data.password || data.password.length < 6) {
+    return { user: null, error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' };
+  }
+
+  const allUsers = getStoredUsers();
+
+  // Check for duplicate email
+  if (allUsers.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
+    logLogin('unknown', data.email, 'customer', false);
+    return { user: null, error: 'البريد الإلكتروني مستخدم بالفعل' };
+  }
+
+  // Check for duplicate phone (if provided)
+  if (data.phone && allUsers.some(u => u.phone === data.phone)) {
+    logLogin('unknown', data.phone, 'customer', false);
+    return { user: null, error: 'رقم الهاتف مستخدم بالفعل' };
+  }
+
+  // Create new user
+  const newUser: User = {
+    id: generateId(),
+    name: data.name.trim(),
+    email: data.email.toLowerCase(),
+    phone: data.phone || undefined,
+    role: 'customer',
+    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`,
+  };
+
+  // Save user and password
+  const updated = [...allUsers, newUser];
+  saveUsers(updated);
+  localStorage.setItem(`paynex_pass_${newUser.id}`, data.password);
+
+  setCurrentUser(newUser);
+  logLogin(newUser.id, newUser.name, 'customer', true);
+
+  return { user: newUser };
+}
