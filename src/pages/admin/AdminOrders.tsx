@@ -1,1 +1,216 @@
-import { useState, useEffect } from 'react';\nimport { Search, Eye, CheckCircle, XCircle, Filter, RefreshCw, AlertCircle } from 'lucide-react';\nimport { useApp } from '@/contexts/AppContext';\nimport { useAuth } from '@/contexts/AuthContext';\nimport { fetchOrdersWithDetails, type OrderWithDetails } from '@/lib/supabaseAdmin';\nimport { formatCurrency, formatDate } from '@/lib/utils';\nimport { toast } from 'sonner';\n\nconst ORDER_STATUSES = [\n  { value: 'all', labelAr: 'الكل', labelEn: 'All' },\n  { value: 'pending', labelAr: 'قيد الانتظار', labelEn: 'Pending' },\n  { value: 'under-inquiry', labelAr: 'جاري الاستعلام', labelEn: 'Under Inquiry' },\n  { value: 'admin-review', labelAr: 'مراجعة المدير', labelEn: 'Admin Review' },\n  { value: 'approved', labelAr: 'موافقة نهائية', labelEn: 'Approved' },\n  { value: 'delivered', labelAr: 'تم التسليم', labelEn: 'Delivered' },\n  { value: 'rejected', labelAr: 'مرفوض', labelEn: 'Rejected' },\n];\n\nexport default function AdminOrders() {\n  const { t, lang } = useApp();\n  const { user } = useAuth();\n  const [orders, setOrders] = useState<OrderWithDetails[]>([]);\n  const [loading, setLoading] = useState(true);\n  const [error, setError] = useState<string | null>(null);\n  const [search, setSearch] = useState('');\n  const [statusFilter, setStatusFilter] = useState<string>('all');\n  const [selected, setSelected] = useState<OrderWithDetails | null>(null);\n\n  // Fetch orders on component mount\n  useEffect(() => {\n    loadOrders();\n  }, []);\n\n  async function loadOrders() {\n    try {\n      setLoading(true);\n      setError(null);\n      const data = await fetchOrdersWithDetails();\n      setOrders(data);\n      console.log('✅ Orders loaded from Supabase with details:', data);\n    } catch (err) {\n      const errorMsg = err instanceof Error ? err.message : 'Unknown error';\n      setError(errorMsg);\n      toast.error(t('فشل في تحميل الطلبات', 'Failed to load orders'));\n      console.error('❌ Load orders error:', err);\n    } finally {\n      setLoading(false);\n    }\n  }\n\n  const filtered = orders.filter((o) => {\n    const matchSearch =\n      !search ||\n      o.customer_name.toLowerCase().includes(search.toLowerCase()) ||\n      o.id.toLowerCase().includes(search.toLowerCase()) ||\n      o.customer_phone.includes(search);\n    const matchStatus = statusFilter === 'all' || o.status === statusFilter;\n    return matchSearch && matchStatus;\n  });\n\n  if (loading) {\n    return (\n      <div className=\"space-y-5\">\n        <div className=\"bg-white rounded-2xl shadow-card p-12 text-center\">\n          <div className=\"inline-block mb-3\">\n            <RefreshCw size={24} className=\"text-[#0f2460] animate-spin\" />\n          </div>\n          <p className=\"text-slate-500\">{t('جاري التحميل...', 'Loading...')}</p>\n        </div>\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"space-y-5\">\n      {/* Error Banner */}\n      {error && (\n        <div className=\"bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3\">\n          <AlertCircle size={18} className=\"text-red-600 flex-shrink-0\" />\n          <div className=\"flex-1\">\n            <p className=\"text-red-900 text-sm font-medium\">{error}</p>\n            <button onClick={loadOrders} className=\"text-red-700 hover:underline text-xs mt-1\">\n              {t('حاول مرة أخرى', 'Try again')}\n            </button>\n          </div>\n        </div>\n      )}\n\n      {/* Header */}\n      <div className=\"flex items-center justify-between\">\n        <div>\n          <h1 className=\"text-2xl font-black text-[#0f2460]\">{t('الطلبات', 'Orders')}</h1>\n          <p className=\"text-slate-500 text-sm mt-1\">\n            {t(`إجمالي: ${orders.length} طلب`, `Total: ${orders.length} orders`)}\n          </p>\n        </div>\n        <button\n          onClick={loadOrders}\n          className=\"p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 transition\"\n          title={t('تحديث', 'Refresh')}\n        >\n          <RefreshCw size={18} className=\"text-[#0f2460]\" />\n        </button>\n      </div>\n\n      {/* Filters */}\n      <div className=\"flex gap-2 flex-wrap\">\n        <div className=\"flex-1 min-w-[200px] relative\">\n          <Search size={16} className=\"absolute left-3 top-3 text-slate-400\" />\n          <input\n            type=\"text\"\n            placeholder={t('ابحث عن طلب...', 'Search orders...')}\n            value={search}\n            onChange={(e) => setSearch(e.target.value)}\n            className=\"w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0f2460]/20\"\n          />\n        </div>\n        <select\n          value={statusFilter}\n          onChange={(e) => setStatusFilter(e.target.value)}\n          className=\"px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0f2460]/20 text-sm\"\n        >\n          {ORDER_STATUSES.map((s) => (\n            <option key={s.value} value={s.value}>\n              {lang === 'ar' ? s.labelAr : s.labelEn}\n            </option>\n          ))}\n        </select>\n      </div>\n\n      {/* Orders Table */}\n      {filtered.length === 0 ? (\n        <div className=\"bg-white rounded-2xl shadow-card p-12 text-center\">\n          <p className=\"text-slate-400\">{t('لا توجد طلبات', 'No orders')}</p>\n        </div>\n      ) : (\n        <div className=\"bg-white rounded-2xl shadow-card overflow-hidden\">\n          <div className=\"overflow-x-auto\">\n            <table className=\"w-full\">\n              <thead>\n                <tr className=\"border-b border-slate-200 bg-slate-50\">\n                  <th className=\"px-4 py-3 text-left text-xs font-bold text-slate-600\">\n                    {t('رقم الطلب', 'Order ID')}\n                  </th>\n                  <th className=\"px-4 py-3 text-left text-xs font-bold text-slate-600\">\n                    {t('العميل', 'Customer')}\n                  </th>\n                  <th className=\"px-4 py-3 text-left text-xs font-bold text-slate-600\">\n                    {t('المنتج', 'Product')}\n                  </th>\n                  <th className=\"px-4 py-3 text-left text-xs font-bold text-slate-600\">\n                    {t('المبلغ', 'Amount')}\n                  </th>\n                  <th className=\"px-4 py-3 text-left text-xs font-bold text-slate-600\">\n                    {t('الحالة', 'Status')}\n                  </th>\n                  <th className=\"px-4 py-3 text-left text-xs font-bold text-slate-600\">\n                    {t('التاريخ', 'Date')}\n                  </th>\n                  <th className=\"px-4 py-3 text-center text-xs font-bold text-slate-600\">\n                    {t('إجراء', 'Action')}\n                  </th>\n                </tr>\n              </thead>\n              <tbody>\n                {filtered.map((order) => (\n                  <tr key={order.id} className=\"border-b border-slate-100 hover:bg-slate-50 transition\">\n                    <td className=\"px-4 py-3 text-sm font-mono text-[#0f2460]\">{order.id}</td>\n                    <td className=\"px-4 py-3\">\n                      <div>\n                        <p className=\"text-sm font-semibold text-[#0f2460]\">{order.customer_name}</p>\n                        <p className=\"text-xs text-slate-500\">{order.customer_phone}</p>\n                      </div>\n                    </td>\n                    <td className=\"px-4 py-3 text-sm\">\n                      {order.products\n                        ? lang === 'ar'\n                          ? order.products.name_ar\n                          : order.products.name_en\n                        : t('منتج غير معروف', 'Unknown Product')}\n                    </td>\n                    <td className=\"px-4 py-3 text-sm font-semibold text-[#d4a339]\">\n                      {formatCurrency(order.total_amount || 0, lang)}\n                    </td>\n                    <td className=\"px-4 py-3\">\n                      <span\n                        className={`inline-block px-3 py-1 rounded-lg text-xs font-semibold ${\n                          order.status === 'approved'\n                            ? 'bg-green-100 text-green-700'\n                            : order.status === 'rejected'\n                            ? 'bg-red-100 text-red-700'\n                            : order.status === 'delivered'\n                            ? 'bg-blue-100 text-blue-700'\n                            : 'bg-slate-100 text-slate-700'\n                        }`}\n                      >\n                        {order.status}\n                      </span>\n                    </td>\n                    <td className=\"px-4 py-3 text-sm text-slate-500\">\n                      {formatDate(order.created_at, lang)}\n                    </td>\n                    <td className=\"px-4 py-3 text-center\">\n                      <button\n                        onClick={() => setSelected(order)}\n                        className=\"p-2 rounded hover:bg-slate-200 transition\"\n                        title={t('عرض', 'View')}\n                      >\n                        <Eye size={16} className=\"text-[#0f2460]\" />\n                      </button>\n                    </td>\n                  </tr>\n                ))}\n              </tbody>\n            </table>\n          </div>\n        </div>\n      )}\n    </div>\n  );\n}\n
+import { useState, useEffect } from 'react';
+import { Search, Eye, RefreshCw, AlertCircle } from 'lucide-react';
+import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchOrdersWithDetails, type OrderWithDetails } from '@/lib/supabaseAdmin';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
+
+const ORDER_STATUSES = [
+  { value: 'all', labelAr: 'الكل', labelEn: 'All' },
+  { value: 'pending', labelAr: 'قيد الانتظار', labelEn: 'Pending' },
+  { value: 'under-inquiry', labelAr: 'جاري الاستعلام', labelEn: 'Under Inquiry' },
+  { value: 'admin-review', labelAr: 'مراجعة المدير', labelEn: 'Admin Review' },
+  { value: 'approved', labelAr: 'موافقة نهائية', labelEn: 'Approved' },
+  { value: 'delivered', labelAr: 'تم التسليم', labelEn: 'Delivered' },
+  { value: 'rejected', labelAr: 'مرفوض', labelEn: 'Rejected' },
+];
+
+export default function AdminOrders() {
+  const { t, lang } = useApp();
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<OrderWithDetails[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selected, setSelected] = useState<OrderWithDetails | null>(null);
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  async function loadOrders() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchOrdersWithDetails();
+      setOrders(data);
+      console.log('✅ Orders loaded from Supabase with details:', data);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMsg);
+      toast.error(t('فشل في تحميل الطلبات', 'Failed to load orders'));
+      console.error('❌ Load orders error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filtered = orders.filter((o) => {
+    const matchSearch =
+      !search ||
+      o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+      o.id.toLowerCase().includes(search.toLowerCase()) ||
+      o.customer_phone.includes(search);
+    const matchStatus = statusFilter === 'all' || o.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <div className="bg-white rounded-2xl shadow-card p-12 text-center">
+          <div className="inline-block mb-3">
+            <RefreshCw size={24} className="text-[#0f2460] animate-spin" />
+          </div>
+          <p className="text-slate-500">{t('جاري التحميل...', 'Loading...')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-red-900 text-sm font-medium">{error}</p>
+            <button onClick={loadOrders} className="text-red-700 hover:underline text-xs mt-1">
+              {t('حاول مرة أخرى', 'Try again')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-black text-[#0f2460]">{t('الطلبات', 'Orders')}</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {t(`إجمالي: ${orders.length} طلب`, `Total: ${orders.length} orders`)}
+          </p>
+        </div>
+        <button
+          onClick={loadOrders}
+          className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 transition"
+          title={t('تحديث', 'Refresh')}
+        >
+          <RefreshCw size={18} className="text-[#0f2460]" />
+        </button>
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        <div className="flex-1 min-w-[200px] relative">
+          <Search size={16} className="absolute left-3 top-3 text-slate-400" />
+          <input
+            type="text"
+            placeholder={t('ابحث عن طلب...', 'Search orders...')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0f2460]/20"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0f2460]/20 text-sm"
+        >
+          {ORDER_STATUSES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {lang === 'ar' ? s.labelAr : s.labelEn}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-card p-12 text-center">
+          <p className="text-slate-400">{t('لا توجد طلبات', 'No orders')}</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
+                    {t('رقم الطلب', 'Order ID')}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
+                    {t('العميل', 'Customer')}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
+                    {t('المنتج', 'Product')}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
+                    {t('المبلغ', 'Amount')}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
+                    {t('الحالة', 'Status')}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
+                    {t('التاريخ', 'Date')}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-slate-600">
+                    {t('إجراء', 'Action')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((order) => (
+                  <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                    <td className="px-4 py-3 text-sm font-mono text-[#0f2460]">{order.id}</td>
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[#0f2460]">{order.customer_name}</p>
+                        <p className="text-xs text-slate-500">{order.customer_phone}</p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {order.products
+                        ? lang === 'ar'
+                          ? order.products.name_ar
+                          : order.products.name_en
+                        : t('منتج غير معروف', 'Unknown Product')}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-[#d4a339]">
+                      {formatCurrency(order.total_amount || 0, lang)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block px-3 py-1 rounded-lg text-xs font-semibold ${
+                          order.status === 'approved'
+                            ? 'bg-green-100 text-green-700'
+                            : order.status === 'rejected'
+                            ? 'bg-red-100 text-red-700'
+                            : order.status === 'delivered'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-500">
+                      {formatDate(order.created_at, lang)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => setSelected(order)}
+                        className="p-2 rounded hover:bg-slate-200 transition"
+                        title={t('عرض', 'View')}
+                      >
+                        <Eye size={16} className="text-[#0f2460]" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
