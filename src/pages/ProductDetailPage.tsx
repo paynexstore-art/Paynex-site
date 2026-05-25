@@ -126,42 +126,6 @@ export default function ProductDetailPage() {
     );
   }
 
-  // حالة المنتج غير موجود
-  if (!loading && !product) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl shadow-card p-8 text-center max-w-md">
-            <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">{t('المنتج غير موجود', 'Product Not Found')}</h2>
-            <p className="text-slate-600 mb-6">
-              {error 
-                ? t(`خطأ: ${error}`, `Error: ${error}`)
-                : t('عذراً، المنتج الذي تبحث عنه غير متوفر أو تم حذفه.', 'Sorry, the product you are looking for is not available or has been deleted.')
-              }
-            </p>
-            <div className="flex gap-3 flex-col">
-              <button
-                onClick={() => navigate('/products')}
-                className="btn-primary w-full"
-              >
-                {t('العودة للمنتجات', 'Back to Products')}
-              </button>
-              <button
-                onClick={() => navigate('/')}
-                className="btn-secondary w-full"
-              >
-                {t('الذهاب للرئيسية', 'Go to Home')}
-              </button>
-            </div>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
   const name = lang === 'ar' ? product.nameAr : product.nameEn;
   const desc = lang === 'ar' ? product.descriptionAr : product.descriptionEn;
 
