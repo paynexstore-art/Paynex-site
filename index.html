@@ -17,69 +17,8 @@
     <meta property="og:url" content="https://paynexsmart.com" />
     <meta property="og:site_name" content="PayNexSmart باينكس سمارت" />
     <meta property="og:title" content="PayNexSmart باينكس سمارت - حلول التقسيط الذكي" />
-    <meta property="og:description" content="اشتري منتجاتك المفضلة بأقساط شهرية ميسرة بدون فوائد. خدمة تقسيط ذكية في جميع محافظات مصر." />
-    <meta property="og:image" content="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:locale" content="ar_EG" />
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@paynexsmart" />
-    <meta name="twitter:title" content="PayNexSmart باينكس سمارت - حلول التقسيط الذكي" />
-    <meta name="twitter:description" content="اشتري منتجاتك المفضلة بأقساط شهرية ميسرة بدون فوائد على باينكس." />
-    <meta name="twitter:image" content="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop" />
-    <!-- Monetag -->
-    <meta name="monetag" content="e026b89810bee9f8769af7bb25322471">
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="canonical" href="https://paynexsmart.com" />
-    <!-- Preconnect for performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Schema.org Structured Data -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FinancialService",
-      "name": "PayNexSmart باينكس سمارت",
-      "url": "https://paynexsmart.com",
-      "logo": "https://paynexsmart.com/icons/icon-192.png",
-      "description": "حلول التقسيط الذكي المتطورة — اشتري الآن وادفع بالأقساط الشهرية الميسرة",
-      "areaServed": {
-        "@type": "Country",
-        "name": "Egypt"
-      },
-      "availableChannel": {
-        "@type": "ServiceChannel",
-        "serviceUrl": "https://paynexsmart.com"
-      },
-      "sameAs": [
-        "https://facebook.com/paynexsmart",
-        "https://instagram.com/paynexsmart"
-      ]
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "PayNexSmart باينكس سمارت",
-      "url": "https://paynexsmart.com",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://paynexsmart.com/products?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    }
-    </script>
-    <!-- Google Tag Manager placeholder (activate when ready) -->
-    <!-- <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-XXXXXXX');</script> -->
-    <!-- Google AdSense placeholder (activate when approved) -->
-    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
     <!-- Custom Header Code (injected by admin) -->
     <script>
-      // Admin-injected custom header code
       (function() {
         const code = localStorage.getItem('paynexsmart_custom_header_code');
         if (code) { 
@@ -94,10 +33,9 @@
     </script>
   </head>
   <body>
-    <!-- Google Tag Manager (noscript) placeholder -->
-    <!-- <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript> -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
     <!-- Custom Footer Code (injected by admin) -->
     <script>
       (function() {
@@ -111,10 +49,21 @@
           } 
         }
       })();
+    </script>
+
+    <!-- أداة الفحص للموبايل Eruda -->
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>
-  // تفعيل الأداة فقط في الموقع المرفوع أو عند الحاجة
-  eruda.init();
-</script>
+    <script>
+      try {
+        eruda.init();
+        setTimeout(function() {
+          if (typeof eruda !== 'undefined' && eruda._container) {
+            eruda._container.style.zIndex = "999999";
+          }
+        }, 1000);
+      } catch(e) {
+        console.error('Eruda error:', e);
+      }
+    </script>
   </body>
 </html>
