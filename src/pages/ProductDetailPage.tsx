@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
 import { ArrowRight, Shield, Clock, CheckCircle, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import InstallmentCalculator from '@/components/features/InstallmentCalculator';
 import { useApp } from '@/contexts/AppContext';
-import { getProducts } from '@/lib/storage';
 import { formatCurrency } from '@/lib/utils';
 import type { Product } from '@/types';
 import type { InstallmentPlan } from '@/lib/installment';
+
+// Direct Supabase client initialization (self-contained, no external file dependencies)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -16,19 +21,95 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [imgIndex, setImgIndex] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState<ReturnType<typeof import('@/lib/installment').calculateInstallment> | null>(null);
 
+  // Fetch product details from Supabase by ID
   useEffect(() => {
-    setLoading(true);
-    const found = getProducts().find(p => p.id === id);
-    if (!found) {
-      setProduct(null);
-    } else {
-      setProduct(found);
+    async function fetchProduct() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        if (!id) {
+          setProduct(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log(`🔄 Fetching product with ID: ${id}`);
+        console.log('Supabase URL:', supabaseUrl ? '✅ Configured' : '❌ Missing');
+        console.log('Supabase Key:', supabaseAnonKey ? '✅ Configured' : '❌ Missing');
+
+        // Fetch product by ID from Supabase
+        const { data, error: queryError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single(); // Expect exactly one result
+
+        if (queryError) {
+          if (queryError.code === 'PGRST116') {
+            // No rows found
+            console.warn(`⚠️ Product not found for ID: ${id}`);
+            setProduct(null);
+          } else {
+            console.error('❌ Error fetching product from Supabase:', queryError);
+            setError(`Failed to load product: ${queryError.message}`);
+          }
+          setLoading(false);
+          return;
+        }
+
+        if (!data) {
+          console.warn(`⚠️ No product data returned for ID: ${id}`);
+          setProduct(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log('📊 Raw product data from Supabase:', data);
+
+        // Manual mapping from Supabase underscored columns to Product interface
+        const mappedProduct: Product = {
+          id: data.id || '',
+          name: data.name_en || data.name_ar || '',
+          nameAr: data.name_ar || data.name_en || '',
+          nameEn: data.name_en || data.name_ar || '',
+          description: data.description_en || data.description_ar || '',
+          descriptionAr: data.description_ar || data.description_en || '',
+          descriptionEn: data.description_en || data.description_ar || '',
+          price: Number(data.price) || 0,
+          originalPrice: data.original_price ? Number(data.original_price) : undefined,
+          images: Array.isArray(data.image_url) ? data.image_url : [data.image_url || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop'],
+          category: data.category_en || data.category || 'other',
+          categoryAr: data.category_ar || data.category || 'أخرى',
+          brand: data.brand || '',
+          source: data.source || 'manual',
+          sourceId: data.source_id,
+          sourceUrl: data.source_url,
+          isActive: data.is_active || false,
+          stock: Number(data.stock) || 0,
+          specs: data.specs && typeof data.specs === 'object' ? data.specs : {},
+          lastSyncedAt: data.last_synced_at,
+          createdAt: data.created_at || new Date().toISOString(),
+          adminPriceOverride: data.admin_price_override ? Number(data.admin_price_override) : undefined,
+        };
+
+        console.log('✅ Mapped product:', mappedProduct);
+        setProduct(mappedProduct);
+      } catch (err) {
+        console.error('❌ Unexpected error fetching product:', err);
+        setError('An unexpected error occurred while loading the product');
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
     }
-    setLoading(false);
-  }, [id, navigate]);
+
+    fetchProduct();
+  }, [id]);
 
   // حالة التحميل
   if (loading) {
@@ -54,7 +135,12 @@ export default function ProductDetailPage() {
           <div className="bg-white rounded-2xl shadow-card p-8 text-center max-w-md">
             <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
             <h2 className="text-2xl font-bold text-slate-800 mb-2">{t('المنتج غير موجود', 'Product Not Found')}</h2>
-            <p className="text-slate-600 mb-6">{t('عذراً، المنتج الذي تبحث عنه غير متوفر أو تم حذفه.', 'Sorry, the product you are looking for is not available or has been deleted.')}</p>
+            <p className="text-slate-600 mb-6">
+              {error 
+                ? t(`خطأ: ${error}`, `Error: ${error}`)
+                : t('عذراً، المنتج الذي تبحث عنه غير متوفر أو تم حذفه.', 'Sorry, the product you are looking for is not available or has been deleted.')
+              }
+            </p>
             <div className="flex gap-3 flex-col">
               <button
                 onClick={() => navigate('/products')}
