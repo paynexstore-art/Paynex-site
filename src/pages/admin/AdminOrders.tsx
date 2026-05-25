@@ -36,7 +36,7 @@ export default function AdminOrders() {
       setError(null);
       const data = await fetchOrdersWithDetails();
       setOrders(data);
-      console.log('✅ Orders loaded from Supabase with details:', data);
+      console.log('✅ Orders loaded from Supabase:', data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMsg);
@@ -141,9 +141,6 @@ export default function AdminOrders() {
                     {t('العميل', 'Customer')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
-                    {t('المنتج', 'Product')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
                     {t('المبلغ', 'Amount')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-bold text-slate-600">
@@ -163,16 +160,9 @@ export default function AdminOrders() {
                     <td className="px-4 py-3 text-sm font-mono text-[#0f2460]">{order.id}</td>
                     <td className="px-4 py-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#0f2460]">{order.customer_name}</p>
+                        <p className="text-sm font-semibold text-[#0f2460]">{order.customer_name || 'عميل باينكس'}</p>
                         <p className="text-xs text-slate-500">{order.customer_phone}</p>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {order.products
-                        ? lang === 'ar'
-                          ? order.products.name_ar
-                          : order.products.name_en
-                        : t('منتج غير معروف', 'Unknown Product')}
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-[#d4a339]">
                       {formatCurrency(order.total_amount || 0, lang)}
