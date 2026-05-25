@@ -1,17 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import InstallmentCalculator from '@/components/features/InstallmentCalculator';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { getProducts, addOrder, getSupervisorByProvince } from '@/lib/storage';
+import { addOrder, getSupervisorByProvince } from '@/lib/storage';
 import { calculateInstallment } from '@/lib/installment';
 import { formatCurrency } from '@/lib/utils';
 import { PROVINCES } from '@/constants/data';
 import type { Product, Order, InstallmentPlan } from '@/types';
 import { toast } from 'sonner';
+
+// Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type Step = 'product' | 'plan' | 'info' | 'success';
 
@@ -50,33 +56,93 @@ export default function OrderFormPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // ✅ Load product from getProducts() - NO REDIRECT
+  // ✅ Load product from Supabase - same as ProductDetailPage
   useEffect(() => {
-    try {
-      setLoadingProduct(true);
-      const foundProduct = getProducts().find((pr) => pr.id === productId);
-      
-      if (foundProduct) {
-        setProduct(foundProduct);
+    async function fetchProduct() {
+      try {
+        setLoadingProduct(true);
+
+        if (!productId) {
+          console.warn('⚠️ No productId provided');
+          setProduct(null);
+          setLoadingProduct(false);
+          return;
+        }
+
+        console.log(`🔄 OrderFormPage: Fetching product with ID: ${productId}`);
+
+        // Fetch product by ID from Supabase
+        const { data, error: queryError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', productId)
+          .single();
+
+        if (queryError) {
+          if (queryError.code === 'PGRST116') {
+            console.warn(`⚠️ Product not found for ID: ${productId}`);
+            setProduct(null);
+          } else {
+            console.error('❌ Error fetching product from Supabase:', queryError);
+            setProduct(null);
+          }
+          setLoadingProduct(false);
+          return;
+        }
+
+        if (!data) {
+          console.warn(`⚠️ No product data returned for ID: ${productId}`);
+          setProduct(null);
+          setLoadingProduct(false);
+          return;
+        }
+
+        // Manual mapping from Supabase underscored columns to Product interface
+        const mappedProduct: Product = {
+          id: data.id || '',
+          name: data.name_en || data.name_ar || '',
+          nameAr: data.name_ar || data.name_en || '',
+          nameEn: data.name_en || data.name_ar || '',
+          description: data.description_en || data.description_ar || '',
+          descriptionAr: data.description_ar || data.description_en || '',
+          descriptionEn: data.description_en || data.description_ar || '',
+          price: Number(data.price) || 0,
+          originalPrice: data.original_price ? Number(data.original_price) : undefined,
+          images: Array.isArray(data.image_url) ? data.image_url : [data.image_url || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop'],
+          category: data.category_en || data.category || 'other',
+          categoryAr: data.category_ar || data.category || 'أخرى',
+          brand: data.brand || '',
+          source: data.source || 'manual',
+          sourceId: data.source_id,
+          sourceUrl: data.source_url,
+          isActive: data.is_active || false,
+          stock: Number(data.stock) || 0,
+          specs: data.specs && typeof data.specs === 'object' ? data.specs : {},
+          lastSyncedAt: data.last_synced_at,
+          createdAt: data.created_at || new Date().toISOString(),
+          adminPriceOverride: data.admin_price_override ? Number(data.admin_price_override) : undefined,
+        };
+
+        console.log('✅ OrderFormPage: Product loaded:', mappedProduct.nameAr);
+        setProduct(mappedProduct);
+        
         // Update plan with actual product price
         setPlan(
           calculateInstallment({
-            productPrice: foundProduct.price,
+            productPrice: mappedProduct.price,
             downPayment: Number(searchParams.get('down') ?? 0),
             months: Number(searchParams.get('months') ?? 12),
           })
         );
-      } else {
-        // Product not found - show error but STAY on page
-        console.warn(`⚠️ Product not found with ID: ${productId}`);
+      } catch (err) {
+        console.error('Error loading product:', err);
         setProduct(null);
+      } finally {
+        setLoadingProduct(false);
       }
-    } catch (err) {
-      console.error('Error loading product:', err);
-      setProduct(null);
-    } finally {
-      setLoadingProduct(false);
     }
+
+    fetchProduct();
   }, [productId, searchParams]);
 
   // Update user form data when user changes
