@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
   }
 
   // حالة المنتج غير موجود
-  if (!product) {
+  if (!loading && !product) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <Navbar />
