@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
 import {
   ChevronLeft, ChevronRight, Shield, Zap, CreditCard, Users, Star,
   CheckCircle, TrendingUp, MapPin, Calculator
@@ -10,23 +11,27 @@ import ProductCard from '@/components/features/ProductCard';
 import InstallmentCalculator from '@/components/features/InstallmentCalculator';
 import PWAInstallBanner from '@/components/features/PWAInstallBanner';
 import { useApp } from '@/contexts/AppContext';
-import { getProducts } from '@/lib/storage';
 import { PRODUCT_CATEGORIES } from '@/constants/categories';
 import type { Product } from '@/types';
 import paynexHero from '@/assets/paynex-hero.jpg';
 
+// Direct Supabase client initialization (self-contained, no external file dependencies)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 /* ── 20 Testimonials ── */
 const TESTIMONIALS = [
-  { name: 'أحمد محمد', province: 'القاهرة', text: 'خدمة رائعة! حصلت على موبايلي بقسط شهري بسيط وبدون أي مشاكل. تجربة من الذهب حقاً.' },
-  { name: 'سارة علي', province: 'الجيزة', text: 'المشرف كان محترماً جداً وإجراءات سريعة. باينكس غيرت فكرتي عن التقسيط تماماً.' },
+  { name: 'أحمد محمد', province: 'القاهرة', text: 'خدمة رائعة! حصلت على موبايلي بقسط شهري بسيط وبدون أي مشاكل. تجربة من الذ' },
+  { name: 'سارة علي', province: 'الجيزة', text: 'المشرف كان محترماً جداً وإجراءات سريعة. باينكس غيرت فكرتي عن التقسيط تمام' },
   { name: 'محمود حسن', province: 'الإسكندرية', text: 'أفضل خدمة تقسيط في مصر. أسعار مناسبة وخدمة عملاء استثنائية.' },
   { name: 'فاطمة إبراهيم', province: 'الشرقية', text: 'كنت محتاجة لابتوب للشغل وباينكس حلت مشكلتي في أسرع وقت ممكن.' },
-  { name: 'عمر خالد', province: 'الإسماعيلية', text: 'اشتريت تليفزيون كبير وقسطته على 24 شهر، الدفعة الشهرية خفيفة جداً عليّ.' },
+  { name: 'عمر خالد', province: 'الإسماعيلية', text: 'اشتريت تليفزيون كبير وقسطته على 24 شهر، الدفعة الشهرية خفيفة جداً عل' },
   { name: 'منى سعيد', province: 'المنيا', text: 'تعامل راقي من المشرف وسرعة في إتمام الطلب. نصحت كل أصحابي بباينكس.' },
   { name: 'كريم رمضان', province: 'أسيوط', text: 'بدون فوائد حقيقي! حصلت على PS5 بسهولة تامة. الكلام ده صحيح فعلاً.' },
   { name: 'هدى عبد الله', province: 'قنا', text: 'خدمة عملاء ممتازة والمشرف رد في أقل من ساعة على جميع استفساراتي.' },
   { name: 'أيمن طه', province: 'سوهاج', text: 'الموقع سهل جداً وواضح. قدمت الطلب واتقبل في نفس اليوم تقريباً.' },
-  { name: 'نهاد مصطفى', province: 'بني سويف', text: 'اشتريت غسالة جديدة لبيتي بدون أي ضغط مالي. شكراً باينكس على الخدمة الرائعة.' },
+  { name: 'نهاد مصطفى', province: 'بني سويف', text: 'اشتريت غسالة جديدة لبيتي بدون أي ضغط مالي. شكراً باينكس على الخدمة الر' },
 ];
 
 const BRANDS = [
@@ -42,31 +47,106 @@ export default function HomePage() {
   const [productsByCategory, setProductsByCategory] = useState<Map<string, Product[]>>(new Map());
   const [count1, setCount1] = useState(0);
   const [count2, setCount2] = useState(0);
+  const [loading, setLoading] = useState(true);
   const statsRef = useRef<HTMLDivElement>(null);
   const countersTriggered = useRef(false);
 
-  // Load all active products and group by category
+  // Fetch live products from Supabase and group by category
   useEffect(() => {
-    const allProducts = getProducts().filter(p => p.isActive);
-    setProducts(allProducts);
+    async function fetchProducts() {
+      try {
+        setLoading(true);
 
-    // Group products by category
-    const grouped = new Map<string, Product[]>();
-    allProducts.forEach(p => {
-      if (!grouped.has(p.category)) {
-        grouped.set(p.category, []);
+        console.log('🔄 Fetching live products from Supabase...');
+        console.log('Supabase URL:', supabaseUrl ? '✅ Configured' : '❌ Missing');
+        console.log('Supabase Key:', supabaseAnonKey ? '✅ Configured' : '❌ Missing');
+
+        // Fetch active products ordered by newest first
+        const { data, error: queryError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(100); // Limit to prevent excessive data transfer
+
+        if (queryError) {
+          console.error('❌ Error fetching products from Supabase:', queryError);
+          setProducts([]);
+          setProductsByCategory(new Map());
+          setLoading(false);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          console.warn('⚠️ No active products found in Supabase');
+          setProducts([]);
+          setProductsByCategory(new Map());
+          setLoading(false);
+          return;
+        }
+
+        console.log(`📊 Fetched ${data.length} active products from Supabase`);
+
+        // Manual mapping from Supabase underscored columns to Product interface
+        const mappedProducts: Product[] = data.map((item: any) => ({
+          id: item.id || '',
+          name: item.name_en || item.name_ar || '',
+          nameAr: item.name_ar || item.name_en || '',
+          nameEn: item.name_en || item.name_ar || '',
+          description: item.description_en || item.description_ar || '',
+          descriptionAr: item.description_ar || item.description_en || '',
+          descriptionEn: item.description_en || item.description_ar || '',
+          price: Number(item.price) || 0,
+          originalPrice: item.original_price ? Number(item.original_price) : undefined,
+          images: Array.isArray(item.image_url) ? item.image_url : [item.image_url || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop'],
+          category: item.category_en || item.category || 'other',
+          categoryAr: item.category_ar || item.category || 'أخرى',
+          brand: item.brand || '',
+          source: item.source || 'manual',
+          sourceId: item.source_id,
+          sourceUrl: item.source_url,
+          isActive: item.is_active || false,
+          stock: Number(item.stock) || 0,
+          specs: item.specs && typeof item.specs === 'object' ? item.specs : {},
+          lastSyncedAt: item.last_synced_at,
+          createdAt: item.created_at || new Date().toISOString(),
+          adminPriceOverride: item.admin_price_override ? Number(item.admin_price_override) : undefined,
+        }));
+
+        console.log(`✅ Mapped ${mappedProducts.length} products`);
+
+        // Group products by category
+        const grouped = new Map<string, Product[]>();
+        mappedProducts.forEach(p => {
+          if (!grouped.has(p.category)) {
+            grouped.set(p.category, []);
+          }
+          grouped.get(p.category)!.push(p);
+        });
+
+        setProducts(mappedProducts);
+        setProductsByCategory(grouped);
+      } catch (err) {
+        console.error('❌ Unexpected error fetching products:', err);
+        setProducts([]);
+        setProductsByCategory(new Map());
+      } finally {
+        setLoading(false);
       }
-      grouped.get(p.category)!.push(p);
-    });
-    setProductsByCategory(grouped);
+    }
 
-    // Banner rotation
+    fetchProducts();
+  }, []);
+
+  // Banner rotation
+  useEffect(() => {
     const interval = setInterval(() => {
       setBannerIndex(i => (i + 1) % Math.max(settings.banners.filter(b => b.isActive).length, 1));
     }, 5000);
     return () => clearInterval(interval);
   }, [settings.banners]);
 
+  // Animate counters
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting && !countersTriggered.current) {
@@ -301,7 +381,7 @@ export default function HomePage() {
             <div className="space-y-4">
               {steps.map((step, i) => (
                 <div key={i} className="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 hover:border-[#00d4ff]/30 hover:bg-[#00d4ff]/3 transition-all group">
-                  <div className="w-12 h-12 rounded-2xl bg-[#0a1628] text-[#00d4ff] flex items-center justify-center font-black text-lg flex-shrink-0 group-hover:bg-[#00d4ff] group-hover:text-[#0a1628] transition">
+                  <div className="w-12 h-12 rounded-2xl bg-[#0a1628] text-[#00d4ff] flex items-center justify-center font-black text-lg flex-shrink-0 group-hover:bg-[#00d4ff] group-hover:text-[#0a1628]">
                     {step.num}
                   </div>
                   <div>
@@ -325,41 +405,49 @@ export default function HomePage() {
             <p className="text-slate-500 mt-2">{t(`${products.length} منتج بأقساط ميسرة`, `${products.length} products with easy installments`)}</p>
           </div>
 
-          {/* Products by Category */}
-          <div className="space-y-16">
-            {PRODUCT_CATEGORIES.map(category => {
-              const categoryProducts = productsByCategory.get(category.id) || [];
-              if (categoryProducts.length === 0) return null;
+          {loading && (
+            <div className="text-center py-20">
+              <p className="text-2xl font-bold text-slate-400">{t('جاري تحميل المنتجات...', 'Loading products...')}</p>
+            </div>
+          )}
 
-              return (
-                <div key={category.id}>
-                  {/* Category Header */}
-                  <div className="flex items-center gap-3 mb-8 pb-4 border-b-2 border-[#00d4ff]/20">
-                    <span className="text-4xl">{category.icon}</span>
-                    <div>
-                      <h3 className="text-2xl font-black text-[#0a1628]">
-                        {t(category.nameAr, category.nameEn)}
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        {t(`${categoryProducts.length} منتج`, `${categoryProducts.length} products`)}
-                      </p>
+          {!loading && products.length === 0 && (
+            <div className="text-center py-20">
+              <p className="text-2xl font-bold text-slate-400">{t('لا توجد منتجات متاحة', 'No products available')}</p>
+            </div>
+          )}
+
+          {!loading && products.length > 0 && (
+            /* Products by Category */
+            <div className="space-y-16">
+              {PRODUCT_CATEGORIES.map(category => {
+                const categoryProducts = productsByCategory.get(category.id) || [];
+                if (categoryProducts.length === 0) return null;
+
+                return (
+                  <div key={category.id}>
+                    {/* Category Header */}
+                    <div className="flex items-center gap-3 mb-8 pb-4 border-b-2 border-[#00d4ff]/20">
+                      <span className="text-4xl">{category.icon}</span>
+                      <div>
+                        <h3 className="text-2xl font-black text-[#0a1628]">
+                          {t(category.nameAr, category.nameEn)}
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          {t(`${categoryProducts.length} منتج`, `${categoryProducts.length} products`)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Products Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+                      {categoryProducts.map(product => (
+                        <ProductCard key={product.id} product={product} />
+                      ))}
                     </div>
                   </div>
-
-                  {/* Products Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
-                    {categoryProducts.map(product => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {products.length === 0 && (
-            <div className="text-center py-20">
-              <p className="text-2xl font-bold text-slate-400">{t('لا توجد منتجات', 'No products available')}</p>
+                );
+              })}
             </div>
           )}
         </div>
