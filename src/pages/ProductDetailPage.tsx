@@ -125,10 +125,10 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-
-  const name = lang === 'ar' ? product.nameAr : product.nameEn;
-  const desc = lang === 'ar' ? product.descriptionAr : product.descriptionEn;
-
+  
+const name = lang === 'ar' ? product?.nameAr : product?.nameEn;
+const desc = lang === 'ar' ? product?.descriptionAr : product?.descriptionEn;
+  
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
