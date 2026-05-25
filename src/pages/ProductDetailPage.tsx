@@ -194,13 +194,13 @@ export default function ProductDetailPage() {
                 <>
                   <button
                     onClick={() => setImgIndex(i => (i - 1 + product.images.length) % product.images.length)}
-                    className="absolute start-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+                    className="absolute start-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-slate-50 transition-colors"
                   >
                     <ChevronRight size={18} />
                   </button>
                   <button
                     onClick={() => setImgIndex(i => (i + 1) % product.images.length)}
-                    className="absolute end-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+                    className="absolute end-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center hover:bg-slate-50 transition-colors"
                   >
                     <ChevronLeft size={18} />
                   </button>
@@ -246,7 +246,7 @@ export default function ProductDetailPage() {
             {/* Order Button */}
             <button
               onClick={() => navigate(`/order/${product.id}${selectedPlan ? `?months=${selectedPlan.months}&down=${selectedPlan.downPayment}` : ''}`)}
-              className="btn-gold w-full text-base mb-4 flex items-center justify-center gap-2"
+              className="btn-gold w-full text-base mb-4 flex items-center justify-center gap-2 hover:shadow-lg transition-shadow"
             >
               {t('اطلب بالتقسيط الآن', 'Order in Installments Now')}
               <ArrowRight size={18} className="rtl-flip" />
@@ -259,7 +259,7 @@ export default function ProductDetailPage() {
                 { icon: <Clock size={18} />, label: t('موافقة سريعة', 'Fast Approval') },
                 { icon: <CheckCircle size={18} />, label: t('ضمان الجودة', 'Quality') },
               ].map((b, i) => (
-                <div key={i} className="flex flex-col items-center gap-1 p-3 bg-white rounded-xl border border-slate-100 text-center">
+                <div key={i} className="flex flex-col items-center gap-1 p-3 bg-white rounded-xl border border-slate-100 text-center hover:border-[#0f2460]/30 transition-colors">
                   <span className="text-[#d4a339]">{b.icon}</span>
                   <span className="text-xs text-slate-600 font-medium">{b.label}</span>
                 </div>
@@ -285,16 +285,19 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Calculator */}
+        {/* Calculator - في الأسفل مباشرة دون scroll تلقائي */}
         <div className="max-w-2xl mx-auto">
           <h2 className="section-title mb-6 text-center">{t('احسب قسطك', 'Calculate Your Installment')}</h2>
-          <InstallmentCalculator
-            productPrice={product.price}
-            onPlanSelected={(plan) => {
-              setSelectedPlan(plan);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
+          <div className="bg-white rounded-2xl p-6 shadow-card">
+            <InstallmentCalculator
+              productPrice={product.price}
+              onPlanSelected={(plan) => {
+                setSelectedPlan(plan);
+                // تم إزالة window.scrollTo() لمنع الـ scroll التلقائي
+                // العميل يرى الخطة المحدثة على الصفحة دون قلق
+              }}
+            />
+          </div>
         </div>
       </div>
 
