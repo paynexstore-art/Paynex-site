@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { lazy, Suspense, useEffect } from 'react';
 import { initTestUsers } from '@/constants/data';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // ─── Public Pages (eager) ───────────────────────────────────────────
 import HomePage from '@/pages/HomePage';
@@ -140,6 +141,7 @@ export default function App() {
         <AuthProvider>
           <AppInner />
           <Analytics />
+          <SpeedInsights />
         </AuthProvider>
       </AppProvider>
     </ErrorBoundary>
