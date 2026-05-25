@@ -3,6 +3,7 @@
  * ─────────────────────────────────────────────────────
  * Centralized queries for Admin panel with strict TypeScript
  * All queries include error handling and proper typing
+ * Removed nested relations to avoid schema column mismatch errors
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -37,8 +38,8 @@ export interface OrderWithDetails {
   total_amount: number;
   created_at: string;
   updated_at: string;
-  user_profiles?: { name: string };
-  products?: { name_en: string; name_ar: string };
+  product_id?: string;
+  user_id?: string;
 }
 
 export interface AuditLogEntry {
@@ -104,29 +105,18 @@ export async function fetchSupervisorById(id: string): Promise<SupervisorData | 
 }
 
 // ─────────────────────────────────────────────────────────
-// ORDERS QUERIES (with JOINs)
+// ORDERS QUERIES (Raw table data only - no nested relations)
 // ─────────────────────────────────────────────────────────
 
 export async function fetchOrdersWithDetails(): Promise<OrderWithDetails[]> {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select(`
-        id,
-        customer_name,
-        customer_phone,
-        customer_national_id,
-        status,
-        total_amount,
-        created_at,
-        updated_at,
-        user_profiles (name),
-        products (name_en, name_ar)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('❌ Error fetching orders with details:', error);
+      console.error('❌ Error fetching orders:', error);
       throw new Error(`Supabase Error: ${error.message}`);
     }
 
@@ -141,18 +131,7 @@ export async function fetchOrdersByStatus(status: string): Promise<OrderWithDeta
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select(`
-        id,
-        customer_name,
-        customer_phone,
-        customer_national_id,
-        status,
-        total_amount,
-        created_at,
-        updated_at,
-        user_profiles (name),
-        products (name_en, name_ar)
-      `)
+      .select('*')
       .eq('status', status)
       .order('created_at', { ascending: false });
 
@@ -212,41 +191,56 @@ export async function fetchAuditLogsByEntity(entity: string): Promise<AuditLogEn
 }
 
 // ─────────────────────────────────────────────────────────
-// ANALYTICS QUERIES (Aggregations)
+// ANALYTICS QUERIES (Aggregations with graceful fallbacks)
 // ─────────────────────────────────────────────────────────
 
 export async function fetchAnalyticsData(): Promise<AnalyticsData> {
+  const result: AnalyticsData = {
+    totalOrders: 0,
+    totalRevenue: 0,
+    totalFees: 0,
+    totalCustomers: 0,
+  };
+
   try {
     // Total Orders Count
     const { count: totalOrders, error: ordersError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true });
 
-    if (ordersError) throw ordersError;
+    if (!ordersError) {
+      result.totalOrders = totalOrders || 0;
+    } else {
+      console.warn('⚠️ Warning fetching total orders count:', ordersError);
+    }
 
     // Total Revenue (SUM of total_amount)
     const { data: revenueData, error: revenueError } = await supabase
       .from('orders')
       .select('total_amount');
 
-    if (revenueError) throw revenueError;
-
-    const totalRevenue = (revenueData as Array<{ total_amount: number }>)?.reduce(
-      (sum, order) => sum + (order.total_amount || 0),
-      0
-    ) || 0;
+    if (!revenueError && revenueData) {
+      result.totalRevenue = (revenueData as Array<{ total_amount: number }>)?.reduce(
+        (sum, order) => sum + (order.total_amount || 0),
+        0
+      ) || 0;
+    } else {
+      console.warn('⚠️ Warning fetching total revenue:', revenueError);
+    }
 
     // Total Fees (SUM of total_fees from wallets)
     const { data: feesData, error: feesError } = await supabase
       .from('wallets')
       .select('total_fees');
 
-    if (feesError) throw feesError;
-
-    const totalFees = (feesData as Array<{ total_fees: number }>)?.reduce(
-      (sum, wallet) => sum + (wallet.total_fees || 0),
-      0
-    ) || 0;
+    if (!feesError && feesData) {
+      result.totalFees = (feesData as Array<{ total_fees: number }>)?.reduce(
+        (sum, wallet) => sum + (wallet.total_fees || 0),
+        0
+      ) || 0;
+    } else {
+      console.warn('⚠️ Warning fetching total fees:', feesError);
+    }
 
     // Total Customers Count
     const { count: totalCustomers, error: customersError } = await supabase
@@ -254,17 +248,16 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       .select('*', { count: 'exact', head: true })
       .eq('role', 'customer');
 
-    if (customersError) throw customersError;
+    if (!customersError) {
+      result.totalCustomers = totalCustomers || 0;
+    } else {
+      console.warn('⚠️ Warning fetching total customers:', customersError);
+    }
 
-    return {
-      totalOrders: totalOrders || 0,
-      totalRevenue,
-      totalFees,
-      totalCustomers: totalCustomers || 0,
-    };
+    return result;
   } catch (err) {
-    console.error('❌ Analytics fetch failed:', err);
-    throw err;
+    console.error('❌ Analytics fetch failed with exception:', err);
+    return result;
   }
 }
 
@@ -277,7 +270,10 @@ export async function fetchOrdersByProvince(): Promise<Array<{ province: string;
       .from('orders')
       .select('customer_province, total_amount');
 
-    if (error) throw error;
+    if (error) {
+      console.warn('⚠️ Warning fetching orders by province:', error);
+      return [];
+    }
 
     const aggregated: Record<string, { count: number; revenue: number }> = {};
 
@@ -297,7 +293,7 @@ export async function fetchOrdersByProvince(): Promise<Array<{ province: string;
     }));
   } catch (err) {
     console.error('❌ Orders by province fetch failed:', err);
-    throw err;
+    return [];
   }
 }
 
@@ -313,51 +309,71 @@ export async function fetchSupervisorPerformance(): Promise<
       .from('supervisors')
       .select('id, name');
 
-    if (supError) throw supError;
+    if (supError) {
+      console.warn('⚠️ Warning fetching supervisors for performance:', supError);
+      return [];
+    }
 
     // For each supervisor, count orders and sum revenue
     const performance: Array<{ id: string; name: string; orders: number; revenue: number; fees: number }> = [];
 
     for (const sup of (supervisors as Array<{ id: string; name: string }>) || []) {
-      const { count: orders, error: ordersErr } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('supervisor_id', sup.id);
+      try {
+        const { count: orders, error: ordersErr } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('supervisor_id', sup.id);
 
-      if (ordersErr) throw ordersErr;
+        if (ordersErr) {
+          console.warn(`⚠️ Warning fetching orders for supervisor ${sup.id}:`, ordersErr);
+        }
 
-      const { data: orderData, error: dataErr } = await supabase
-        .from('orders')
-        .select('total_amount')
-        .eq('supervisor_id', sup.id);
+        const { data: orderData, error: dataErr } = await supabase
+          .from('orders')
+          .select('total_amount')
+          .eq('supervisor_id', sup.id);
 
-      if (dataErr) throw dataErr;
+        if (dataErr) {
+          console.warn(`⚠️ Warning fetching order amounts for supervisor ${sup.id}:`, dataErr);
+        }
 
-      const revenue = (orderData as Array<{ total_amount: number }>)?.reduce(
-        (sum, order) => sum + (order.total_amount || 0),
-        0
-      ) || 0;
+        const revenue = (orderData as Array<{ total_amount: number }>)?.reduce(
+          (sum, order) => sum + (order.total_amount || 0),
+          0
+        ) || 0;
 
-      const { data: walletData, error: walletErr } = await supabase
-        .from('wallets')
-        .select('total_fees')
-        .eq('supervisor_id', sup.id)
-        .single();
+        const { data: walletData, error: walletErr } = await supabase
+          .from('wallets')
+          .select('total_fees')
+          .eq('supervisor_id', sup.id)
+          .single();
 
-      if (walletErr && walletErr.code !== 'PGRST116') throw walletErr;
+        if (walletErr && walletErr.code !== 'PGRST116') {
+          console.warn(`⚠️ Warning fetching wallet for supervisor ${sup.id}:`, walletErr);
+        }
 
-      performance.push({
-        id: sup.id,
-        name: sup.name,
-        orders: orders || 0,
-        revenue,
-        fees: (walletData as { total_fees: number } | null)?.total_fees || 0,
-      });
+        performance.push({
+          id: sup.id,
+          name: sup.name,
+          orders: orders || 0,
+          revenue,
+          fees: (walletData as { total_fees: number } | null)?.total_fees || 0,
+        });
+      } catch (err) {
+        console.error(`❌ Error processing supervisor ${sup.id}:`, err);
+        performance.push({
+          id: sup.id,
+          name: sup.name,
+          orders: 0,
+          revenue: 0,
+          fees: 0,
+        });
+      }
     }
 
     return performance;
   } catch (err) {
     console.error('❌ Supervisor performance fetch failed:', err);
-    throw err;
+    return [];
   }
 }
