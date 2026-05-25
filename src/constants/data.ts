@@ -310,12 +310,12 @@ export function initTestUsers() {
 
 // ============ ADMIN CREDENTIALS ============
 export const ADMIN_CREDENTIALS = {
-  email: 'admin@paynex.com',
+  email: 'adminqastly@gmail.com',
   password: 'Mm.273199',
   user: {
     id: 'admin-001',
     name: 'المدير العام',
-    email: 'admin@paynex.com',
+    email: 'adminqastly@gmail.com',
     role: 'admin' as const,
     isActive: true,
     createdAt: new Date().toISOString(),
