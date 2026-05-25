@@ -192,7 +192,7 @@ export default function OrderFormPage() {
     return Object.keys(errs).length === 0;
   }
 
-  // ✅ Submit order ONLY AFTER validation
+  // ✅ Submit order ONLY AFTER validation - saves to BOTH localStorage AND Supabase
   async function handleSubmitOrder(): Promise<void> {
     // Validate before submission
     if (!validateInfo()) {
@@ -240,8 +240,30 @@ export default function OrderFormPage() {
         updatedAt: '',
       } as any);
 
-      // ✅ Add order to storage/database
+      // ✅ Add order to localStorage first
       const order = addOrder({ ...orderData, creditScore });
+      
+      // ✅ Save order to Supabase for persistence
+      try {
+        const { error: supabaseError } = await supabase
+          .from('orders')
+          .insert([{
+            client_name: form.name,
+            client_phone: form.phone,
+            national_id: form.nationalId,
+            total_amount: plan.totalAmount,
+            status: 'pending',
+          }]);
+
+        if (supabaseError) {
+          console.error('Supabase order error:', supabaseError);
+          // Don't fail - localStorage order was created
+        } else {
+          console.log('Order saved to Supabase successfully');
+        }
+      } catch (sbErr) {
+        console.error('Failed to save order to Supabase:', sbErr);
+      }
       
       // Update UI to success state
       setSubmittedOrder(order);
@@ -251,7 +273,7 @@ export default function OrderFormPage() {
         t('تم إرسال طلبك بنجاح!', 'Order submitted successfully!')
       );
     } catch (err) {
-      console.error('❌ Error submitting order:', err);
+      console.error('Error submitting order:', err);
       toast.error(t('حدث خطأ أثناء إرسال الطلب', 'Error submitting order'));
     } finally {
       setLoading(false);
