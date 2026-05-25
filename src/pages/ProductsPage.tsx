@@ -4,12 +4,12 @@ import { Filter, Search } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/features/ProductCard';
-import { createClient } from '@supabase/supabase-js'; // استدعاء مباشر لحل مشكلة عدم وجود الملف المساعد
+import { createClient } from '@supabase/supabase-js'; // استدعاء مباشر ومستقل تماماً
 import { PRODUCT_CATEGORIES } from '@/constants/categories';
 import { useApp } from '@/contexts/AppContext';
 import type { Product } from '@/types';
 
-// اتصال مستقل ومباشر لتجنب خطأ مسار الملف المفقود أثناء الـ Build
+// اتصال حي مباشر ومستقل لتجنب أخطاء الملفات الناقصة في الـ Build على Vercel
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -25,6 +25,7 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high'>('newest');
   const [loading, setLoading] = useState(true);
 
+  // جلب البيانات الحية مباشرة من جدول المنتجات في السوبابيز
   useEffect(() => {
     async function fetchProducts() {
       try {
