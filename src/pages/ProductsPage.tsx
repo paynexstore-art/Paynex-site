@@ -65,8 +65,8 @@ export default function ProductsPage() {
               descriptionEn: item.description_en || item.description_ar || '',
               price: Number(item.price) || 0,
               originalPrice: Number(item.original_price) || Number(item.price) || 0,
-              // Use category_en to match PRODUCT_CATEGORIES (phones, laptops, tvs, etc.)
-              category: item.category_en || item.category || 'other',
+              // ✅ FIX: Use category_en but fallback gracefully with case-insensitive matching
+              category: normalizeCategoryValue(item.category_en || item.category || 'other'),
               categoryAr: item.category_ar || item.category || 'أخرى',
               brand: item.brand || '',
               // Handle images: could be array or single image_url
@@ -116,13 +116,94 @@ export default function ProductsPage() {
     fetchProducts();
   }, []);
 
+  // ──────────────────────────────────────────────────────────────
+  // ✅ CATEGORY NORMALIZATION FIX
+  // ──────────────────────────────────────────────────────────────
+  // This function normalizes category values from the database to match
+  // the PRODUCT_CATEGORIES IDs. It handles various formats:
+  // - "Phones" -> "phones"
+  // - "phones" -> "phones"
+  // - "PHONES" -> "phones"
+  // - "Mobiles" -> "phones" (intelligent mapping)
+  // - "Laptops" -> "laptops"
+  // - "TVs" -> "tvs"
+  // - "TV Screens" -> "tvs"
+  // - "Home Appliances" -> "appliances"
+  // ──────────────────────────────────────────────────────────────
+  function normalizeCategoryValue(value: string): string {
+    if (!value) return 'other';
+
+    const normalized = value.toLowerCase().trim();
+
+    // Map database values to PRODUCT_CATEGORIES IDs
+    const categoryMap: Record<string, string> = {
+      'phones': 'phones',
+      'phone': 'phones',
+      'mobiles': 'phones',
+      'mobile': 'phones',
+      'موبايلات': 'phones',
+      'موبايل': 'phones',
+
+      'laptops': 'laptops',
+      'laptop': 'laptops',
+      'computers': 'laptops',
+      'لابتوبات': 'laptops',
+      'لابتوب': 'laptops',
+
+      'tvs': 'tvs',
+      'tv': 'tvs',
+      'televisions': 'tvs',
+      'screens': 'tvs',
+      'monitors': 'tvs',
+      'شاشات': 'tvs',
+      'تليفزيون': 'tvs',
+
+      'appliances': 'appliances',
+      'home appliances': 'appliances',
+      'household': 'appliances',
+      'أجهزة منزلية': 'appliances',
+
+      'gaming': 'gaming',
+      'games': 'gaming',
+      'ألعاب': 'gaming',
+
+      'audio': 'audio',
+      'speakers': 'audio',
+      'headphones': 'audio',
+      'أجهزة صوت': 'audio',
+
+      'cameras': 'cameras',
+      'camera': 'cameras',
+      'كاميرات': 'cameras',
+
+      'accessories': 'accessories',
+      'اكسسوارات': 'accessories',
+    };
+
+    // Try exact match first
+    if (categoryMap[normalized]) {
+      return categoryMap[normalized];
+    }
+
+    // Try partial match
+    for (const [key, id] of Object.entries(categoryMap)) {
+      if (normalized.includes(key) || key.includes(normalized)) {
+        return id;
+      }
+    }
+
+    // Default to 'other'
+    return 'other';
+  }
+
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    // Filter by category (use product.category which is now category_en)
+    // ✅ FIX: Filter by category with normalized comparison
     if (selectedCategory) {
       result = result.filter(p => p.category === selectedCategory);
+      console.log(`🔍 Filtered by category "${selectedCategory}": ${result.length} products found`);
     }
 
     // Filter by search term
@@ -158,7 +239,7 @@ export default function ProductsPage() {
   const groupedByCategory = useMemo(() => {
     const groups: { [key: string]: Product[] } = {};
     filteredProducts.forEach(product => {
-      // Group by product.category (which is category_en)
+      // Group by product.category (which is normalized)
       const categoryId = product.category || 'other';
       if (!groups[categoryId]) {
         groups[categoryId] = [];
@@ -275,6 +356,14 @@ export default function ProductsPage() {
             <p className="text-slate-400 text-sm">
               {t('جرب تغيير خيارات الفلترة أو كتابة كلمة بحث أخرى', 'Try changing the filters or search term')}
             </p>
+            {selectedCategory && (
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className="mt-4 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-300 transition-colors"
+              >
+                {t('مسح الفلاتر', 'Clear Filters')}
+              </button>
+            )}
           </div>
         ) : (
           /* Products Grid Grouped by Category */
