@@ -18,7 +18,7 @@ export default function AdminAnalytics() {
     Array<{ id: string; name: string; orders: number; revenue: number; fees: number }>
   >([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Fetch all analytics data on component mount
   useEffect(() => {
@@ -28,13 +28,45 @@ export default function AdminAnalytics() {
   async function loadAnalytics() {
     try {
       setLoading(true);
-      setError(null);
+      setErrors({});
 
-      const [analyticsData, provinces, performance] = await Promise.all([
-        fetchAnalyticsData(),
-        fetchOrdersByProvince(),
-        fetchSupervisorPerformance(),
-      ]);
+      // Fetch each metric independently so one failure doesn't crash the whole dashboard
+      let analyticsData: AnalyticsData | null = null;
+      let provinces: Array<{ province: string; count: number; revenue: number }> = [];
+      let performance: Array<{ id: string; name: string; orders: number; revenue: number; fees: number }> = [];
+
+      // Fetch analytics
+      try {
+        analyticsData = await fetchAnalyticsData();
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        setErrors((prev) => ({ ...prev, analytics: errorMsg }));
+        console.error('❌ Analytics fetch error:', err);
+        analyticsData = {
+          totalOrders: 0,
+          totalRevenue: 0,
+          totalFees: 0,
+          totalCustomers: 0,
+        };
+      }
+
+      // Fetch orders by province
+      try {
+        provinces = await fetchOrdersByProvince();
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        setErrors((prev) => ({ ...prev, provinces: errorMsg }));
+        console.error('❌ Provinces fetch error:', err);
+      }
+
+      // Fetch supervisor performance
+      try {
+        performance = await fetchSupervisorPerformance();
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        setErrors((prev) => ({ ...prev, performance: errorMsg }));
+        console.error('❌ Performance fetch error:', err);
+      }
 
       setAnalytics(analyticsData);
       setProvinceData(provinces);
@@ -43,15 +75,21 @@ export default function AdminAnalytics() {
       console.log('✅ Analytics data loaded:', { analyticsData, provinces, performance });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMsg);
       toast.error(t('فشل في تحميل الإحصائيات', 'Failed to load analytics'));
       console.error('❌ Load analytics error:', err);
+      // Set default empty analytics to allow partial rendering
+      setAnalytics({
+        totalOrders: 0,
+        totalRevenue: 0,
+        totalFees: 0,
+        totalCustomers: 0,
+      });
     } finally {
       setLoading(false);
     }
   }
 
-  if (loading || !analytics) {
+  if (loading) {
     return (
       <div className="space-y-5">
         <div className="bg-white rounded-2xl shadow-card p-12 text-center">
@@ -64,20 +102,31 @@ export default function AdminAnalytics() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Error Banner */}
-      {error && (
+  if (!analytics) {
+    return (
+      <div className="space-y-5">
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
           <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-red-900 text-sm font-medium">{error}</p>
+            <p className="text-red-900 text-sm font-medium">{t('فشل في تحميل الإحصائيات', 'Failed to load analytics')}</p>
             <button onClick={loadAnalytics} className="text-red-700 hover:underline text-xs mt-1">
               {t('حاول مرة أخرى', 'Try again')}
             </button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Error Banners for Individual Metrics */}
+      {Object.entries(errors).map(([key, errorMsg]) => (
+        <div key={key} className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex items-center gap-2 text-sm text-yellow-800">
+          <AlertCircle size={16} className="text-yellow-600 flex-shrink-0" />
+          <span>⚠️ {key}: {errorMsg}</span>
+        </div>
+      ))}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -127,7 +176,7 @@ export default function AdminAnalytics() {
           ) : (
             provinceData.slice(0, 5).map((item, i) => {
               const maxCount = Math.max(...provinceData.map((x) => x.count));
-              const percentage = (item.count / maxCount) * 100;
+              const percentage = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
               return (
                 <div key={i}>
                   <div className="flex justify-between text-sm mb-1">
