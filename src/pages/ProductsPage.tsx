@@ -33,6 +33,10 @@ export default function ProductsPage() {
         setLoading(true);
         setError(null);
 
+        console.log('🔄 Fetching products from Supabase...');
+        console.log('Supabase URL:', supabaseUrl ? '✅ Configured' : '❌ Missing');
+        console.log('Supabase Key:', supabaseAnonKey ? '✅ Configured' : '❌ Missing');
+
         // Fetch with correct field name: is_active (not isActive)
         const { data, error: queryError } = await supabase
           .from('products')
@@ -46,37 +50,56 @@ export default function ProductsPage() {
           return;
         }
 
+        console.log('📊 Raw data from Supabase:', data);
+
         if (data && Array.isArray(data) && data.length > 0) {
           // Direct manual mapping to match Product interface exactly
-          const mappedProducts = data.map((item: any) => ({
-            id: item.id || '',
-            name: item.name_en || item.name_ar || '',
-            nameAr: item.name_ar || item.name_en || '',
-            nameEn: item.name_en || item.name_ar || '',
-            description: item.description_en || item.description_ar || '',
-            descriptionAr: item.description_ar || item.description_en || '',
-            descriptionEn: item.description_en || item.description_ar || '',
-            price: Number(item.price) || 0,
-            originalPrice: Number(item.original_price) || Number(item.price) || 0,
-            // Use category_en to match PRODUCT_CATEGORIES (phones, laptops, tvs, etc.)
-            category: item.category_en || item.category || 'other',
-            categoryAr: item.category_ar || item.category || 'أخرى',
-            brand: item.brand || '',
-            // Handle images: could be array or single image_url
-            images: Array.isArray(item.images) 
-              ? item.images.filter((img: any) => img)
-              : [item.image_url].filter(Boolean),
-            stock: Number(item.stock) || 0,
-            isActive: item.is_active === true,
-            source: 'manual' as const,
-            createdAt: item.created_at || new Date().toISOString(),
-            updatedAt: item.updated_at,
-            specs: item.specs || {},
-          } as Product));
+          const mappedProducts = data.map((item: any) => {
+            const mapped: Product = {
+              id: item.id || '',
+              name: item.name_en || item.name_ar || '',
+              nameAr: item.name_ar || item.name_en || '',
+              nameEn: item.name_en || item.name_ar || '',
+              description: item.description_en || item.description_ar || '',
+              descriptionAr: item.description_ar || item.description_en || '',
+              descriptionEn: item.description_en || item.description_ar || '',
+              price: Number(item.price) || 0,
+              originalPrice: Number(item.original_price) || Number(item.price) || 0,
+              // Use category_en to match PRODUCT_CATEGORIES (phones, laptops, tvs, etc.)
+              category: item.category_en || item.category || 'other',
+              categoryAr: item.category_ar || item.category || 'أخرى',
+              brand: item.brand || '',
+              // Handle images: could be array or single image_url
+              images: Array.isArray(item.images) && item.images.length > 0
+                ? item.images.filter((img: any) => img && String(img).trim())
+                : item.image_url ? [item.image_url] : [],
+              stock: Number(item.stock) || 0,
+              isActive: item.is_active === true,
+              source: 'manual' as const,
+              createdAt: item.created_at || new Date().toISOString(),
+              updatedAt: item.updated_at,
+              specs: item.specs || {},
+            };
+            return mapped;
+          });
 
-          console.log('✅ Products loaded successfully:', mappedProducts.length, 'items');
-          console.log('📊 Sample product:', mappedProducts[0]);
-          setProducts(mappedProducts);
+          console.log('✅ Products mapped successfully:', mappedProducts.length, 'items');
+          console.log('📊 First product after mapping:', mappedProducts[0]);
+          
+          // Validate mapping
+          const validProducts = mappedProducts.filter(p => {
+            const isValid = p.id && (p.nameAr || p.nameEn) && p.price >= 0;
+            if (!isValid) {
+              console.warn('⚠️ Invalid product after mapping:', p);
+            }
+            return isValid;
+          });
+
+          if (validProducts.length !== mappedProducts.length) {
+            console.warn(`⚠️ Filtered out ${mappedProducts.length - validProducts.length} invalid products`);
+          }
+
+          setProducts(validProducts);
         } else {
           console.warn('⚠️ No products found in database');
           setProducts([]);
