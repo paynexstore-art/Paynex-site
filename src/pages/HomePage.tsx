@@ -45,11 +45,40 @@ export default function HomePage() {
   const [bannerIndex, setBannerIndex] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsByCategory, setProductsByCategory] = useState<Map<string, Product[]>>(new Map());
+  const [totalProductCount, setTotalProductCount] = useState(0);
   const [count1, setCount1] = useState(0);
   const [count2, setCount2] = useState(0);
   const [loading, setLoading] = useState(true);
   const statsRef = useRef<HTMLDivElement>(null);
   const countersTriggered = useRef(false);
+
+  // Fetch total product count from Supabase
+  useEffect(() => {
+    async function fetchTotalProductCount() {
+      try {
+        console.log('🔄 Fetching total product count from Supabase...');
+
+        // Get only count without fetching all data
+        const { count, error: countError } = await supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true });
+
+        if (countError) {
+          console.error('❌ Error fetching product count:', countError);
+          setTotalProductCount(0);
+        } else {
+          const actualCount = count || 0;
+          console.log(`📊 Total products in database: ${actualCount}`);
+          setTotalProductCount(actualCount);
+        }
+      } catch (err) {
+        console.error('❌ Unexpected error fetching product count:', err);
+        setTotalProductCount(0);
+      }
+    }
+
+    fetchTotalProductCount();
+  }, []);
 
   // Fetch live products from Supabase and group by category
   useEffect(() => {
@@ -57,11 +86,11 @@ export default function HomePage() {
       try {
         setLoading(true);
 
-        console.log('🔄 Fetching live products from Supabase...');
+        console.log('🔄 Fetching live products from Supabase for homepage...');
         console.log('Supabase URL:', supabaseUrl ? '✅ Configured' : '❌ Missing');
         console.log('Supabase Key:', supabaseAnonKey ? '✅ Configured' : '❌ Missing');
 
-        // Fetch active products ordered by newest first
+        // Fetch active products ordered by newest first (limited for homepage display)
         const { data, error: queryError } = await supabase
           .from('products')
           .select('*')
@@ -152,12 +181,12 @@ export default function HomePage() {
       if (entry.isIntersecting && !countersTriggered.current) {
         countersTriggered.current = true;
         animateCounter(setCount1, 1000000, 2200);
-        animateCounter(setCount2, products.length, 2200);
+        animateCounter(setCount2, totalProductCount > 0 ? totalProductCount : products.length, 2200);
       }
     }, { threshold: 0.3 });
     if (statsRef.current) observer.observe(statsRef.current);
     return () => observer.disconnect();
-  }, [products.length]);
+  }, [totalProductCount, products.length]);
 
   function animateCounter(setter: (v: number) => void, target: number, duration: number) {
     const start = Date.now();
@@ -306,7 +335,7 @@ export default function HomePage() {
                 color: 'text-[#00d4ff]',
               },
               {
-                value: count2 >= 100 ? `+${count2}` : count2,
+                value: count2 >= 1000 ? `+${Math.floor(count2 / 1000)}ألف` : count2,
                 label: t('منتج متاح', 'Available Products'),
                 color: 'text-[#c9a84c]',
               },
@@ -402,7 +431,7 @@ export default function HomePage() {
           <div className="mb-10">
             <div className="badge-navy mb-3 inline-block">{t('جميع المنتجات', 'All Products')}</div>
             <h2 className="section-title">{t('أحدث الإلكترونيات المتاحة', 'Latest Available Electronics')}</h2>
-            <p className="text-slate-500 mt-2">{t(`${products.length} منتج بأقساط ميسرة`, `${products.length} products with easy installments`)}</p>
+            <p className="text-slate-500 mt-2">{t(`أكثر من ${totalProductCount > 0 ? totalProductCount.toLocaleString('ar-EG') : products.length} منتج بأقساط ميسرة`, `${totalProductCount > 0 ? totalProductCount.toLocaleString() : products.length} products with easy installments`)}</p>
           </div>
 
           {loading && (
