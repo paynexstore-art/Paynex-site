@@ -14,69 +14,6 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Type definition for database product row
-interface SupabaseProduct {
-  id: string;
-  name_ar: string;
-  name_en: string;
-  description_ar: string;
-  description_en: string;
-  price: number;
-  original_price?: number;
-  image_url: string;
-  images?: string[] | string;
-  brand: string;
-  category_en: string;
-  category_ar: string;
-  is_active: boolean;
-  stock: number;
-  created_at: string;
-  updated_at?: string;
-  monthly_interest_rate?: number;
-}
-
-// Map database fields to Product type
-function mapSupabaseToProduct(item: SupabaseProduct): Product {
-  // Parse images - handle both array and stringified JSON
-  let images: string[] = [];
-  if (item.images) {
-    if (Array.isArray(item.images)) {
-      images = item.images.filter((img): img is string => typeof img === 'string');
-    } else if (typeof item.images === 'string') {
-      try {
-        const parsed = JSON.parse(item.images);
-        images = Array.isArray(parsed) ? parsed : [item.image_url];
-      } catch {
-        images = [item.image_url];
-      }
-    }
-  }
-  
-  if (images.length === 0) {
-    images = [item.image_url];
-  }
-
-  return {
-    id: item.id,
-    name: item.name_en,
-    nameAr: item.name_ar,
-    nameEn: item.name_en,
-    description: item.description_en,
-    descriptionAr: item.description_ar,
-    descriptionEn: item.description_en,
-    price: item.price,
-    originalPrice: item.original_price,
-    images: images,
-    category: item.category_en,
-    categoryAr: item.category_ar,
-    brand: item.brand,
-    source: 'manual',
-    isActive: item.is_active,
-    stock: item.stock,
-    createdAt: item.created_at,
-  };
-}
-
 export default function ProductsPage() {
   const { t } = useApp();
   const [searchParams] = useSearchParams();
@@ -96,6 +33,7 @@ export default function ProductsPage() {
         setLoading(true);
         setError(null);
 
+        // Fetch with correct field name: is_active (not isActive)
         const { data, error: queryError } = await supabase
           .from('products')
           .select('*')
@@ -103,18 +41,49 @@ export default function ProductsPage() {
           .order('created_at', { ascending: false });
 
         if (queryError) {
-          console.error('Error fetching products from Supabase:', queryError);
-          setError(queryError.message);
+          console.error('❌ Error fetching products from Supabase:', queryError);
+          setError(`Failed to load products: ${queryError.message}`);
           return;
         }
 
-        if (data && Array.isArray(data)) {
-          const mappedProducts = data.map(mapSupabaseToProduct);
+        if (data && Array.isArray(data) && data.length > 0) {
+          // Direct manual mapping to match Product interface exactly
+          const mappedProducts = data.map((item: any) => ({
+            id: item.id || '',
+            name: item.name_en || item.name_ar || '',
+            nameAr: item.name_ar || item.name_en || '',
+            nameEn: item.name_en || item.name_ar || '',
+            description: item.description_en || item.description_ar || '',
+            descriptionAr: item.description_ar || item.description_en || '',
+            descriptionEn: item.description_en || item.description_ar || '',
+            price: Number(item.price) || 0,
+            originalPrice: Number(item.original_price) || Number(item.price) || 0,
+            // Use category_en to match PRODUCT_CATEGORIES (phones, laptops, tvs, etc.)
+            category: item.category_en || item.category || 'other',
+            categoryAr: item.category_ar || item.category || 'أخرى',
+            brand: item.brand || '',
+            // Handle images: could be array or single image_url
+            images: Array.isArray(item.images) 
+              ? item.images.filter((img: any) => img)
+              : [item.image_url].filter(Boolean),
+            stock: Number(item.stock) || 0,
+            isActive: item.is_active === true,
+            source: 'manual' as const,
+            createdAt: item.created_at || new Date().toISOString(),
+            updatedAt: item.updated_at,
+            specs: item.specs || {},
+          } as Product));
+
+          console.log('✅ Products loaded successfully:', mappedProducts.length, 'items');
+          console.log('📊 Sample product:', mappedProducts[0]);
           setProducts(mappedProducts);
+        } else {
+          console.warn('⚠️ No products found in database');
+          setProducts([]);
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Unknown error occurred';
-        console.error('Unexpected error fetching products:', err);
+        console.error('❌ Unexpected error fetching products:', err);
         setError(errMsg);
       } finally {
         setLoading(false);
@@ -128,7 +97,7 @@ export default function ProductsPage() {
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    // Filter by category
+    // Filter by category (use product.category which is now category_en)
     if (selectedCategory) {
       result = result.filter(p => p.category === selectedCategory);
     }
@@ -152,7 +121,7 @@ export default function ProductsPage() {
     } else if (sortBy === 'price-high') {
       result.sort((a, b) => b.price - a.price);
     } else {
-      // Newest first (already sorted from Supabase, but re-sort to be safe)
+      // Newest first
       result.sort(
         (a, b) =>
           new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
@@ -166,11 +135,15 @@ export default function ProductsPage() {
   const groupedByCategory = useMemo(() => {
     const groups: { [key: string]: Product[] } = {};
     filteredProducts.forEach(product => {
-      if (!groups[product.category]) {
-        groups[product.category] = [];
+      // Group by product.category (which is category_en)
+      const categoryId = product.category || 'other';
+      if (!groups[categoryId]) {
+        groups[categoryId] = [];
       }
-      groups[product.category].push(product);
+      groups[categoryId].push(product);
     });
+    
+    // Sort groups by category order
     return Object.entries(groups).sort((a, b) => {
       const catA = PRODUCT_CATEGORIES.find(c => c.id === a[0]);
       const catB = PRODUCT_CATEGORIES.find(c => c.id === b[0]);
@@ -182,6 +155,7 @@ export default function ProductsPage() {
     <div className="min-h-screen bg-[#fafafc] text-slate-800">
       <Navbar />
 
+      {/* Hero Section */}
       <div className="bg-gradient-to-r from-[#0a1628] to-[#1a3050] text-white py-12 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#00d4ff/10,transparent_50%)]" />
         <div className="max-w-7xl mx-auto text-center relative z-10">
@@ -254,14 +228,22 @@ export default function ProductsPage() {
             </p>
           </div>
         ) : error ? (
+          /* Error State */
           <div className="text-center bg-white rounded-2xl border border-dashed border-red-200 p-12">
             <span className="text-5xl block mb-4">⚠️</span>
-            <h3 className="text-lg font-bold text-red-600 mb-1">
+            <h3 className="text-lg font-bold text-red-600 mb-2">
               {t('خطأ في تحميل المنتجات', 'Error Loading Products')}
             </h3>
-            <p className="text-slate-500 text-sm">{error}</p>
+            <p className="text-slate-600 text-sm mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+            >
+              {t('أعد المحاولة', 'Retry')}
+            </button>
           </div>
         ) : filteredProducts.length === 0 ? (
+          /* No Products Found */
           <div className="text-center bg-white rounded-2xl border border-dashed border-slate-200 p-12">
             <span className="text-5xl block mb-4">🔍</span>
             <h3 className="text-lg font-bold text-slate-700 mb-1">
@@ -272,6 +254,7 @@ export default function ProductsPage() {
             </p>
           </div>
         ) : (
+          /* Products Grid Grouped by Category */
           <div className="space-y-12">
             {groupedByCategory.map(([categoryId, categoryProducts]) => {
               const category = PRODUCT_CATEGORIES.find(c => c.id === categoryId);
