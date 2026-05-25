@@ -2,6 +2,12 @@ import type { User, UserRole, Supervisor } from '@/types';
 import { ADMIN_CREDENTIALS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId } from './utils';
 import { logLogin } from './auditLog';
+import { createClient } from '@supabase/supabase-js';
+
+// Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const AUTH_KEY   = 'paynex_auth_user';
 const USERS_KEY  = 'paynex_users';
@@ -104,13 +110,14 @@ export function loginWithEmail(
 
 /**
  * User registration — validates inputs and creates customer account
+ * Now saves to BOTH localStorage (for session) AND Supabase (for persistence)
  */
-export function registerUser(data: {
+export async function registerUser(data: {
   name: string;
   email: string;
   phone: string;
   password: string;
-}): { user: User; error?: string } | { user: null; error: string } {
+}): Promise<{ user: User; error?: string } | { user: null; error: string }> {
 
   // Validate inputs
   if (!data.name?.trim()) {
@@ -127,7 +134,7 @@ export function registerUser(data: {
 
   const allUsers = getStoredUsers();
 
-  // Check for duplicate email
+  // Check for duplicate email in localStorage
   if (allUsers.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
     logLogin('unknown', data.email, 'customer', false);
     return { user: null, error: 'البريد الإلكتروني مستخدم بالفعل' };
@@ -149,10 +156,30 @@ export function registerUser(data: {
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`,
   };
 
-  // Save user and password
+  // Save to localStorage for session
   const updated = [...allUsers, newUser];
   saveUsers(updated);
   localStorage.setItem(`paynex_pass_${newUser.id}`, data.password);
+
+  // Save to Supabase for persistence
+  try {
+    const { error: supabaseError } = await supabase
+      .from('user_profiles')
+      .insert([{
+        full_name: newUser.name,
+        phone: newUser.phone || null,
+        national_id: null,
+      }]);
+
+    if (supabaseError) {
+      console.error('Supabase registration error:', supabaseError);
+      // Don't fail the registration - localStorage already has the user
+    } else {
+      console.log('User registered in Supabase successfully');
+    }
+  } catch (err) {
+    console.error('Failed to save user to Supabase:', err);
+  }
 
   setCurrentUser(newUser);
   logLogin(newUser.id, newUser.name, 'customer', true);

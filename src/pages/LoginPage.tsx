@@ -58,15 +58,20 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 500));
-    const result = registerUser({ name, email: regEmail, phone: regPhone, password: regPass });
-    setLoading(false);
-    if (result.user) {
-      setUser(result.user);
-      toast.success(t('تم إنشاء الحساب بنجاح', 'Account created successfully'));
-      navigate('/');
-    } else {
-      toast.error(result.error ?? t('خطأ في إنشاء الحساب', 'Registration error'));
+    try {
+      const result = await registerUser({ name, email: regEmail, phone: regPhone, password: regPass });
+      if (result.user) {
+        setUser(result.user);
+        toast.success(t('تم إنشاء الحساب بنجاح', 'Account created successfully'));
+        navigate('/');
+      } else {
+        toast.error(result.error ?? t('خطأ في إنشاء الحساب', 'Registration error'));
+      }
+    } catch (err) {
+      console.error('Registration error:', err);
+      toast.error(t('خطأ في إنشاء الحساب', 'Registration error'));
+    } finally {
+      setLoading(false);
     }
   }
 

@@ -125,9 +125,32 @@ export default function ProductDetailPage() {
       </div>
     );
   }
+
+  // حالة عدم وجود المنتج
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-[#0f2460] mb-2">{t('المنتج غير موجود', 'Product not found')}</h2>
+            <p className="text-slate-600 mb-4">{error || t('عذراً، لم نتمكن من العثور على هذا المنتج', 'Sorry, we could not find this product')}</p>
+            <button 
+              onClick={() => navigate('/products')}
+              className="btn-navy"
+            >
+              {t('العودة للمنتجات', 'Back to Products')}
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
   
-const name = lang === 'ar' ? product?.nameAr : product?.nameEn;
-const desc = lang === 'ar' ? product?.descriptionAr : product?.descriptionEn;
+  const name = lang === 'ar' ? product.nameAr : product.nameEn;
+  const desc = lang === 'ar' ? product.descriptionAr : product.descriptionEn;
   
   return (
     <div className="min-h-screen bg-slate-50">
