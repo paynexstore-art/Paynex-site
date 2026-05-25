@@ -6,6 +6,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { lazy, Suspense, useEffect } from 'react';
 import { initTestUsers } from '@/constants/data';
+import { Analytics } from '@vercel/analytics/react';
 
 // ─── Public Pages (eager) ───────────────────────────────────────────
 import HomePage from '@/pages/HomePage';
@@ -138,6 +139,7 @@ export default function App() {
       <AppProvider>
         <AuthProvider>
           <AppInner />
+          <Analytics />
         </AuthProvider>
       </AppProvider>
     </ErrorBoundary>
