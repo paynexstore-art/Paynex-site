@@ -3,11 +3,9 @@ import { Save, Palette, Phone, DollarSign, Globe, Lock, AlertCircle, CheckCircle
 import { useApp } from '@/contexts/AppContext';
 import { toast } from 'sonner';
 import { saveSettingsWithSync, getSettingsWithSync, getSyncStatus } from '@/lib/supabaseSync';
-import { useRouter } from 'next/router';
 
 export default function AdminSettings() {
   const { t, settings, updateSettings, user } = useApp();
-  const router = useRouter();
   const [form, setForm] = useState({ ...settings });
   const [activeTab, setActiveTab] = useState<'general' | 'installment' | 'social' | 'colors'>('general');
   const [isSaving, setIsSaving] = useState(false);
@@ -23,9 +21,10 @@ export default function AdminSettings() {
   useEffect(() => {
     if (user && user.role !== 'admin' && user.role !== 'super_admin') {
       toast.error(t('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'You do not have permission to access this page'));
-      router.push('/admin');
+      // Redirect to home
+      window.location.href = '/admin';
     }
-  }, [user, t, router]);
+  }, [user, t]);
 
   async function loadSettings() {
     try {
