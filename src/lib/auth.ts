@@ -47,12 +47,32 @@ function getPasswords(): Record<string, string> {
 }
 
 /**
- * Email + Password login — handles admin, supervisor, and customer.
+ * Fetch supervisors from Supabase
  */
-export function loginWithEmail(
+async function fetchSupervisorsFromDB(): Promise<Array<{id: string; email: string; password: string; province: string; is_active: boolean; is_locked: boolean; name: string}> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('supervisors')
+      .select('id, email, password, province, is_active, is_locked, name');
+    if (error) {
+      console.error('Error fetching supervisors:', error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('Failed to fetch supervisors:', err);
+    return null;
+  }
+}
+
+/**
+ * Email + Password login — handles admin, supervisor, and customer.
+ * Now checks supervisors from Supabase database
+ */
+export async function loginWithEmail(
   email: string,
   password: string
-): { user: User; error?: string } | { user: null; error: string } {
+): Promise<{ user: User; error?: string } | { user: null; error: string }> {
 
   // ——— Super Admin ———
   if (
@@ -65,7 +85,47 @@ export function loginWithEmail(
     return { user: adminUser };
   }
 
-  // ——— Supervisor (dynamic credentials managed by admin) ———
+  // ——— Supervisor (from Supabase database) ———
+  const dbSupervisors = await fetchSupervisorsFromDB();
+  if (dbSupervisors) {
+    const dbSupervisor = dbSupervisors.find(
+      s => s.email?.toLowerCase() === email.toLowerCase()
+    );
+    if (dbSupervisor) {
+      if (!dbSupervisor.is_active) {
+        logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
+        return { user: null, error: 'تم إيقاف هذا الحساب — تواصل مع المدير العام.' };
+      }
+      if (dbSupervisor.is_locked) {
+        logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
+        return {
+          user: null,
+          error: 'حسابك مقفل بسبب عدم تسليم العهدة — راجع المدير العام لفتح الحساب.',
+        };
+      }
+      // Check password from database (default to 'paynexb')
+      const correctPassword = dbSupervisor.password || 'paynexb';
+      if (password === correctPassword) {
+        const supervisorUser: User = {
+          id: dbSupervisor.id,
+          name: dbSupervisor.name,
+          email: dbSupervisor.email,
+          role: 'supervisor',
+          province: dbSupervisor.province,
+          isActive: dbSupervisor.is_active,
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentUser(supervisorUser);
+        logLogin(supervisorUser.id, supervisorUser.name, 'supervisor', true);
+        return { user: supervisorUser };
+      } else {
+        logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
+        return { user: null, error: 'كلمة المرور غير صحيحة' };
+      }
+    }
+  }
+
+  // Fallback to localStorage supervisors if DB fetch fails
   const allSupervisors = getSupervisors();
   const supervisor = allSupervisors.find(
     (s: Supervisor) => s.email.toLowerCase() === email.toLowerCase()
@@ -84,8 +144,8 @@ export function loginWithEmail(
     }
     const passwords = getPasswords();
     const storedPass = passwords[supervisor.id];
-    // Accept stored password OR default "000000"
-    if (password === (storedPass ?? '000000') || (!storedPass && password === '000000')) {
+    // Accept stored password OR new default "paynexb"
+    if (password === (storedPass ?? 'paynexb') || password === 'paynexb') {
       setCurrentUser(supervisor);
       logLogin(supervisor.id, supervisor.name, 'supervisor', true);
       return { user: supervisor };

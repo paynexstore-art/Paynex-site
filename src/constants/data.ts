@@ -260,6 +260,7 @@ export const MOCK_ORDERS: Order[] = [
 ];
 
 // ============ MOCK SUPERVISORS ============
+// NOTE: Real supervisors are loaded from Supabase database with password 'paynexb'
 export const MOCK_SUPERVISORS: Supervisor[] = [
   {
     id: 'sup-001',

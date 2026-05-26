@@ -40,7 +40,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     await new Promise(r => setTimeout(r, 500));
-    const result = loginWithEmail(email, password);
+    const result = await loginWithEmail(email, password);
     setLoading(false);
     if (result.user) {
       setUser(result.user);
