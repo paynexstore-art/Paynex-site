@@ -1,14 +1,27 @@
 import type { User } from '@/types';
 import { logLogin } from './auditLog';
 import { getStoredUsers, saveUsers, setCurrentUser } from './auth';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Supabase client for Google OAuth
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Support both Vite (VITE_) and Next.js (NEXT_PUBLIC_) env vars
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 
+                    import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 
+                        import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-const GOOGLE_REDIRECT_URI = `${window.location.origin}/auth/google/callback`;
+let supabase: SupabaseClient | null = null;
+if (supabaseUrl && supabaseAnonKey) {
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+}
+
+// Use window.location.origin for the redirect URI
+function getRedirectUri(): string {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/auth/google/callback`;
+  }
+  return '';
+}
 
 interface GoogleUserInfo {
   id: string;
@@ -66,23 +79,24 @@ function classifyGoogleError(googleErrorParam: string | null): OAuthError {
  * Check if Supabase is configured for Google OAuth
  */
 export function isGoogleOAuthConfigured(): boolean {
-  return !!(supabaseUrl && supabaseAnonKey);
+  return !!(supabaseUrl && supabaseAnonKey && supabase);
 }
 
 /**
  * Initiate Google OAuth login using Supabase Auth
  */
 export async function initiateGoogleLogin(): Promise<void> {
-  if (!isGoogleOAuthConfigured()) {
+  if (!isGoogleOAuthConfigured() || !supabase) {
     throw new Error('Supabase not configured. Please check your environment variables.');
   }
 
-  console.log('Starting Google OAuth with Supabase...');
+  console.log('[v0] Starting Google OAuth with Supabase...');
+  console.log('[v0] Redirect URI:', getRedirectUri());
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: GOOGLE_REDIRECT_URI,
+      redirectTo: getRedirectUri(),
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
@@ -91,11 +105,11 @@ export async function initiateGoogleLogin(): Promise<void> {
   });
 
   if (error) {
-    console.error('Supabase OAuth error:', error);
+    console.error('[v0] Supabase OAuth error:', error);
     throw new Error(error.message);
   }
 
-  console.log('OAuth initiated, redirecting...', data);
+  console.log('[v0] OAuth initiated, redirecting...', data);
 }
 
 /**
@@ -110,15 +124,23 @@ export async function handleGoogleCallback(
     // Handle explicit Google errors
     if (googleErrorParam) {
       const oauthError = classifyGoogleError(googleErrorParam);
-      console.warn(`Google OAuth error [${oauthError.code}]:`, oauthError.message);
+      console.warn(`[v0] Google OAuth error [${oauthError.code}]:`, oauthError.message);
       return { user: null, error: oauthError.messageAr, oauthError };
+    }
+
+    if (!supabase) {
+      return { 
+        user: null, 
+        error: 'Supabase غير مفعل',
+        oauthError: { code: 'not_configured', message: 'Supabase not configured', messageAr: 'Supabase غير مفعل' }
+      };
     }
 
     // Get session from Supabase (it handles the callback automatically)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
-      console.error('Session error:', sessionError);
+      console.error('[v0] Session error:', sessionError);
       return { 
         user: null, 
         error: 'فشل في الحصول على الجلسة',
@@ -132,10 +154,11 @@ export async function handleGoogleCallback(
       const code = urlParams.get('code');
       
       if (code) {
+        console.log('[v0] Exchanging code for session...');
         const { data: { session: newSession }, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         
         if (exchangeError || !newSession?.user) {
-          console.error('Code exchange error:', exchangeError);
+          console.error('[v0] Code exchange error:', exchangeError);
           return { 
             user: null, 
             error: 'فشل في تبادل الكود للجلسة',
@@ -150,13 +173,13 @@ export async function handleGoogleCallback(
         setCurrentUser(localUser);
         logLogin(localUser.id, localUser.name, 'customer', true);
         
-        console.log('Google login successful via code exchange:', localUser.email);
+        console.log('[v0] Google login successful via code exchange:', localUser.email);
         return { user: localUser };
       }
 
       // Fallback to access token flow (for implicit grant)
       if (accessToken) {
-        console.log('Using access token flow...');
+        console.log('[v0] Using access token flow...');
         const userInfo = await getUserInfoFromGoogle(accessToken);
         if (!userInfo) {
           return { 
@@ -170,7 +193,7 @@ export async function handleGoogleCallback(
         setCurrentUser(localUser);
         logLogin(localUser.id, localUser.name, 'customer', true);
         
-        console.log('Google login successful via access token:', localUser.email);
+        console.log('[v0] Google login successful via access token:', localUser.email);
         return { user: localUser };
       }
 
@@ -187,7 +210,7 @@ export async function handleGoogleCallback(
     setCurrentUser(localUser);
     logLogin(localUser.id, localUser.name, 'customer', true);
     
-    console.log('Google login successful:', localUser.email);
+    console.log('[v0] Google login successful:', localUser.email);
     return { user: localUser };
 
   } catch (error) {
@@ -199,7 +222,7 @@ export async function handleGoogleCallback(
         ? 'خطأ في الشبكة - تأكد من اتصالك بالإنترنت.'
         : 'فشل تسجيل الدخول بـ Google - يرجى المحاولة مرة أخرى.',
     };
-    console.error('Google callback error:', err.message);
+    console.error('[v0] Google callback error:', err.message);
     return { user: null, error: err.messageAr, oauthError: err };
   }
 }
@@ -248,12 +271,12 @@ async function getUserInfoFromGoogle(accessToken: string): Promise<GoogleUserInf
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) {
-      console.error('❌ Google userinfo API returned:', response.status, response.statusText);
+      console.error('[v0] Google userinfo API returned:', response.status, response.statusText);
       return null;
     }
     return await response.json() as GoogleUserInfo;
   } catch (error) {
-    console.error('❌ Network error fetching Google user info:', error);
+    console.error('[v0] Network error fetching Google user info:', error);
     return null;
   }
 }
@@ -275,25 +298,6 @@ function createGoogleUser(googleInfo: GoogleUserInfo): User {
   return user;
 }
 
-function getGoogleUserFromStorage(googleId: string): User | undefined {
-  return getStoredUsers().find(u => u.googleId === googleId);
-}
-
-function updateUserInStorage(user: User): void {
-  const users = getStoredUsers();
-  const index = users.findIndex(u => u.id === user.id);
-  if (index !== -1) {
-    users[index] = user;
-    saveUsers(users);
-  }
-}
-
-function generateRandomState(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
 export function getGoogleRedirectUri(): string {
-  return GOOGLE_REDIRECT_URI;
+  return getRedirectUri();
 }
