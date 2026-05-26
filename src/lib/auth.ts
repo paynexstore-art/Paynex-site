@@ -74,7 +74,7 @@ export async function loginWithEmail(
   password: string
 ): Promise<{ user: User; error?: string } | { user: null; error: string }> {
 
-  // ——— Super Admin ———
+  // --- Super Admin ---
   if (
     email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() &&
     password === ADMIN_CREDENTIALS.password
@@ -85,7 +85,7 @@ export async function loginWithEmail(
     return { user: adminUser };
   }
 
-  // ——— Supervisor (from Supabase database) ———
+  // --- Supervisor (from Supabase database) ---
   const dbSupervisors = await fetchSupervisorsFromDB();
   if (dbSupervisors) {
     const dbSupervisor = dbSupervisors.find(
@@ -94,13 +94,13 @@ export async function loginWithEmail(
     if (dbSupervisor) {
       if (!dbSupervisor.is_active) {
         logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
-        return { user: null, error: 'تم إيقاف هذا الحساب — تواصل مع المدير العام.' };
+        return { user: null, error: 'تم إيقاف هذا الحساب - تواصل مع المدير العام.' };
       }
       if (dbSupervisor.is_locked) {
         logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
         return {
           user: null,
-          error: 'حسابك مقفل بسبب عدم تسليم العهدة — راجع المدير العام لفتح الحساب.',
+          error: 'حسابك مقفل بسبب عدم تسليم العهدة - راجع المدير العام لفتح الحساب.',
         };
       }
       // Check password from database (default to 'paynexb')
@@ -133,13 +133,13 @@ export async function loginWithEmail(
   if (supervisor) {
     if (!supervisor.isActive) {
       logLogin(supervisor.id, supervisor.name, 'supervisor', false);
-      return { user: null, error: 'تم إيقاف هذا الحساب — تواصل مع المدير العام.' };
+      return { user: null, error: 'تم إيقاف هذا الحساب - تواصل مع المدير العام.' };
     }
     if (supervisor.isLocked) {
       logLogin(supervisor.id, supervisor.name, 'supervisor', false);
       return {
         user: null,
-        error: 'حسابك مقفل بسبب عدم تسليم العهدة — راجع المدير العام لفتح الحساب.',
+        error: 'حسابك مقفل بسبب عدم تسليم العهدة - راجع المدير العام لفتح الحساب.',
       };
     }
     const passwords = getPasswords();
@@ -152,7 +152,7 @@ export async function loginWithEmail(
     }
   }
 
-  // ——— Customer (stored in localStorage by registration) ———
+  // --- Customer (stored in localStorage by registration) ---
   const allUsers = getStoredUsers();
   const customer = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (customer) {
