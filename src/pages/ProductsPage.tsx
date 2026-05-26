@@ -117,18 +117,11 @@ export default function ProductsPage() {
   }, []);
 
   // ──────────────────────────────────────────────────────────────
-  // ✅ CATEGORY NORMALIZATION FIX
+  // CATEGORY NORMALIZATION
   // ──────────────────────────────────────────────────────────────
   // This function normalizes category values from the database to match
-  // the PRODUCT_CATEGORIES IDs. It handles various formats:
-  // - "Phones" -> "phones"
-  // - "phones" -> "phones"
-  // - "PHONES" -> "phones"
-  // - "Mobiles" -> "phones" (intelligent mapping)
-  // - "Laptops" -> "laptops"
-  // - "TVs" -> "tvs"
-  // - "TV Screens" -> "tvs"
-  // - "Home Appliances" -> "appliances"
+  // the PRODUCT_CATEGORIES IDs. Database uses: mobile-phones, laptops, 
+  // televisions, tablets, computing, smart-watches, health-beauty, baby-products
   // ──────────────────────────────────────────────────────────────
   function normalizeCategoryValue(value: string): string {
     if (!value) return 'other';
@@ -137,47 +130,68 @@ export default function ProductsPage() {
 
     // Map database values to PRODUCT_CATEGORIES IDs
     const categoryMap: Record<string, string> = {
-      'phones': 'phones',
-      'phone': 'phones',
-      'mobiles': 'phones',
-      'mobile': 'phones',
-      'موبايلات': 'phones',
-      'موبايل': 'phones',
+      // Mobile Phones
+      'mobile-phones': 'mobile-phones',
+      'phones': 'mobile-phones',
+      'phone': 'mobile-phones',
+      'mobiles': 'mobile-phones',
+      'mobile': 'mobile-phones',
+      'موبايلات': 'mobile-phones',
+      'موبايل': 'mobile-phones',
+      'هواتف محمولة': 'mobile-phones',
+      'هواتف': 'mobile-phones',
 
+      // Laptops
       'laptops': 'laptops',
       'laptop': 'laptops',
-      'computers': 'laptops',
       'لابتوبات': 'laptops',
       'لابتوب': 'laptops',
+      'أجهزة لاب توب': 'laptops',
 
-      'tvs': 'tvs',
-      'tv': 'tvs',
-      'televisions': 'tvs',
-      'screens': 'tvs',
-      'monitors': 'tvs',
-      'شاشات': 'tvs',
-      'تليفزيون': 'tvs',
+      // Televisions
+      'televisions': 'televisions',
+      'tvs': 'televisions',
+      'tv': 'televisions',
+      'screens': 'televisions',
+      'monitors': 'televisions',
+      'شاشات': 'televisions',
+      'تليفزيون': 'televisions',
+      'تلفزيونات وشاشات': 'televisions',
+      'تلفزيونات': 'televisions',
 
-      'appliances': 'appliances',
-      'home appliances': 'appliances',
-      'household': 'appliances',
-      'أجهزة منزلية': 'appliances',
+      // Tablets
+      'tablets': 'tablets',
+      'tablet': 'tablets',
+      'تابلت': 'tablets',
 
-      'gaming': 'gaming',
-      'games': 'gaming',
-      'ألعاب': 'gaming',
+      // Computing
+      'computing': 'computing',
+      'computers': 'computing',
+      'computer': 'computing',
+      'أجهزة كمبيوتر ومستلزماتها': 'computing',
+      'كمبيوتر': 'computing',
 
-      'audio': 'audio',
-      'speakers': 'audio',
-      'headphones': 'audio',
-      'أجهزة صوت': 'audio',
+      // Smart Watches
+      'smart-watches': 'smart-watches',
+      'smartwatches': 'smart-watches',
+      'watches': 'smart-watches',
+      'ساعات ذكية': 'smart-watches',
+      'ساعات': 'smart-watches',
 
-      'cameras': 'cameras',
-      'camera': 'cameras',
-      'كاميرات': 'cameras',
+      // Health & Beauty
+      'health-beauty': 'health-beauty',
+      'health': 'health-beauty',
+      'beauty': 'health-beauty',
+      'الصحة والجمال': 'health-beauty',
+      'صحة': 'health-beauty',
+      'جمال': 'health-beauty',
 
-      'accessories': 'accessories',
-      'اكسسوارات': 'accessories',
+      // Baby Products
+      'baby-products': 'baby-products',
+      'baby': 'baby-products',
+      'kids': 'baby-products',
+      'منتجات الأطفال': 'baby-products',
+      'أطفال': 'baby-products',
     };
 
     // Try exact match first
