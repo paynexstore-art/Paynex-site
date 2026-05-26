@@ -9,6 +9,7 @@ export type Permission =
   | 'accept_orders'
   | 'reject_orders'
   | 'deliver_orders'
+  | 'edit_order_details'
   
   // Supervisors
   | 'view_supervisors'
@@ -16,12 +17,15 @@ export type Permission =
   | 'add_supervisor'
   | 'edit_supervisor'
   | 'delete_supervisor'
+  | 'edit_supervisor_password'
+  | 'edit_supervisor_email'
   
   // Wallets
   | 'view_wallets'
   | 'manage_wallets'
   | 'settle_wallets'
   | 'adjust_balance'
+  | 'edit_wallet_settings'
   
   // Analytics
   | 'view_analytics'
@@ -43,10 +47,15 @@ export type Permission =
   | 'manage_fees'
   | 'manage_installment_settings'
   | 'manage_system_settings'
+  | 'edit_admin_password'
+  | 'edit_admin_email'
   
   // System
   | 'manage_system'
-  | 'view_system_logs';
+  | 'view_system_logs'
+  | 'full_admin_access'
+  | 'edit_all_data'
+  | 'manage_admin_users';
 
 export type UserRoleType = 'super_admin' | 'admin' | 'manager' | 'supervisor' | 'customer';
 
@@ -59,17 +68,38 @@ export interface RolePermissions {
 export const ROLE_PERMISSIONS_MAP: Record<UserRoleType, Permission[]> = {
   super_admin: [
     // All permissions
-    'view_orders', 'manage_orders', 'accept_orders', 'reject_orders', 'deliver_orders',
-    'view_supervisors', 'manage_supervisors', 'add_supervisor', 'edit_supervisor', 'delete_supervisor',
-    'view_wallets', 'manage_wallets', 'settle_wallets', 'adjust_balance',
+    'full_admin_access',
+    'edit_all_data',
+    'manage_admin_users',
+    
+    // Orders
+    'view_orders', 'manage_orders', 'accept_orders', 'reject_orders', 'deliver_orders', 'edit_order_details',
+    
+    // Supervisors
+    'view_supervisors', 'manage_supervisors', 'add_supervisor', 'edit_supervisor', 'delete_supervisor', 
+    'edit_supervisor_password', 'edit_supervisor_email',
+    
+    // Wallets
+    'view_wallets', 'manage_wallets', 'settle_wallets', 'adjust_balance', 'edit_wallet_settings',
+    
+    // Analytics
     'view_analytics', 'view_reports', 'export_analytics',
+    
+    // Activities
     'view_supervisor_activity', 'view_audit_log',
+    
+    // SEO & Marketing
     'manage_seo', 'manage_ads', 'manage_marketing', 'manage_campaigns',
+    
+    // Settings
     'manage_settings', 'manage_fees', 'manage_installment_settings', 'manage_system_settings',
+    'edit_admin_password', 'edit_admin_email',
+    
+    // System
     'manage_system', 'view_system_logs',
   ],
   admin: [
-    'view_orders', 'manage_orders', 'accept_orders', 'reject_orders', 'deliver_orders',
+    'view_orders', 'manage_orders', 'accept_orders', 'reject_orders', 'deliver_orders', 'edit_order_details',
     'view_supervisors', 'manage_supervisors', 'add_supervisor', 'edit_supervisor', 'delete_supervisor',
     'view_wallets', 'manage_wallets', 'settle_wallets', 'adjust_balance',
     'view_analytics', 'view_reports',
