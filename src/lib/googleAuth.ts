@@ -1,21 +1,14 @@
 import type { User } from '@/types';
-import { generateId } from './utils';
 import { logLogin } from './auditLog';
 import { getStoredUsers, saveUsers, setCurrentUser } from './auth';
+import { createClient } from '@supabase/supabase-js';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-/**
- * NOTE: VITE_GOOGLE_CLIENT_SECRET must NEVER be placed in frontend code.
- * The Implicit Flow (response_type=token) does not require a client secret.
- * Keep secrets server-side only.
- */
+// Supabase client for Google OAuth
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const GOOGLE_REDIRECT_URI = `${window.location.origin}/auth/google/callback`;
-
-if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_CLIENT_ID')) {
-  console.warn('⚠️ Google OAuth Client ID not configured. See .env.example');
-}
 
 interface GoogleUserInfo {
   id: string;
@@ -50,15 +43,15 @@ function classifyGoogleError(googleErrorParam: string | null): OAuthError {
     case 'access_denied':
       return {
         code: 'popup_closed',
-        message: 'Login cancelled — you closed the Google popup.',
-        messageAr: 'تم إلغاء تسجيل الدخول — أغلقت نافذة Google.',
+        message: 'Login cancelled - you closed the Google popup.',
+        messageAr: 'تم الغاء تسجيل الدخول - اغلقت نافذة Google.',
       };
     case 'invalid_request':
     case 'unauthorized_client':
       return {
         code: 'not_configured',
         message: 'OAuth configuration error. Check your Client ID.',
-        messageAr: 'خطأ في إعداد OAuth — تحقق من Client ID.',
+        messageAr: 'خطأ في اعداد OAuth - تحقق من Client ID.',
       };
     default:
       return {
@@ -70,36 +63,43 @@ function classifyGoogleError(googleErrorParam: string | null): OAuthError {
 }
 
 /**
- * Initiate Google OAuth login using Implicit Flow.
- * Safe for frontend-only deployment — no client secret needed.
+ * Check if Supabase is configured for Google OAuth
  */
-export function initiateGoogleLogin(): void {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_CLIENT_ID')) {
-    throw new Error('Google OAuth not configured. Please set VITE_GOOGLE_CLIENT_ID in your .env file.');
-  }
-
-  const state = generateRandomState();
-  const scope = 'openid email profile';
-
-  sessionStorage.setItem('google_oauth_state', state);
-  sessionStorage.setItem('google_oauth_timestamp', Date.now().toString());
-
-  const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: GOOGLE_REDIRECT_URI,
-    response_type: 'token',
-    scope,
-    state,
-    prompt: 'consent',
-  });
-
-  console.log('🔐 Initiating Google OAuth Implicit Flow...');
-  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+export function isGoogleOAuthConfigured(): boolean {
+  return !!(supabaseUrl && supabaseAnonKey);
 }
 
 /**
- * Handle Google OAuth callback.
- * Supports Implicit Flow (token in URL hash).
+ * Initiate Google OAuth login using Supabase Auth
+ */
+export async function initiateGoogleLogin(): Promise<void> {
+  if (!isGoogleOAuthConfigured()) {
+    throw new Error('Supabase not configured. Please check your environment variables.');
+  }
+
+  console.log('Starting Google OAuth with Supabase...');
+  
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: GOOGLE_REDIRECT_URI,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
+  });
+
+  if (error) {
+    console.error('Supabase OAuth error:', error);
+    throw new Error(error.message);
+  }
+
+  console.log('OAuth initiated, redirecting...', data);
+}
+
+/**
+ * Handle Google OAuth callback using Supabase Auth
  */
 export async function handleGoogleCallback(
   accessToken: string,
@@ -107,107 +107,139 @@ export async function handleGoogleCallback(
   googleErrorParam?: string | null,
 ): Promise<{ user: User; error?: string; oauthError?: OAuthError } | { user: null; error: string; oauthError?: OAuthError }> {
   try {
-    // Handle explicit Google errors (e.g. user cancelled popup)
+    // Handle explicit Google errors
     if (googleErrorParam) {
       const oauthError = classifyGoogleError(googleErrorParam);
-      console.warn(`⚠️ Google OAuth error [${oauthError.code}]:`, oauthError.message);
+      console.warn(`Google OAuth error [${oauthError.code}]:`, oauthError.message);
       return { user: null, error: oauthError.messageAr, oauthError };
     }
 
-    // Verify CSRF state parameter
-    const savedState = sessionStorage.getItem('google_oauth_state');
-    if (!savedState || state !== savedState) {
-      const err: OAuthError = {
-        code: 'csrf_mismatch',
-        message: 'State mismatch — possible CSRF attack. Please try logging in again.',
-        messageAr: 'فشل التحقق الأمني (CSRF) — يرجى إعادة المحاولة.',
+    // Get session from Supabase (it handles the callback automatically)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return { 
+        user: null, 
+        error: 'فشل في الحصول على الجلسة',
+        oauthError: { code: 'unknown', message: sessionError.message, messageAr: 'فشل في الحصول على الجلسة' }
       };
-      console.error('❌', err.message);
-      return { user: null, error: err.messageAr, oauthError: err };
     }
 
-    // Check session expiry (15 min window)
-    const timestamp = parseInt(sessionStorage.getItem('google_oauth_timestamp') || '0');
-    if (Date.now() - timestamp > 15 * 60 * 1000) {
-      const err: OAuthError = {
-        code: 'session_expired',
-        message: 'OAuth session expired (>15 min). Please try again.',
-        messageAr: 'انتهت صلاحية الجلسة — يرجى إعادة تسجيل الدخول.',
+    if (!session?.user) {
+      // Try to exchange code for session if we have URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      
+      if (code) {
+        const { data: { session: newSession }, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        
+        if (exchangeError || !newSession?.user) {
+          console.error('Code exchange error:', exchangeError);
+          return { 
+            user: null, 
+            error: 'فشل في تبادل الكود للجلسة',
+            oauthError: { code: 'invalid_token', message: 'Code exchange failed', messageAr: 'فشل في تبادل الكود' }
+          };
+        }
+
+        // Create local user from Supabase session
+        const supaUser = newSession.user;
+        const localUser = await createOrUpdateLocalUser(supaUser);
+        
+        setCurrentUser(localUser);
+        logLogin(localUser.id, localUser.name, 'customer', true);
+        
+        console.log('Google login successful via code exchange:', localUser.email);
+        return { user: localUser };
+      }
+
+      // Fallback to access token flow (for implicit grant)
+      if (accessToken) {
+        console.log('Using access token flow...');
+        const userInfo = await getUserInfoFromGoogle(accessToken);
+        if (!userInfo) {
+          return { 
+            user: null, 
+            error: 'فشل في الحصول على بيانات المستخدم',
+            oauthError: { code: 'invalid_token', message: 'Failed to get user info', messageAr: 'فشل في الحصول على بيانات المستخدم' }
+          };
+        }
+
+        const localUser = createGoogleUser(userInfo);
+        setCurrentUser(localUser);
+        logLogin(localUser.id, localUser.name, 'customer', true);
+        
+        console.log('Google login successful via access token:', localUser.email);
+        return { user: localUser };
+      }
+
+      return { 
+        user: null, 
+        error: 'لم يتم العثور على جلسة نشطة',
+        oauthError: { code: 'no_token', message: 'No active session found', messageAr: 'لم يتم العثور على جلسة' }
       };
-      console.error('❌', err.message);
-      return { user: null, error: err.messageAr, oauthError: err };
     }
 
-    // Cleanup session storage
-    sessionStorage.removeItem('google_oauth_state');
-    sessionStorage.removeItem('google_oauth_timestamp');
+    // Create local user from existing Supabase session
+    const localUser = await createOrUpdateLocalUser(session.user);
+    
+    setCurrentUser(localUser);
+    logLogin(localUser.id, localUser.name, 'customer', true);
+    
+    console.log('Google login successful:', localUser.email);
+    return { user: localUser };
 
-    if (!accessToken) {
-      const err: OAuthError = {
-        code: 'no_token',
-        message: 'No access token received from Google.',
-        messageAr: 'لم يتم استلام التوكين من Google.',
-      };
-      console.error('❌', err.message);
-      return { user: null, error: err.messageAr, oauthError: err };
-    }
-
-    console.log('🔄 Fetching user profile from Google...');
-    const userInfo = await getUserInfoFromGoogle(accessToken);
-    if (!userInfo) {
-      const err: OAuthError = {
-        code: 'invalid_token',
-        message: 'Token rejected by Google — it may be expired or invalid.',
-        messageAr: 'رفض Google التوكين — قد يكون منتهي الصلاحية.',
-      };
-      console.error('❌', err.message);
-      return { user: null, error: err.messageAr, oauthError: err };
-    }
-
-    if (!userInfo.email_verified) {
-      const err: OAuthError = {
-        code: 'invalid_token',
-        message: 'Google account email is not verified.',
-        messageAr: 'البريد الإلكتروني لحساب Google غير مفعّل.',
-      };
-      return { user: null, error: err.messageAr, oauthError: err };
-    }
-
-    // Create or update user in local storage
-    let user = getGoogleUserFromStorage(userInfo.id);
-    if (!user) {
-      console.log('✅ Creating new Google user:', userInfo.email);
-      user = createGoogleUser(userInfo);
-    } else {
-      console.log('✅ Updating existing Google user:', userInfo.email);
-      user = {
-        ...user,
-        email: userInfo.email,
-        name: userInfo.name,
-        avatar: userInfo.picture,
-        updatedAt: new Date().toISOString(),
-      };
-      updateUserInStorage(user);
-    }
-
-    setCurrentUser(user);
-    logLogin(user.id, user.name, 'customer', true);
-
-    console.log('✅ Google login successful:', user.email);
-    return { user };
   } catch (error) {
-    const isNetworkError =
-      error instanceof TypeError && error.message.includes('fetch');
+    const isNetworkError = error instanceof TypeError && error.message.includes('fetch');
     const err: OAuthError = {
       code: isNetworkError ? 'network_error' : 'unknown',
       message: error instanceof Error ? error.message : 'Google login failed.',
       messageAr: isNetworkError
-        ? 'خطأ في الشبكة — تأكد من اتصالك بالإنترنت.'
-        : 'فشل تسجيل الدخول بـ Google — يرجى المحاولة مرة أخرى.',
+        ? 'خطأ في الشبكة - تأكد من اتصالك بالإنترنت.'
+        : 'فشل تسجيل الدخول بـ Google - يرجى المحاولة مرة أخرى.',
     };
-    console.error('❌ Google callback error:', err.message);
+    console.error('Google callback error:', err.message);
     return { user: null, error: err.messageAr, oauthError: err };
   }
+}
+
+/**
+ * Create or update local user from Supabase user
+ */
+async function createOrUpdateLocalUser(supaUser: any): Promise<User> {
+  const users = getStoredUsers();
+  const existingUser = users.find(u => u.googleId === supaUser.id || u.email === supaUser.email);
+  
+  if (existingUser) {
+    const updatedUser: User = {
+      ...existingUser,
+      name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || existingUser.name,
+      email: supaUser.email || existingUser.email,
+      avatar: supaUser.user_metadata?.avatar_url || supaUser.user_metadata?.picture || existingUser.avatar,
+      googleId: supaUser.id,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    const updatedUsers = users.map(u => u.id === existingUser.id ? updatedUser : u);
+    saveUsers(updatedUsers);
+    return updatedUser;
+  }
+
+  const newUser: User = {
+    id: `google-${supaUser.id}`,
+    name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || 'Google User',
+    email: supaUser.email || '',
+    role: 'customer',
+    isActive: true,
+    googleId: supaUser.id,
+    avatar: supaUser.user_metadata?.avatar_url || supaUser.user_metadata?.picture,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  saveUsers([...users, newUser]);
+  return newUser;
 }
 
 async function getUserInfoFromGoogle(accessToken: string): Promise<GoogleUserInfo | null> {
@@ -264,8 +296,4 @@ function generateRandomState(): string {
 
 export function getGoogleRedirectUri(): string {
   return GOOGLE_REDIRECT_URI;
-}
-
-export function isGoogleOAuthConfigured(): boolean {
-  return !!(GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('YOUR_CLIENT_ID'));
 }

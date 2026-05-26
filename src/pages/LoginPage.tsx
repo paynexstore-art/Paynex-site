@@ -75,16 +75,16 @@ export default function LoginPage() {
     }
   }
 
-  function handleGoogleLogin() {
+  async function handleGoogleLogin() {
     setGoogleAuthError(null);
     if (!googleOAuthConfigured) {
-      const errorMsg = 'Google OAuth not configured. Please set VITE_GOOGLE_CLIENT_ID in your .env file.';
+      const errorMsg = 'Supabase not configured. Please check your environment variables.';
       setGoogleAuthError(errorMsg);
       toast.error(errorMsg);
       return;
     }
     try {
-      initiateGoogleLogin();
+      await initiateGoogleLogin();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Google login failed';
       setGoogleAuthError(errorMsg);
@@ -189,7 +189,7 @@ export default function LoginPage() {
                 </svg>
                 {googleOAuthConfigured 
                   ? t('الدخول بحساب Google', 'Sign in with Google')
-                  : t('Google غير مفعل', 'Google not configured')
+                  : t('Supabase غير مفعل', 'Supabase not configured')
                 }
               </button>
             </div>
