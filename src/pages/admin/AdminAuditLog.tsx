@@ -39,12 +39,12 @@ export default function AdminAuditLog() {
       setError(null);
       const data = await fetchAuditLogs();
       setLogs(data);
-      console.log('✅ Audit logs loaded from Supabase:', data);
+      console.log('[v0] Audit logs loaded from Supabase:', data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMsg);
       toast.error(t('فشل في تحميل سجل المراجعة', 'Failed to load audit log'));
-      console.error('❌ Load audit logs error:', err);
+      console.error('[v0] Load audit logs error:', err);
     } finally {
       setLoading(false);
     }
