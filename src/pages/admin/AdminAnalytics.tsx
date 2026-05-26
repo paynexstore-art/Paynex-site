@@ -41,7 +41,7 @@ export default function AdminAnalytics() {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         setErrors((prev) => ({ ...prev, analytics: errorMsg }));
-        console.error('❌ Analytics fetch error:', err);
+        console.error('[v0] Analytics fetch error:', err);
         analyticsData = {
           totalOrders: 0,
           totalRevenue: 0,
@@ -56,7 +56,7 @@ export default function AdminAnalytics() {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         setErrors((prev) => ({ ...prev, provinces: errorMsg }));
-        console.error('❌ Provinces fetch error:', err);
+        console.error('[v0] Provinces fetch error:', err);
       }
 
       // Fetch supervisor performance
@@ -65,18 +65,18 @@ export default function AdminAnalytics() {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         setErrors((prev) => ({ ...prev, performance: errorMsg }));
-        console.error('❌ Performance fetch error:', err);
+        console.error('[v0] Performance fetch error:', err);
       }
 
       setAnalytics(analyticsData);
       setProvinceData(provinces);
       setPerformanceData(performance);
 
-      console.log('✅ Analytics data loaded:', { analyticsData, provinces, performance });
+      console.log('[v0] Analytics data loaded:', { analyticsData, provinces, performance });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       toast.error(t('فشل في تحميل الإحصائيات', 'Failed to load analytics'));
-      console.error('❌ Load analytics error:', err);
+      console.error('[v0] Load analytics error:', err);
       // Set default empty analytics to allow partial rendering
       setAnalytics({
         totalOrders: 0,

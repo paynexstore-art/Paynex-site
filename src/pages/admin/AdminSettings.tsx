@@ -1,20 +1,76 @@
-import { useState } from 'react';
-import { Save, Palette, Phone, DollarSign, Globe, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, Palette, Phone, DollarSign, Globe, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { toast } from 'sonner';
+import { saveSettingsWithSync, getSettingsWithSync, getSyncStatus } from '@/lib/supabaseSync';
 
 export default function AdminSettings() {
-  const { t, settings, updateSettings } = useApp();
+  const { t, settings, updateSettings, user } = useApp();
   const [form, setForm] = useState({ ...settings });
   const [activeTab, setActiveTab] = useState<'general' | 'installment' | 'social' | 'colors'>('general');
+  const [isSaving, setIsSaving] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(getSyncStatus());
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  function handleSave() {
-    updateSettings(form);
-    toast.success(t('تم حفظ الإعدادات بنجاح', 'Settings saved successfully'));
+  // Load settings from Supabase on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  // Check user permissions
+  useEffect(() => {
+    if (user && user.role !== 'admin' && user.role !== 'super_admin') {
+      toast.error(t('ليس لديك صلاحية للوصول إلى هذه الصفحة', 'You do not have permission to access this page'));
+      // Redirect to home
+      window.location.href = '/admin';
+    }
+  }, [user, t]);
+
+  async function loadSettings() {
+    try {
+      const settings = await getSettingsWithSync('site_settings');
+      if (settings) {
+        setForm(settings);
+      }
+    } catch (error) {
+      console.error('[v0] Error loading settings:', error);
+    }
+  }
+
+  async function handleSave() {
+    if (!user) {
+      toast.error(t('يجب تسجيل الدخول أولاً', 'Please log in first'));
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const result = await saveSettingsWithSync(
+        'site_settings',
+        form,
+        user.id,
+        user.name || 'System'
+      );
+
+      if (result.success) {
+        updateSettings(form);
+        setSyncStatus(getSyncStatus());
+        setHasUnsavedChanges(false);
+        toast.success(t('تم حفظ الإعدادات بنجاح', 'Settings saved successfully'));
+      } else {
+        toast.error(result.error || t('فشل الحفظ', 'Save failed'));
+      }
+    } catch (error) {
+      console.error('[v0] Error saving settings:', error);
+      toast.error(t('حدث خطأ أثناء الحفظ', 'An error occurred while saving'));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function f(field: keyof typeof form, value: any) {
     setForm(p => ({ ...p, [field]: value }));
+    setHasUnsavedChanges(true);
   }
 
   const tabs = [
@@ -82,8 +138,8 @@ export default function AdminSettings() {
                 <label className="text-sm font-medium text-slate-700 mb-1.5 block">
                   {t('رسوم الاستعلام والآي سكور (ج.م)', 'Inquiry & i-Score Fee (EGP)')}
                 </label>
-                <input type="number" value={form.inquiryFee} onChange={e => f('inquiryFee', Number(e.target.value))} className="input-field text-sm font-bold text-[#d4a339]" min={0} />
-                <p className="text-xs text-slate-500 mt-1">{t('تُدفع من العميل للمشرف عند توقيع طلب التقسيط ورفع المستندات', 'Paid by customer to supervisor when signing installment application and uploading documents')}</p>
+                <input type="number" value={form.inquiryFee || 200} onChange={e => f('inquiryFee', Number(e.target.value))} className="input-field text-sm font-bold text-[#d4a339]" min={0} />
+                <p className="text-xs text-slate-500 mt-1">{t('تُدفع من العميل للمشرف عند توقيع طلب التقسيط ورفع المستندات — تم تحديثها إلى 200 ج.م', 'Paid by customer to supervisor when signing installment application and uploading documents — Updated to 200 EGP')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 mb-1.5 block">
@@ -172,10 +228,31 @@ export default function AdminSettings() {
         )}
 
         <div className="mt-6 pt-4 border-t border-slate-100">
-          <button onClick={handleSave} className="btn-primary flex items-center gap-2">
-            <Save size={18} />
-            {t('حفظ جميع الإعدادات', 'Save All Settings')}
-          </button>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving || !hasUnsavedChanges}
+              className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save size={18} />
+              {isSaving ? t('جاري الحفظ...', 'Saving...') : t('حفظ جميع الإعدادات', 'Save All Settings')}
+            </button>
+            
+            {/* Sync Status */}
+            <div className="flex items-center gap-2 text-xs">
+              {syncStatus.isOnline ? (
+                <>
+                  <CheckCircle size={14} className="text-green-500" />
+                  <span className="text-green-700">{t('متصل بقاعدة البيانات', 'Connected')}</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={14} className="text-yellow-500" />
+                  <span className="text-yellow-700">{t('وضع غير متصل', 'Offline mode')}</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -3,12 +3,14 @@ import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Settings,
   BarChart3, Wallet, Megaphone, Activity, ChevronLeft,
-  LogOut, Menu, X, Shield, Search, Star
+  LogOut, Menu, X, Shield, Search, Star, AlertCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
 import NotificationBell from '@/components/features/NotificationBell';
+import { canAccessPage } from '@/lib/rbac';
+import { isSpecialAdmin } from '@/lib/adminHelper';
 import paynexLogo from '@/assets/paynex-logo.png';
 
 const NAV_ITEMS = [
@@ -32,12 +34,40 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAccessDenied, setShowAccessDenied] = useState(false);
 
   useEffect(() => {
-    if (!user || !isAdmin) navigate('/login');
+    if (!user || !isAdmin) {
+      navigate('/login');
+    } else {
+      // Check if user is special admin or has proper admin role
+      const hasAccess = isSpecialAdmin(user.email) || user.role === 'admin';
+      if (!hasAccess) {
+        setShowAccessDenied(true);
+        setTimeout(() => navigate('/'), 3000);
+      }
+    }
   }, [user, isAdmin, navigate]);
 
   if (!user || !isAdmin) return null;
+
+  // Show access denied message
+  if (showAccessDenied) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
+          <AlertCircle size={48} className="text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-[#0a1628] mb-2">{t('وصول مرفوض', 'Access Denied')}</h2>
+          <p className="text-slate-600 mb-4">
+            {t('ليس لديك صلاحية للوصول إلى لوحة التحكم', 'You do not have permission to access this panel')}
+          </p>
+          <p className="text-sm text-slate-500">
+            {t('سيتم إعادة التوجيه خلال ثوان...', 'Redirecting in a few seconds...')}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const isActive = (path: string, exact?: boolean) =>
     exact ? location.pathname === path : location.pathname.startsWith(path);

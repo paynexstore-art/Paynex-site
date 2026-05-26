@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Search, Eye, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, Eye, RefreshCw, AlertCircle, Check, X, Truck } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOrdersWithDetails, type OrderWithDetails } from '@/lib/supabaseAdmin';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { logAuditEntry } from '@/lib/supabaseSync';
 import { toast } from 'sonner';
 
 const ORDER_STATUSES = [
@@ -25,6 +26,7 @@ export default function AdminOrders() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selected, setSelected] = useState<OrderWithDetails | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -36,14 +38,58 @@ export default function AdminOrders() {
       setError(null);
       const data = await fetchOrdersWithDetails();
       setOrders(data);
-      console.log('✅ Orders loaded from Supabase:', data);
+      console.log('[v0] Orders loaded from Supabase:', data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMsg);
       toast.error(t('فشل في تحميل الطلبات', 'Failed to load orders'));
-      console.error('❌ Load orders error:', err);
+      console.error('[v0] Load orders error:', err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleOrderAction(order: OrderWithDetails, action: 'approve' | 'reject' | 'deliver') {
+    if (!user) return;
+    
+    setActionLoading(order.id);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      
+      // Update order status in database
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: action === 'deliver' ? 'delivered' : action === 'approve' ? 'approved' : 'rejected',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      // Log audit entry
+      await logAuditEntry(
+        `ORDER_${action.toUpperCase()}`,
+        'ORDER',
+        order.id,
+        user.id,
+        user.name || 'Admin',
+        { status: order.status },
+        { status: action === 'deliver' ? 'delivered' : action === 'approve' ? 'approved' : 'rejected' }
+      );
+
+      // Reload orders
+      await loadOrders();
+      
+      const statusText = action === 'deliver' ? t('تم التسليم', 'Delivered') : 
+                        action === 'approve' ? t('موافقة', 'Approved') : 
+                        t('مرفوض', 'Rejected');
+      toast.success(t(`تم ${statusText}`, `Order ${statusText}`));
+    } catch (err) {
+      console.error('[v0] Order action error:', err);
+      toast.error(t('فشل تحديث الطلب', 'Failed to update order'));
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -186,13 +232,45 @@ export default function AdminOrders() {
                       {formatDate(order.created_at, lang)}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => setSelected(order)}
-                        className="p-2 rounded hover:bg-slate-200 transition"
-                        title={t('عرض', 'View')}
-                      >
-                        <Eye size={16} className="text-[#0f2460]" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        {order.status !== 'approved' && order.status !== 'rejected' && (
+                          <button
+                            onClick={() => handleOrderAction(order, 'approve')}
+                            disabled={actionLoading === order.id}
+                            className="p-2 rounded hover:bg-green-100 transition disabled:opacity-50"
+                            title={t('موافقة', 'Approve')}
+                          >
+                            <Check size={16} className="text-green-600" />
+                          </button>
+                        )}
+                        {order.status !== 'rejected' && (
+                          <button
+                            onClick={() => handleOrderAction(order, 'reject')}
+                            disabled={actionLoading === order.id}
+                            className="p-2 rounded hover:bg-red-100 transition disabled:opacity-50"
+                            title={t('رفض', 'Reject')}
+                          >
+                            <X size={16} className="text-red-600" />
+                          </button>
+                        )}
+                        {order.status === 'approved' && order.status !== 'delivered' && (
+                          <button
+                            onClick={() => handleOrderAction(order, 'deliver')}
+                            disabled={actionLoading === order.id}
+                            className="p-2 rounded hover:bg-blue-100 transition disabled:opacity-50"
+                            title={t('تسليم', 'Deliver')}
+                          >
+                            <Truck size={16} className="text-blue-600" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setSelected(order)}
+                          className="p-2 rounded hover:bg-slate-200 transition"
+                          title={t('عرض', 'View')}
+                        >
+                          <Eye size={16} className="text-[#0f2460]" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
