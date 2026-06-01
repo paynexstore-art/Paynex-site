@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
-import { supabase } from '@/lib/supabase'; // استيراد كليانت السوبابيز للاتصال بقاعدة البيانات
+import { supabase } from '@/lib/supabase'; // استيراد كليانت السوبابيز
 import {
   getOrdersBySupervisor, updateOrder, addFeeToWallet, addNotification, getSupervisorById
 } from '@/lib/storage';
@@ -26,11 +26,10 @@ export default function SupervisorOrders() {
   const [fetchingGps, setFetchingGps] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // الدالة المعدلة لجلب طلبات المحافظة الخاصة بالمشرف الحالي من الـ View
+  // جلب طلبات المحافظة الخاصة بالمشرف الحالي من الـ View
   const reload = useCallback(async () => {
     if (!user) return;
     try {
-      // جلب البيانات من الـ View وتصفيتها بمعرف حساب المشرف الحالي
       const { data, error } = await supabase
         .from('supervisor_orders')
         .select('*')
@@ -38,7 +37,6 @@ export default function SupervisorOrders() {
 
       if (error) throw error;
 
-      // تنسيق البيانات لتطابق صيغة الأوردر (Order Type) المستخدمة في الفرونت إند
       const mappedOrders = (data || []).map((row: any) => ({
         id: row.order_id,
         client_name: row.client_name,
@@ -47,7 +45,6 @@ export default function SupervisorOrders() {
         status: row.order_status,
         province: row.order_province,
         created_at: row.order_date,
-        // عواميد إضافية افتراضية للحفاظ على استقرار واجهة المستخدم
         documents: {}, 
         history: []
       }));
@@ -75,13 +72,12 @@ export default function SupervisorOrders() {
       .finally(() => setFetchingGps(false));
   }, [lang]);
 
-  // تأكيد استلام رسوم الاستعلام وتحديث المحفظة والحالة
+  // تأكيد استلام رسوم الاستعلام
   const handleConfirmFee = async (orderId: string) => {
     try {
       const order = orders.find(o => o.id === orderId);
       if (!order) return;
 
-      // 1. تحديث حالة الطلب في قاعدة البيانات إلى "قيد المراجعة"
       const { error: updateError } = await supabase
         .from('orders')
         .update({ status: 'under-inquiry' })
@@ -89,12 +85,10 @@ export default function SupervisorOrders() {
 
       if (updateError) throw updateError;
 
-      // 2. إضافة رسوم الاستعلام لمحفظة المشرف (التخزين المحلي حالياً)
       addFeeToWallet(user!.id, 50, `رسوم استعلام طلب #${orderId}`);
       
-      // 3. إضافة إشعار للعميل
       addNotification(
-        order.id, // نستخدم الـ order.user_id الفعلي لو كان متاحاً في سكوب الكود، أو الآيدي مؤقتاً
+        order.id, 
         'تحديث طلب التقسيط',
         `تم تأكيد استعلام طلبك رقم #${orderId} وهو الآن قيد الدراسة والمراجعة`,
         'order'
@@ -109,7 +103,7 @@ export default function SupervisorOrders() {
     }
   };
 
-  // رفع مستندات معينة (مثل المعاينة الميدانية أو إيصال المرافق) بالـ GPS المدمج
+  // رفع مستندات المعاينة الميدانية بدمج الـ GPS
   const handleDocUpload = async (orderId: string, docKey: string, file: File) => {
     if (!gps) {
       toast.error(lang === 'ar' ? 'يجب تحديد موقعك الجغرافي أولاً لرفع المستندات' : 'GPS coordinates required to upload documents');
@@ -117,10 +111,7 @@ export default function SupervisorOrders() {
     }
 
     try {
-      // دمج البصمة الجغرافية على الصورة للأمان والتحقق الميداني
       const watermarkedBase64 = await addGpsWatermark(file, gps, user!.name);
-      
-      // تحديث المستندات محلياً أو رفعها على الـ Storage (يمكن ربطها بـ Supabase Storage لاحقاً)
       setDocPreviews(prev => ({ ...prev, [`${orderId}-${docKey}`]: watermarkedBase64 }));
       toast.success(lang === 'ar' ? 'تم رفع المستند مدمجاً ببصمة الـ GPS بنجاح' : 'Document uploaded with GPS watermark');
     } catch (err) {
@@ -128,7 +119,7 @@ export default function SupervisorOrders() {
     }
   };
 
-  // تصعيد الطلب للمدير للمراجعة النهائية بعد إنهاء المشرف للاستعلام
+  // تصعيد الطلب للمدير للمراجعة النهائية
   const handleEscalateToAdmin = async (orderId: string) => {
     try {
       const { error } = await supabase
@@ -147,7 +138,7 @@ export default function SupervisorOrders() {
     }
   };
 
-  // تصفية الطلبات بناءً على البحث وحالة الطلب المختارة
+  // تصفية الطلبات بناءً على البحث والفلتر
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
       order.client_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -168,7 +159,7 @@ export default function SupervisorOrders() {
 
   return (
     <div className="space-y-6">
-      {/* رأس الصفحة وبيانات الموقع */}
+      {/* رأس الصفحة */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
         <div>
           <h1 className="text-xl font-bold text-slate-800">{t('طلبات التقسيط بمحافظتك', 'Installment Orders in Your Governorate')}</h1>
@@ -185,7 +176,7 @@ export default function SupervisorOrders() {
         </div>
       </div>
 
-      {/* شريط البحث والفلترة */}
+      {/* شريط البحث */}
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-2.5 text-slate-400" size={18} />
@@ -209,7 +200,7 @@ export default function SupervisorOrders() {
         </select>
       </div>
 
-      {/* شبكة عرض الأوردرات */}
+      {/* الكروت */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredOrders.map(order => (
           <div key={order.id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-all">
@@ -259,8 +250,7 @@ export default function SupervisorOrders() {
                   <Eye size={14} />
                   {t('بدء الاستعلام ورفع التقارير', 'Start Inquiry & Uploads')}
                 </button>
-              )
-            }
+              )}
             </div>
           </div>
         ))}
@@ -273,7 +263,7 @@ export default function SupervisorOrders() {
         )}
       </div>
 
-      {/* مودال تأكيد الرسوم النقدية */}
+      {/* مودال الرسوم كاش */}
       {confirmingFee && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
@@ -296,7 +286,7 @@ export default function SupervisorOrders() {
         </div>
       )}
 
-      {/* مودال المعاينة الميدانية المتقدم وجلب المستندات بالـ GPS */}
+      {/* مودال رفع المستندات بالـ GPS */}
       {selected && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl">
@@ -311,17 +301,15 @@ export default function SupervisorOrders() {
             </div>
 
             <div className="p-5 overflow-y-auto flex-1 space-y-6">
-              {/* شريط التحذير من الـ Geofencing الجغرافي */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5 items-start">
                 <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                 <div className="text-xs text-amber-800 leading-relaxed">
-                  <p className="font-bold">{t('نظام مراقبة التزييف الجغرافي نشط (Anti-Fraud GPS GPS Watermarking)', 'Anti-Fraud GPS Watermarking Active')}</p>
+                  <p className="font-bold">{t('نظام مراقبة التزييف الجغرافي نشط (Anti-Fraud GPS Watermarking)', 'Anti-Fraud GPS Watermarking Active')}</p>
                   <p className="mt-0.5">{t('يجب رفع المستندات والصور الحية مباشرة من موقع المعاينة الفعلي للعميل، حيث يقوم النظام بدمج خطوط الطول والعرض وتوقيت الرفع الجغرافي غير القابل للتعديل على الصورة لحماية جودة الائتمان وموثوقية المعاينة.',
                                            'Photos must be captured at the customer location. The system automatically embeds non-modifiable coordinates & timestamps onto the file for anti-fraud auditing purposes.')}</p>
                 </div>
               </div>
 
-              {/* قسم رفع المستندات وتأكيد البصمة الجغرافية */}
               <div className="space-y-4">
                 <h3 className="font-bold text-slate-700 text-sm flex items-center gap-1.5">
                   <Camera size={16} className="text-slate-500" />
@@ -365,7 +353,6 @@ export default function SupervisorOrders() {
                       })}
                     </div>
 
-                    {/* زر التصعيد للمدير بعد إنهاء كافة الأوراق متمتعة بالـ GPS */}
                     <button onClick={() => handleEscalateToAdmin(selected.id)} className="btn-primary w-full mt-4 flex items-center justify-center gap-2 text-sm py-2">
                       <CheckCircle size={15} />
                       {t('إرسال للمراجعة النهائية من المدير', 'Submit for Admin Final Review')}
@@ -377,6 +364,9 @@ export default function SupervisorOrders() {
                     <p className="text-slate-400 text-sm mb-3">
                       {t('مغلق حالياً — يفتح فوراً بعد تأكيد استلام رسوم الزيارة والاستعلام', 'Locked — opens after confirming inquiry fee')}
                     </p>
+                    <button onClick={() => { setSelected(null); setConfirmingFee(selected.id); }} className="btn-gold text-xs px-4 py-1.5">
+                      {t('تأكيد استلام الرسوم لتفعيل القسم', 'Confirm Fee Receipt')}
+                    </button>
                   </div>
                 )}
               </div>
