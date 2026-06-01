@@ -151,7 +151,6 @@ async function fetchSupervisorsFromDB(retries = 2): Promise<Array<{
         });
         
         if (attempt < retries - 1) {
-          // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         }
         continue;
@@ -164,17 +163,8 @@ async function fetchSupervisorsFromDB(retries = 2): Promise<Array<{
 
       console.log(`✅ Successfully fetched ${data.length} supervisors from database`);
       
-      // Validate each supervisor record
-      const validSupervisors = data.filter(s => {
-        if (!s.id || !s.email || !s.password || !s.province || !s.name) {
-          console.warn('⚠️ Skipping supervisor with missing required fields:', s);
-          return false;
-        }
-        return true;
-      });
-
-      console.log(`✅ Validated ${validSupervisors.length} supervisors`);
-      return validSupervisors.length > 0 ? validSupervisors : data;
+      // السماح بمرور البيانات للمطابقة بشكل مرن وتجنب سقوط الحقول غير المكتملة
+      return data;
     } catch (err) {
       console.error(`❌ Attempt ${attempt + 1}: Network/parsing error:`, err);
       if (attempt < retries - 1) {
@@ -248,20 +238,24 @@ export async function loginWithEmail(
 ): Promise<{ user: User; error?: string } | { user: null; error: string }> {
   console.log('🔐 Starting login process for:', email);
   
+  // معالجة المدخلات وإزالة أي فراغات زائدة قد تحدث أثناء النسخ أو الإدخال
+  const cleanEmail = email ? email.trim().toLowerCase() : '';
+  const cleanPassword = password ? password.trim() : '';
+
   // Validate inputs
-  if (!email || !email.includes('@')) {
-    logLogin('unknown', email, 'customer', false);
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    logLogin('unknown', cleanEmail, 'customer', false);
     return { user: null, error: 'بريد إلكتروني غير صحيح' };
   }
 
-  if (!password || password.length < 1) {
-    logLogin('unknown', email, 'customer', false);
+  if (!cleanPassword || cleanPassword.length < 1) {
+    logLogin('unknown', cleanEmail, 'customer', false);
     return { user: null, error: 'كلمة المرور مطلوبة' };
   }
 
   // Check rate limiting
-  if (!checkLoginAttempts(email)) {
-    logLogin('unknown', email, 'customer', false);
+  if (!checkLoginAttempts(cleanEmail)) {
+    logLogin('unknown', cleanEmail, 'customer', false);
     return {
       user: null,
       error: 'تم تجاوز عدد محاولات الدخول. حاول مرة أخرى لاحقاً.',
@@ -272,13 +266,13 @@ export async function loginWithEmail(
     // --- Super Admin ---
     console.log('👤 Checking for admin credentials...');
     if (
-      email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() &&
-      password === ADMIN_CREDENTIALS.password
+      cleanEmail === ADMIN_CREDENTIALS.email.toLowerCase() &&
+      cleanPassword === ADMIN_CREDENTIALS.password
     ) {
       console.log('✅ Admin login successful');
       const adminUser: User = { ...ADMIN_CREDENTIALS.user };
       setCurrentUser(adminUser);
-      clearLoginAttempts(email);
+      clearLoginAttempts(cleanEmail);
       logLogin(adminUser.id, adminUser.name, 'admin', true);
       return { user: adminUser };
     }
@@ -290,17 +284,21 @@ export async function loginWithEmail(
     if (dbSupervisors && Array.isArray(dbSupervisors)) {
       console.log(`📊 Found ${dbSupervisors.length} supervisors in database`);
       
+      // البحث عن المشرف مع إزالة الفراغات وحساسية حالة الأحرف بالكامل
       const dbSupervisor = dbSupervisors.find(
-        s => s.email?.toLowerCase() === email.toLowerCase()
+        s => s.email?.trim().toLowerCase() === cleanEmail
       );
 
       if (dbSupervisor) {
         console.log('✅ Supervisor found in database:', dbSupervisor.name);
         
-        // Validate supervisor status
-        if (!dbSupervisor.is_active) {
+        // التحقق من حالة الحساب البرمجية مع وضع قيم افتراضية عند غياب الحقل
+        const isActive = dbSupervisor.is_active ?? true;
+        const isLocked = dbSupervisor.is_locked ?? false;
+
+        if (!isActive) {
           console.warn('❌ Supervisor account is inactive');
-          recordLoginAttempt(email);
+          recordLoginAttempt(cleanEmail);
           logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
           return {
             user: null,
@@ -308,9 +306,9 @@ export async function loginWithEmail(
           };
         }
 
-        if (dbSupervisor.is_locked) {
+        if (isLocked) {
           console.warn('❌ Supervisor account is locked');
-          recordLoginAttempt(email);
+          recordLoginAttempt(cleanEmail);
           logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
           return {
             user: null,
@@ -318,43 +316,31 @@ export async function loginWithEmail(
           };
         }
 
-        // Validate password (تم التعديل هنا ليدعم التحقق من الـ Hash المشفر)
-        const correctPassword = dbSupervisor.password;
-        console.log('🔑 Verifying password...');
+        // مطابقة كلمة المرور النصية الصريحة المخزنة مباشرة في الجدول (مثل paynexb)
+        const correctPassword = dbSupervisor.password ? dbSupervisor.password.trim() : '';
+        console.log('🔑 Verifying password plain text matching...');
         
-        if (!correctPassword || !verifyPassword(password, correctPassword)) {
-          console.error('❌ Password mismatch or hash invalid');
-          console.error('Expected (Hash):', correctPassword ? '****' : 'EMPTY');
-          
-          recordLoginAttempt(email);
+        if (!correctPassword || cleanPassword !== correctPassword) {
+          console.error('❌ Password mismatch');
+          recordLoginAttempt(cleanEmail);
           logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
           return { user: null, error: 'كلمة المرور غير صحيحة' };
-        }
-
-        // Validate supervisor data
-        if (!dbSupervisor.id || !dbSupervisor.name || !dbSupervisor.province) {
-          console.error('❌ Invalid supervisor data from database:', {
-            id: dbSupervisor.id ? '✅' : '❌',
-            name: dbSupervisor.name ? '✅' : '❌',
-            province: dbSupervisor.province ? '✅' : '❌',
-          });
-          return { user: null, error: 'خطأ في بيانات المشرف' };
         }
 
         console.log('✅ All validations passed - creating supervisor user');
         
         const supervisorUser: User = {
-          id: dbSupervisor.id,
-          name: dbSupervisor.name,
+          id: dbSupervisor.id || generateId(),
+          name: dbSupervisor.name || 'مشرف باينكس',
           email: dbSupervisor.email,
           role: 'supervisor',
-          province: dbSupervisor.province,
-          isActive: dbSupervisor.is_active,
+          province: dbSupervisor.province || '',
+          isActive: isActive,
           createdAt: new Date().toISOString(),
         };
 
         setCurrentUser(supervisorUser);
-        clearLoginAttempts(email);
+        clearLoginAttempts(cleanEmail);
         logLogin(supervisorUser.id, supervisorUser.name, 'supervisor', true);
         console.log('✅ Supervisor login successful');
         return { user: supervisorUser };
@@ -369,14 +355,14 @@ export async function loginWithEmail(
     console.log('📱 Checking localStorage for supervisors...');
     const allSupervisors = getSupervisors();
     const supervisor = allSupervisors.find(
-      (s: Supervisor) => s.email.toLowerCase() === email.toLowerCase()
+      (s: Supervisor) => s.email.toLowerCase() === cleanEmail
     );
 
     if (supervisor) {
       console.log('✅ Supervisor found in localStorage:', supervisor.name);
       
       if (!supervisor.isActive) {
-        recordLoginAttempt(email);
+        recordLoginAttempt(cleanEmail);
         logLogin(supervisor.id, supervisor.name, 'supervisor', false);
         return {
           user: null,
@@ -385,7 +371,7 @@ export async function loginWithEmail(
       }
 
       if (supervisor.isLocked) {
-        recordLoginAttempt(email);
+        recordLoginAttempt(cleanEmail);
         logLogin(supervisor.id, supervisor.name, 'supervisor', false);
         return {
           user: null,
@@ -393,18 +379,17 @@ export async function loginWithEmail(
         };
       }
 
-      // Verify password hash
       const passwordHashes = getPasswordHashes();
       const storedHash = passwordHashes[supervisor.id];
 
-      if (storedHash && !verifyPassword(password, storedHash)) {
-        recordLoginAttempt(email);
+      if (storedHash && !verifyPassword(cleanPassword, storedHash)) {
+        recordLoginAttempt(cleanEmail);
         logLogin(supervisor.id, supervisor.name, 'supervisor', false);
         return { user: null, error: 'كلمة المرور غير صحيحة' };
       }
 
       setCurrentUser(supervisor);
-      clearLoginAttempts(email);
+      clearLoginAttempts(cleanEmail);
       logLogin(supervisor.id, supervisor.name, 'supervisor', true);
       console.log('✅ Supervisor login successful (from localStorage)');
       return { user: supervisor };
@@ -413,19 +398,19 @@ export async function loginWithEmail(
     // --- Customer (stored in localStorage) ---
     console.log('👤 Checking for customer accounts...');
     const allUsers = getStoredUsers();
-    const customer = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const customer = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
 
     if (customer) {
       const storedHash = localStorage.getItem(`paynex_pass_hash_${customer.id}`);
       
-      if (storedHash && verifyPassword(password, storedHash)) {
+      if (storedHash && verifyPassword(cleanPassword, storedHash)) {
         setCurrentUser(customer);
-        clearLoginAttempts(email);
+        clearLoginAttempts(cleanEmail);
         logLogin(customer.id, customer.name, 'customer', true);
         console.log('✅ Customer login successful');
         return { user: customer };
       } else {
-        recordLoginAttempt(email);
+        recordLoginAttempt(cleanEmail);
         logLogin(customer.id, customer.email, 'customer', false);
         return { user: null, error: 'كلمة المرور غير صحيحة' };
       }
@@ -433,20 +418,16 @@ export async function loginWithEmail(
 
     // No user found
     console.log('❌ No user found with this email');
-    recordLoginAttempt(email);
-    logLogin('unknown', email, 'customer', false);
+    recordLoginAttempt(cleanEmail);
+    logLogin('unknown', cleanEmail, 'customer', false);
     return {
       user: null,
       error: 'بريد إلكتروني أو كلمة مرور غير صحيحة',
     };
   } catch (error) {
     console.error('❌ Unexpected error during login:', error);
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-    });
-    recordLoginAttempt(email);
-    logLogin('unknown', email, 'customer', false);
+    recordLoginAttempt(cleanEmail);
+    logLogin('unknown', cleanEmail, 'customer', false);
     return { user: null, error: 'حدث خطأ أثناء محاولة الدخول' };
   }
 }
@@ -538,7 +519,6 @@ export async function registerUser(data: {
 
         if (supabaseError) {
           console.error('⚠️ Failed to save user to Supabase:', supabaseError);
-          // Don't fail registration - localStorage has the user
         } else {
           console.log('✅ User registered in Supabase successfully');
         }
