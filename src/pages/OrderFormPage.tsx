@@ -243,8 +243,10 @@ export default function OrderFormPage() {
       // ✅ Add order to localStorage first
       const order = addOrder({ ...orderData, creditScore });
       
-      // ✅ Save order to Supabase for persistence
+      // ✅ Save order to Supabase for persistence - FIXED FIELDS TO PREVENT NULL
       try {
+        const selectedProvinceLabel = provincesList.find(p => p.value === form.province)?.label || form.province;
+        
         const { error: supabaseError } = await supabase
           .from('orders')
           .insert([{
@@ -253,6 +255,9 @@ export default function OrderFormPage() {
             national_id: form.nationalId,
             total_amount: plan.totalAmount,
             status: 'pending',
+            // الحقول المعدلة والمضافة لحل مشكلة الـ NULL وإظهارها للمشرفين بالعربية
+            province: selectedProvinceLabel,
+            address: `محافظه ${selectedProvinceLabel} - ${form.address}`
           }]);
 
         if (supabaseError) {
