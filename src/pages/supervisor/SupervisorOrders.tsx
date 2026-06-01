@@ -23,7 +23,7 @@ export default function SupervisorOrders() {
   const [fetchingGps, setFetchingGps] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // 1. دالة جلب البيانات والفلترة الجغرافية الحقيقية حسب محافظة المشرف
+  // 1. جلب البيانات والفلترة الجغرافية الحقيقية حسب محافظة المشرف
   const reload = useCallback(async () => {
     if (!user) return;
     try {
@@ -35,7 +35,6 @@ export default function SupervisorOrders() {
 
       if (error) throw error;
 
-      // فلترة حقيقية: تظهر فقط الطلبات التي تقع في محافظة هذا المشرف
       const mappedOrders = (data || [])
         .filter((row: any) => {
           const orderProvince = row.province || row.customer_province || '';
@@ -70,7 +69,7 @@ export default function SupervisorOrders() {
 
       setOrders(mappedOrders);
 
-      // تحديث المودال المفتوح تلقائياً ليعكس الصلاحيات الجديدة فور الدفع
+      // إصلاح: تحديث الكائن المختار داخل المودال إذا كان مفتوحاً لضمان مزامنة البيانات والـ UI
       if (selected) {
         const currentSelected = mappedOrders.find(o => o.id === selected.id);
         if (currentSelected) {
@@ -79,15 +78,15 @@ export default function SupervisorOrders() {
       }
     } catch (err: any) {
       console.error("Supabase Database fetch failure:", err.message);
-      toast.error(lang === 'ar' ? "حدث خطأ أثناء الاتصال بقاعدة البيانات السحابية" : "Database communication error");
+      toast.error(lang === 'ar' ? "حدث خطأ أثناء الاتصال بقاعدة البيانات" : "Database error");
     }
   }, [user, lang, selected]);
 
   useEffect(() => {
     reload();
-  }, [user, reload]);
+  }, [user]);
 
-  // دالة تحديد موقع المشرف الميداني
+  // دالة تتبع الـ GPS للمعاينة
   async function fetchGps() {
     setFetchingGps(true);
     try {
@@ -101,9 +100,9 @@ export default function SupervisorOrders() {
         setGps(null);
       }
     } catch (err) {
-      console.error('GPS tracking error:', err);
+      console.error('GPS error:', err);
       setGps(null);
-    } finally {
+    } finaly {
       setFetchingGps(false);
     }
   }
@@ -112,30 +111,33 @@ export default function SupervisorOrders() {
     fetchGps();
   }, []);
 
-  // فحص حالة تأكيد الرسوم من السيرفر لفتح واجهة الرفع
+  // دالة فحص السداد الحقيقية (تعتمد على الحالة أو الملاحظات المسجلة)
   function isFeeConfirmed(order: any): boolean {
+    if (!order) return false;
     return ['under-inquiry', 'admin-review', 'approved', 'delivered', 'under-review', 'active', 'completed']
       .includes(order.status) || (order.notes?.includes('fee_paid') ?? false);
   }
 
-  // 2. تأكيد استلام الرسوم كاش سحابياً وزيادة العهدة بجدول المشرفين (سوبابيز)
+  // 2. تأكيد استلام الرسوم كاش سحابياً + حل مشكلة عدم فتح واجهة الرفع فوراً
   async function handleConfirmFeeReceived(order: any) {
     if (!user) return;
     try {
       const feeAmount = 150;
+      const nowIso = new Date().toISOString();
+      const updatedNotes = `fee_paid_150:${nowIso}`;
 
-      // أولاً: تحويل حالة الطلب إلى "جاري الاستعلام" لفتح الصلاحيات فوراً
+      // أولاً: التحديث الفوري في السيرفر لجدول orders
       const { error: orderUpdateError } = await supabase
         .from('orders')
         .update({
           status: 'under-inquiry',
-          admin_notes: `fee_paid_150:${new Date().toISOString()}`
+          admin_notes: updatedNotes
         })
         .eq('id', order.id);
 
       if (orderUpdateError) throw orderUpdateError;
 
-      // ثانياً: تحديث عهدة المشرف (pending_debt) الحقيقية في السيرفر بزيادة 150 جنيهاً
+      // ثانياً: زيادة مديونية/عهدة المشرف بـ 150 ج.م حقيقياً في السيرفر بجدول supervisors
       const { data: supervisorData, error: supFetchError } = await supabase
         .from('supervisors')
         .select('pending_debt')
@@ -150,18 +152,33 @@ export default function SupervisorOrders() {
           .eq('id', user.id);
       }
 
-      toast.success(lang === 'ar' ? `تم تسجيل 150 ج.م في عهدتك ماليًا، وفتحت صلاحية رفع المستندات` : `150 EGP added to your custody.`);
-      setConfirmingFee(null);
+      // ✨ الحل الجذري: نقوم بتحديث الـ state الحالي محلياً فوراً لكسر الحلقة المفرغة وفتح المودال والرفع في نفس الملي ثانية
+      const updatedOrder = {
+        ...order,
+        status: 'under-inquiry',
+        notes: updatedNotes
+      };
+
+      // تحديث المصفوفة الكلية
+      setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
       
-      // تحديث البيانات لمزامنة حالة الشاشة والزر فوراً
+      // تحديث المودال النشط ليفتح الرفع فوراً بدون انتظار الـ reload لقاعدة البيانات
+      if (selected && selected.id === order.id) {
+        setSelected(updatedOrder);
+      }
+
+      toast.success(lang === 'ar' ? `تم إدراج 150 ج.م في عهدتك المادية — تم تفعيل واجهة الرفع` : `150 EGP registered in custody.`);
+      setConfirmingFee(null);
+
+      // جلب تأكيدي للبيانات من السيرفر للتأكد من المزامنة الكاملة
       await reload();
     } catch (err: any) {
-      console.error("Transaction Error:", err.message);
-      toast.error(lang === 'ar' ? 'فشل إتمام المعاملة المالية السحابية' : 'Cloud transaction failed');
+      console.error("Critical Transaction Failure:", err.message);
+      toast.error(lang === 'ar' ? 'فشل معالجة حركة العهدة السحابية' : 'Cloud sync failure');
     }
   }
 
-  // 3. رفع الصور والملفات وتحديث حقل الـ JSON الخاص بالمستندات في السوبابيز
+  // 3. رفع وحفظ مستندات العميل الميدانية حقيقياً في السوبابيز فور تحويل الصور لبصمة جغرافية مائية
   async function handleDocUpload(field: keyof OrderDocuments, file: File, orderId: string) {
     const currentOrder = orders.find(o => o.id === orderId);
     if (!currentOrder) return;
@@ -173,7 +190,6 @@ export default function SupervisorOrders() {
       const currentLat = gps ? ((gps as any).latitude || (gps as any).lat) : null;
       const currentLng = gps ? ((gps as any).longitude || (gps as any).lng) : null;
 
-      // ختم الصورة مائياً بالإحداثيات لمنع التلاعب
       if (currentLat && currentLng) {
         dataUrl = await addGpsWatermark(dataUrl, { lat: currentLat, lng: currentLng } as any, user?.name || 'مشرف الاستعلام');
       }
@@ -186,7 +202,7 @@ export default function SupervisorOrders() {
         uploadedAt: new Date().toISOString()
       };
 
-      // حفظ التحديث حقيقياً في جدول السوبابيز
+      // حفظ التحديث مباشرة في السيرفر لضمان أن العملية حقيقية وليست fake
       const { error: uploadError } = await supabase
         .from('orders')
         .update({ documents: updatedDocs })
@@ -194,13 +210,19 @@ export default function SupervisorOrders() {
 
       if (uploadError) throw uploadError;
 
-      toast.success(t('تم حفظ وتأمين المستند سحابياً بنجاح', 'Document secured on cloud successfully'));
-      reload();
+      // تحديث الـ local state لضمان بقاء الصور المعروضة أمام المشرف ثابتة وحقيقية
+      const updatedOrder = { ...currentOrder, documents: updatedDocs };
+      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+      if (selected && selected.id === orderId) {
+        setSelected(updatedOrder);
+      }
+
+      toast.success(t('تم حفظ وتثبيت المستند سحابياً بنجاح', 'Document secured on cloud'));
     };
     reader.readAsDataURL(file);
   }
 
-  // تصعيد الملف بالكامل للمراجعة الإدارية من المدير العام
+  // تصعيد كلي لملف المعاينة الرقمي للمدير العام للمراجعة والموافقة النهائية
   async function handleEscalateToAdmin(orderId: string) {
     try {
       const { error } = await supabase
@@ -210,7 +232,7 @@ export default function SupervisorOrders() {
 
       if (error) throw error;
 
-      toast.success(t('تم إرسال الملف الاستعلامي بالكامل للمراجعة الإدارية', 'Submitted to Admin'));
+      toast.success(t('تم تصعيد الملف بالكامل للإدارة العليا', 'Submitted to Admin'));
       reload();
       setSelected(null);
     } catch (err: any) {
@@ -240,7 +262,7 @@ export default function SupervisorOrders() {
 
   return (
     <div className="space-y-4">
-      {/* البار العلوي لتتبع موقع الـ GPS */}
+      {/* مراقبة الـ GPS الحي */}
       <div className="bg-[#0f2460]/5 border border-[#0f2460]/20 rounded-xl p-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-[#0f2460]">
           <Navigation size={16} className={gps ? 'text-green-500 animate-pulse' : 'text-slate-400'} />
@@ -254,7 +276,7 @@ export default function SupervisorOrders() {
         </button>
       </div>
 
-      {/* حقول البحث والفلترة حسب الحالة */}
+      {/* شريط البحث والفلترة */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[180px]">
           <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -271,7 +293,7 @@ export default function SupervisorOrders() {
         </select>
       </div>
 
-      {/* جدول عرض طلبات المحافظة */}
+      {/* جدول البيانات المتجاوب المتصل بسوبابيز */}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -328,7 +350,7 @@ export default function SupervisorOrders() {
         </div>
       </div>
 
-      {/* مودال تأكيد استلام الرسوم (150 ج.م) */}
+      {/* مودال تأكيد استلام الرسوم (150 ج.م) والنزول بالعهدة */}
       {confirmingFee && (() => {
         const order = orders.find(o => o.id === confirmingFee);
         if (!order) return null;
@@ -344,11 +366,11 @@ export default function SupervisorOrders() {
                 <p className="text-3xl font-black text-[#d4a339] my-3">{formatCurrency(order.installmentPlan.inquiryFee, lang)}</p>
                 
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 mb-4 text-start leading-relaxed">
-                  <p className="font-bold mb-1">🔗 الأثر المالي والسحابي الفوري:</p>
+                  <p className="font-bold mb-1">🔗 الأثر المالي والسحابي الفوري للعملية:</p>
                   <ul className="space-y-1 list-disc list-inside">
-                    <li>تُسجل كعهدة مالية في ذمتك بجدول المشرفين بالسيرفر.</li>
+                    <li>تُسجل كعهدة مالية مستلمة بذمتك في جدول المشرفين بالسيرفر.</li>
                     <li>تتحول حالة الطلب سحابياً إلى "جاري الاستعلام".</li>
-                    <li>فتح صلاحية رفع المستندات الميدانية فوراً.</li>
+                    <li>فتح صلاحية تصوير ورفع المستندات الميدانية للعميل فوراً.</li>
                   </ul>
                 </div>
 
@@ -366,7 +388,7 @@ export default function SupervisorOrders() {
         );
       })()}
 
-      {/* مودال رفع ملفات العميل الميدانية */}
+      {/* مودال رفع ملفات المعاينة الميدانية الرقمية */}
       {selected && (() => {
         const feePaid = isFeeConfirmed(selected);
         return (
