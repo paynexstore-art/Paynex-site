@@ -318,14 +318,13 @@ export async function loginWithEmail(
           };
         }
 
-        // Validate password
+        // Validate password (تم التعديل هنا ليدعم التحقق من الـ Hash المشفر)
         const correctPassword = dbSupervisor.password;
         console.log('🔑 Verifying password...');
         
-        if (!correctPassword || password !== correctPassword) {
-          console.error('❌ Password mismatch');
-          console.error('Expected:', correctPassword ? '****' : 'EMPTY');
-          console.error('Received:', password ? '****' : 'EMPTY');
+        if (!correctPassword || !verifyPassword(password, correctPassword)) {
+          console.error('❌ Password mismatch or hash invalid');
+          console.error('Expected (Hash):', correctPassword ? '****' : 'EMPTY');
           
           recordLoginAttempt(email);
           logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
