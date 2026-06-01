@@ -26,41 +26,71 @@ export default function SupervisorOrders() {
   const [fetchingGps, setFetchingGps] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // جلب الطلبات من الـ View وتأمين البيانات تماماً
+  // جلب الطلبات بآلية حماية ثنائية (الـ View أو الجدول المباشر في حال الفشل)
   const reload = useCallback(async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
+      // المحاولة الأولى: القراءة من الـ View
+      let { data, error } = await supabase
         .from('supervisor_orders')
         .select('*')
         .eq('supervisor_user_id', user.id);
 
+      // المحاولة الثانية الاحتياطية: لو الـ View رجع خطأ مسميات، نجرب القراءة من الجدول المباشر
+      if (error) {
+        console.warn("View fetch failed, switching to direct table fallback:", error.message);
+        
+        // جلب بيانات المشرف أولاً لمعرفة المحافظة المسئول عنها
+        const { data: supervisorData } = await supabase
+          .from('supervisors')
+          .select('province')
+          .eq('user_id', user.id)
+          .single();
+
+        if (supervisorData?.province) {
+          const fallbackResponse = await supabase
+            .from('orders')
+            .select('*')
+            .eq('province', supervisorData.province);
+          
+          if (!fallbackResponse.error) {
+            data = fallbackResponse.data;
+            error = null;
+          }
+        }
+      }
+
+      // إذا فشلت الطريقتين (مثلاً خطأ اتصال عام)
       if (error) throw error;
 
-      const mappedOrders = (data || []).map((row: any) => ({
-        id: row.order_id,
-        customerName: row.client_name || (lang === 'ar' ? 'عميل بدون اسم' : 'Unnamed Client'),
-        customerPhone: row.client_phone || '',
-        customerProvince: row.order_province || '',
-        status: row.order_status || 'pending',
-        created_at: row.order_date || new Date().toISOString(),
-        installmentPlan: {
-          monthlyPayment: row.total_amount ? Number(row.total_amount) / 12 : 0,
-          inquiryFee: 50,
-          months: 12,
-          totalAmount: row.total_amount ? Number(row.total_amount) : 0
-        },
-        product: {
-          nameAr: lang === 'ar' ? 'طلب تقسيط' : 'Installment Order',
-          nameEn: 'Installment Order'
-        },
-        documents: {},
-        notes: row.notes || ''
-      }));
+      // تحويل البيانات بشكل مرن يستوعب تركيبة الـ View أو تركيبة الجدول المباشر
+      const mappedOrders = (data || []).map((row: any) => {
+        const totalAmt = row.total_amount || row.totalAmount || 0;
+        return {
+          id: row.order_id || row.id,
+          customerName: row.client_name || row.customerName || (lang === 'ar' ? 'عميل بدون اسم' : 'Unnamed Client'),
+          customerPhone: row.client_phone || row.customerPhone || '',
+          customerProvince: row.order_province || row.province || '',
+          status: row.order_status || row.status || 'pending',
+          created_at: row.order_date || row.created_at || new Date().toISOString(),
+          installmentPlan: {
+            monthlyPayment: totalAmt ? Number(totalAmt) / 12 : 0,
+            inquiryFee: 50,
+            months: 12,
+            totalAmount: Number(totalAmt)
+          },
+          product: {
+            nameAr: lang === 'ar' ? 'طلب تقسيط' : 'Installment Order',
+            nameEn: 'Installment Order'
+          },
+          documents: row.documents || {},
+          notes: row.notes || ''
+        };
+      });
 
       setOrders(mappedOrders);
     } catch (err: any) {
-      console.error("Error fetching supervisor orders:", err.message);
+      console.error("Critical error loading orders:", err.message);
       toast.error(lang === 'ar' ? "حدث خطأ أثناء تحميل الطلبات" : "Error loading orders");
     }
   }, [user, lang]);
@@ -69,7 +99,7 @@ export default function SupervisorOrders() {
     reload();
   }, [reload]);
 
-  // جلب الـ GPS وتوحيد المسميات لمنع الكراش (toFixed)
+  // جلب الـ GPS وتأمين الـ لتفادي أي كراش واجهة
   async function fetchGps() {
     setFetchingGps(true);
     try {
@@ -79,15 +109,13 @@ export default function SupervisorOrders() {
           lat: (coords as any).latitude || (coords as any).lat,
           lng: (coords as any).longitude || (coords as any).lng
         });
-        toast.success(t('تم تحديد موقعك بنجاح', 'GPS location acquired'));
       } else {
         setGps(null);
-        toast.warning(t('لم يتم الحصول على الموقع', 'GPS unavailable'));
       }
     } catch (err) {
       console.error('GPS error:', err);
       setGps(null);
-    } finally {
+    } {
       setFetchingGps(false);
     }
   }
@@ -101,7 +129,6 @@ export default function SupervisorOrders() {
       .includes(order.status) || (order.notes?.includes('fee_paid') ?? false);
   }
 
-  // تأكيد استلام رسوم الاستعلام وتحديث الحالة في قاعدة البيانات
   async function handleConfirmFeeReceived(order: any) {
     if (!user) return;
     try {
@@ -135,7 +162,6 @@ export default function SupervisorOrders() {
     }
   }
 
-  // رفع المستندات بدمج الـ GPS
   async function handleDocUpload(field: keyof OrderDocuments, file: File, orderId: string) {
     const currentOrder = orders.find(o => o.id === orderId);
     if (!currentOrder) return;
@@ -155,7 +181,6 @@ export default function SupervisorOrders() {
     reader.readAsDataURL(file);
   }
 
-  // تصعيد الطلب للمدير للمراجعة النهائية
   async function handleEscalateToAdmin(orderId: string) {
     try {
       const { error } = await supabase
@@ -177,7 +202,12 @@ export default function SupervisorOrders() {
   const statuses = ['all', 'pending', 'under-inquiry', 'admin-review', 'approved', 'delivered', 'rejected'];
   
   const filtered = orders.filter(o => {
-    const matchSearch = !search || o.customerName.toLowerCase().includes(search.toLowerCase()) || o.customerPhone.includes(search) || o.id.toString().includes(search);
+    const nameStr = String(o.customerName || '').toLowerCase();
+    const phoneStr = String(o.customerPhone || '');
+    const idStr = String(o.id || '');
+    const searchStr = search.toLowerCase();
+
+    const matchSearch = !search || nameStr.includes(searchStr) || phoneStr.includes(searchStr) || idStr.includes(searchStr);
     const matchStatus = statusFilter === 'all' || o.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -185,14 +215,14 @@ export default function SupervisorOrders() {
   const docFields: { key: string; label: string; required?: boolean }[] = [
     { key: 'nationalIdFront', label: t('البطاقة - الوجه الأمامي *', 'ID Front *'), required: true },
     { key: 'nationalIdBack',  label: t('البطاقة - الوجه الخلفي *', 'ID Back *'), required: true },
-    { key: 'utilityBill',     label: t('إإصال مرافق', 'Utility Bill') },
+    { key: 'utilityBill',     label: t('إيصال مرافق', 'Utility Bill') },
     { key: 'incomeProof',     label: t('إثبات دخل', 'Income Proof') },
     { key: 'customerHousePhoto', label: t('صورة منزل العميل', "Customer's House Photo") },
   ];
 
   return (
     <div className="space-y-4">
-      {/* شريط الـ GPS المحمي بالكامل من الـ toFixed */}
+      {/* شريط الـ GPS */}
       <div className="bg-[#0f2460]/5 border border-[#0f2460]/20 rounded-xl p-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-[#0f2460]">
           <Navigation size={16} className={gps ? 'text-green-500' : 'text-slate-400'} />
@@ -228,7 +258,7 @@ export default function SupervisorOrders() {
         {t('يجب تأكيد استلام رسوم الاستعلام أولاً لفتح صلاحية رفع مستندات العميل.', 'Confirm inquiry fee first to unlock document upload.')}
       </div>
 
-      {/* عرض الطلبات على شكل كروت مرنة ومتناسقة */}
+      {/* عرض الكروت */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(o => {
           const feePaid = isFeeConfirmed(o);
@@ -284,7 +314,7 @@ export default function SupervisorOrders() {
 
         {filtered.length === 0 && (
           <div className="col-span-full bg-white rounded-xl border border-dashed border-slate-200 p-10 text-center text-slate-400 text-sm">
-            {t('لا توجد طلبات بمحافظتك حالياً تظابق البحث', 'No orders found matching filters')}
+            {t('لا توجد طلبات بمحافظتك حالياً تطابق البحث', 'No orders found matching filters')}
           </div>
         )}
       </div>
@@ -317,7 +347,7 @@ export default function SupervisorOrders() {
         );
       })()}
 
-      {/* مودال رفع المستندات */}
+      {/* مودال رفع المستندات والتفاصيل */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -335,7 +365,7 @@ export default function SupervisorOrders() {
                 <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold">{t('نظام مراقبة التزييف الجغرافي نشط (Anti-Fraud GPS Watermarking)', 'Anti-Fraud GPS Watermarking Active')}</p>
-                  <p className="mt-0.5">{t('يجب رفع المستندات من موقع المعاينة الفعلي، حيث يقوم النظام بدمج الإحداثيات والتوقيت على الصورة لحماية جودة المعاينة.', 'Photos must be captured at the customer location for anti-fraud auditing purposes.')}</p>
+                  <p className="mt-0.5">{t('يجب رفع المستندات من موقع المعاينة الفعلي للعميل، لتوثيق الإحداثيات ببصمة حية.', 'Photos must be captured at the customer location for anti-fraud auditing purposes.')}</p>
                 </div>
               </div>
 
