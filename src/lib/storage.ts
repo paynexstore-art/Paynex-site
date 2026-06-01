@@ -10,6 +10,136 @@ const KEY = {
   supervisors: 'paynix_supervisors',
 };
 
+// ===== SCRAPER / SYNC HISTORY (Export early for AdminDashboard import) =====
+
+export interface ScraperImportRecord {
+  id: string;
+  importedAt: string;
+  source: 'btech' | 'manual';
+  totalInFile: number;
+  added: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+  durationMs: number;
+}
+
+const SCRAPER_HISTORY_KEY = 'paynix_scraper_history';
+const MAX_HISTORY = 20;
+
+export function getScraperHistory(): ScraperImportRecord[] {
+  try {
+    return JSON.parse(localStorage.getItem(SCRAPER_HISTORY_KEY) ?? '[]') as ScraperImportRecord[];
+  } catch { return []; }
+}
+
+export function getLastScraperImport(): ScraperImportRecord | null {
+  const h = getScraperHistory();
+  return h.length > 0 ? h[0] : null;
+}
+
+export function addScraperImport(record: Omit<ScraperImportRecord, 'id'>): ScraperImportRecord {
+  const history = getScraperHistory();
+  const newRecord: ScraperImportRecord = { ...record, id: generateId() };
+  const updated = [newRecord, ...history].slice(0, MAX_HISTORY);
+  localStorage.setItem(SCRAPER_HISTORY_KEY, JSON.stringify(updated));
+
+  // Update site settings sync date
+  getSiteSettings().then(settings => {
+    settings.lastSyncDate = record.importedAt;
+    settings.syncErrorMessage = record.errors.length > 0
+      ? `${record.failed} منتج فشل في الاستيراد`
+      : undefined;
+    saveSiteSettings(settings);
+  });
+
+  return newRecord;
+}
+
+export function importScrapedProducts(
+  rawProducts: Record<string, unknown>[],
+  source: 'btech' | 'manual' = 'btech',
+): ScraperImportRecord {
+  const startTime = Date.now();
+  const existingSync = getProductsSync();
+  const existingMap = new Map(existingSync.map(p => [p.sourceId ?? p.id, p]));
+
+  let added = 0;
+  let updated = 0;
+  let skipped = 0;
+  let failed = 0;
+  const errors: string[] = [];
+  const newProducts: Product[] = [...existingSync];
+
+  for (const raw of rawProducts) {
+    try {
+      if (!raw.name && !raw.nameAr) { skipped++; continue; }
+      const price = parseFloat(String(raw.price ?? '0')) || 0;
+      if (price <= 0) { skipped++; continue; }
+
+      const sourceId = String(raw.sourceId ?? raw.sku ?? raw.id ?? '');
+      const existingProduct = sourceId ? existingMap.get(sourceId) : undefined;
+
+      if (existingProduct) {
+        // Update existing
+        const idx = newProducts.findIndex(p => p.id === existingProduct.id);
+        if (idx !== -1) {
+          newProducts[idx] = {
+            ...existingProduct,
+            name: (raw.name as string) ?? existingProduct.name,
+            nameAr: (raw.nameAr as string) ?? existingProduct.nameAr,
+            price,
+            description: (raw.description as string) ?? existingProduct.description,
+            descriptionAr: (raw.descriptionAr as string) ?? existingProduct.descriptionAr,
+          };
+          updated++;
+        }
+      } else {
+        // Add new
+        const newProd: Product = {
+          id: generateId(),
+          name: (raw.name as string) ?? 'Unknown',
+          nameAr: (raw.nameAr as string) ?? 'غير معروف',
+          description: (raw.description as string) ?? '',
+          descriptionAr: (raw.descriptionAr as string) ?? '',
+          price,
+          category: (raw.category as string) ?? '',
+          categoryAr: (raw.categoryAr as string) ?? '',
+          image: (raw.image as string) ?? '',
+          stock: parseInt(String(raw.stock ?? '0'), 10) || 0,
+          sourceId,
+          source: source as 'btech' | 'manual',
+          createdAt: new Date().toISOString(),
+        };
+        newProducts.push(newProd);
+        added++;
+      }
+    } catch (err) {
+      failed++;
+      errors.push(`Row error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  saveProducts(newProducts);
+
+  const record: ScraperImportRecord = {
+    id: generateId(),
+    importedAt: new Date().toISOString(),
+    source,
+    totalInFile: rawProducts.length,
+    added,
+    updated,
+    skipped,
+    failed,
+    errors,
+    durationMs: Date.now() - startTime,
+  };
+
+  addScraperImport(record);
+  return record;
+}
+
 // ===== SITE SETTINGS =====
 export async function getSiteSettings(): Promise<SiteSettings> {
   // Try Supabase first, fall back to localStorage
@@ -543,138 +673,4 @@ export function addTestimonial(item: Omit<TestimonialItem, 'id' | 'createdAt'>):
 
 export function deleteTestimonial(id: string): void {
   saveTestimonials(getTestimonials().filter(t => t.id !== id));
-}
-
-// ===== SCRAPER / SYNC HISTORY =====
-
-export interface ScraperImportRecord {
-  id: string;
-  importedAt: string;
-  source: 'btech' | 'manual';
-  totalInFile: number;
-  added: number;
-  updated: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-  durationMs: number;
-}
-
-const SCRAPER_HISTORY_KEY = 'paynix_scraper_history';
-const MAX_HISTORY = 20;
-
-export function getScraperHistory(): ScraperImportRecord[] {
-  try {
-    return JSON.parse(localStorage.getItem(SCRAPER_HISTORY_KEY) ?? '[]') as ScraperImportRecord[];
-  } catch { return []; }
-}
-
-export function getLastScraperImport(): ScraperImportRecord | null {
-  const h = getScraperHistory();
-  return h.length > 0 ? h[0] : null;
-}
-
-export function addScraperImport(record: Omit<ScraperImportRecord, 'id'>): ScraperImportRecord {
-  const history = getScraperHistory();
-  const newRecord: ScraperImportRecord = { ...record, id: generateId() };
-  const updated = [newRecord, ...history].slice(0, MAX_HISTORY);
-  localStorage.setItem(SCRAPER_HISTORY_KEY, JSON.stringify(updated));
-
-  // Update site settings sync date
-  getSiteSettings().then(settings => {
-    settings.lastSyncDate = record.importedAt;
-    settings.syncErrorMessage = record.errors.length > 0
-      ? `${record.failed} منتج فشل في الاستيراد`
-      : undefined;
-    saveSiteSettings(settings);
-  });
-
-  return newRecord;
-}
-
-/**
- * Import an array of scraped products (BTech schema) into the product store.
- * Returns a summary record.
- */
-export function importScrapedProducts(
-  rawProducts: Record<string, unknown>[],
-  source: 'btech' | 'manual' = 'btech',
-): ScraperImportRecord {
-  const startTime = Date.now();
-  const existingSync = getProductsSync();
-  const existingMap = new Map(existingSync.map(p => [p.sourceId ?? p.id, p]));
-
-  let added = 0;
-  let updated = 0;
-  let skipped = 0;
-  let failed = 0;
-  const errors: string[] = [];
-  const newProducts: Product[] = [...existingSync];
-
-  for (const raw of rawProducts) {
-    try {
-      if (!raw.name && !raw.nameAr) { skipped++; continue; }
-      const price = parseFloat(String(raw.price ?? '0')) || 0;
-      if (price <= 0) { skipped++; continue; }
-
-      const sourceId = String(raw.sourceId ?? raw.sku ?? raw.id ?? '');
-      const existingProduct = sourceId ? existingMap.get(sourceId) : undefined;
-
-      if (existingProduct) {
-        // Update existing
-        const idx = newProducts.findIndex(p => p.id === existingProduct.id);
-        if (idx !== -1) {
-          newProducts[idx] = {
-            ...existingProduct,
-            name: (raw.name as string) ?? existingProduct.name,
-            nameAr: (raw.nameAr as string) ?? existingProduct.nameAr,
-            price,
-            description: (raw.description as string) ?? existingProduct.description,
-            descriptionAr: (raw.descriptionAr as string) ?? existingProduct.descriptionAr,
-          };
-          updated++;
-        }
-      } else {
-        // Add new
-        const newProd: Product = {
-          id: generateId(),
-          name: (raw.name as string) ?? 'Unknown',
-          nameAr: (raw.nameAr as string) ?? 'غير معروف',
-          description: (raw.description as string) ?? '',
-          descriptionAr: (raw.descriptionAr as string) ?? '',
-          price,
-          category: (raw.category as string) ?? '',
-          categoryAr: (raw.categoryAr as string) ?? '',
-          image: (raw.image as string) ?? '',
-          stock: parseInt(String(raw.stock ?? '0'), 10) || 0,
-          sourceId,
-          source: source as 'btech' | 'manual',
-          createdAt: new Date().toISOString(),
-        };
-        newProducts.push(newProd);
-        added++;
-      }
-    } catch (err) {
-      failed++;
-      errors.push(`Row error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  saveProducts(newProducts);
-
-  const record: ScraperImportRecord = {
-    id: generateId(),
-    importedAt: new Date().toISOString(),
-    source,
-    totalInFile: rawProducts.length,
-    added,
-    updated,
-    skipped,
-    failed,
-    errors,
-    durationMs: Date.now() - startTime,
-  };
-
-  addScraperImport(record);
-  return record;
 }
