@@ -2,7 +2,7 @@ import type { User } from '@/types';
 import { ADMIN_CREDENTIALS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId } from './utils';
 import { logLogin } from './auditLog';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
 // ─── Super Admin permission matrix ───────────────────────────────────────────
 export type AdminPermission =
