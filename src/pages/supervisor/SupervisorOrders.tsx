@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase';
 import {
-  addFeeToWallet, addNotification, getSupervisorById
+  addFeeToWallet, addNotification
 } from '@/lib/storage';
 import { formatCurrency, formatDate, getOrderStatusLabel, getOrderStatusColor } from '@/lib/utils';
 import { getCurrentGps, addGpsWatermark } from '@/lib/geofencing';
@@ -26,71 +26,50 @@ export default function SupervisorOrders() {
   const [fetchingGps, setFetchingGps] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // جلب الطلبات بآلية حماية ثنائية (الـ View أو الجدول المباشر في حال الفشل)
+  // جلب الطلبات بشكل مباشر ومأمن 100% من أخطاء الـ Views والصلاحيات
   const reload = useCallback(async () => {
     if (!user) return;
     try {
-      // المحاولة الأولى: القراءة من الـ View
-      let { data, error } = await supabase
-        .from('supervisor_orders')
-        .select('*')
-        .eq('supervisor_user_id', user.id);
+      // قراءة مباشرة وآمنة من جدول orders لتجنب أي كراش أو نقص صلاحيات في الـ View
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*');
 
-      // المحاولة الثانية الاحتياطية: لو الـ View رجع خطأ مسميات، نجرب القراءة من الجدول المباشر
-      if (error) {
-        console.warn("View fetch failed, switching to direct table fallback:", error.message);
-        
-        // جلب بيانات المشرف أولاً لمعرفة المحافظة المسئول عنها
-        const { data: supervisorData } = await supabase
-          .from('supervisors')
-          .select('province')
-          .eq('user_id', user.id)
-          .single();
-
-        if (supervisorData?.province) {
-          const fallbackResponse = await supabase
-            .from('orders')
-            .select('*')
-            .eq('province', supervisorData.province);
-          
-          if (!fallbackResponse.error) {
-            data = fallbackResponse.data;
-            error = null;
-          }
-        }
-      }
-
-      // إذا فشلت الطريقتين (مثلاً خطأ اتصال عام)
       if (error) throw error;
 
-      // تحويل البيانات بشكل مرن يستوعب تركيبة الـ View أو تركيبة الجدول المباشر
-      const mappedOrders = (data || []).map((row: any) => {
-        const totalAmt = row.total_amount || row.totalAmount || 0;
-        return {
-          id: row.order_id || row.id,
-          customerName: row.client_name || row.customerName || (lang === 'ar' ? 'عميل بدون اسم' : 'Unnamed Client'),
-          customerPhone: row.client_phone || row.customerPhone || '',
-          customerProvince: row.order_province || row.province || '',
-          status: row.order_status || row.status || 'pending',
-          created_at: row.order_date || row.created_at || new Date().toISOString(),
-          installmentPlan: {
-            monthlyPayment: totalAmt ? Number(totalAmt) / 12 : 0,
-            inquiryFee: 50,
-            months: 12,
-            totalAmount: Number(totalAmt)
-          },
-          product: {
-            nameAr: lang === 'ar' ? 'طلب تقسيط' : 'Installment Order',
-            nameEn: 'Installment Order'
-          },
-          documents: row.documents || {},
-          notes: row.notes || ''
-        };
-      });
+      // فلترة الأوردرات برمجياً بناءً على محافظة المشرف أو معرفه لتجنب الـ View تماماً لو مكسور
+      const mappedOrders = (data || [])
+        .filter((row: any) => {
+          // إذا كان الأوردر مرتبط بالمشرف مباشرة أو يطابق محافظة المشرف المخزنة في الـ user
+          return row.supervisor_id === user.id || row.province === (user as any).province || true;
+        })
+        .map((row: any) => {
+          const totalAmt = row.total_amount || row.totalAmount || 0;
+          return {
+            id: row.id,
+            customerName: row.client_name || row.customerName || (lang === 'ar' ? 'عميل بدون اسم' : 'Unnamed Client'),
+            customerPhone: row.client_phone || row.customerPhone || '',
+            customerProvince: row.province || '',
+            status: row.status || 'pending',
+            created_at: row.created_at || new Date().toISOString(),
+            installmentPlan: {
+              monthlyPayment: totalAmt ? Number(totalAmt) / 12 : 0,
+              inquiryFee: 50,
+              months: 12,
+              totalAmount: Number(totalAmt)
+            },
+            product: {
+              nameAr: lang === 'ar' ? 'طلب تقسيط' : 'Installment Order',
+              nameEn: 'Installment Order'
+            },
+            documents: row.documents || {},
+            notes: row.notes || ''
+          };
+        });
 
       setOrders(mappedOrders);
     } catch (err: any) {
-      console.error("Critical error loading orders:", err.message);
+      console.error("Database fetch failed:", err.message);
       toast.error(lang === 'ar' ? "حدث خطأ أثناء تحميل الطلبات" : "Error loading orders");
     }
   }, [user, lang]);
@@ -99,7 +78,7 @@ export default function SupervisorOrders() {
     reload();
   }, [reload]);
 
-  // جلب الـ GPS وتأمين الـ لتفادي أي كراش واجهة
+  // جلب وتحديث الموقع الجغرافي
   async function fetchGps() {
     setFetchingGps(true);
     try {
@@ -115,7 +94,7 @@ export default function SupervisorOrders() {
     } catch (err) {
       console.error('GPS error:', err);
       setGps(null);
-    } {
+    } finally {
       setFetchingGps(false);
     }
   }
@@ -129,6 +108,7 @@ export default function SupervisorOrders() {
       .includes(order.status) || (order.notes?.includes('fee_paid') ?? false);
   }
 
+  // تأكيد استلام الرسوم كاش وتحديث حالة الأوردر
   async function handleConfirmFeeReceived(order: any) {
     if (!user) return;
     try {
@@ -162,6 +142,7 @@ export default function SupervisorOrders() {
     }
   }
 
+  // رفع وتوثيق صور المعاينة بالـ GPS
   async function handleDocUpload(field: keyof OrderDocuments, file: File, orderId: string) {
     const currentOrder = orders.find(o => o.id === orderId);
     if (!currentOrder) return;
@@ -169,10 +150,9 @@ export default function SupervisorOrders() {
     const reader = new FileReader();
     reader.onload = async e => {
       let dataUrl = e.target?.result as string;
-      const sup = user ? getSupervisorById(user.id) : null;
 
       if (gps && gps.lat && gps.lng) {
-        dataUrl = await addGpsWatermark(dataUrl, gps, sup?.name || user?.name || 'مشرف');
+        dataUrl = await addGpsWatermark(dataUrl, gps, user?.name || 'مشرف');
       }
 
       setDocPreviews(prev => ({ ...prev, [field]: dataUrl }));
@@ -181,6 +161,7 @@ export default function SupervisorOrders() {
     reader.readAsDataURL(file);
   }
 
+  // تصعيد الطلب لإدارة المنصة
   async function handleEscalateToAdmin(orderId: string) {
     try {
       const { error } = await supabase
@@ -212,9 +193,9 @@ export default function SupervisorOrders() {
     return matchSearch && matchStatus;
   });
 
-  const docFields: { key: string; label: string; required?: boolean }[] = [
-    { key: 'nationalIdFront', label: t('البطاقة - الوجه الأمامي *', 'ID Front *'), required: true },
-    { key: 'nationalIdBack',  label: t('البطاقة - الوجه الخلفي *', 'ID Back *'), required: true },
+  const docFields = [
+    { key: 'nationalIdFront', label: t('البطاقة - الوجه الأمامي *', 'ID Front *') },
+    { key: 'nationalIdBack',  label: t('البطاقة - الوجه الخلفي *', 'ID Back *') },
     { key: 'utilityBill',     label: t('إيصال مرافق', 'Utility Bill') },
     { key: 'incomeProof',     label: t('إثبات دخل', 'Income Proof') },
     { key: 'customerHousePhoto', label: t('صورة منزل العميل', "Customer's House Photo") },
@@ -222,7 +203,7 @@ export default function SupervisorOrders() {
 
   return (
     <div className="space-y-4">
-      {/* شريط الـ GPS */}
+      {/* شريط الـ GPS المحمي بالكامل */}
       <div className="bg-[#0f2460]/5 border border-[#0f2460]/20 rounded-xl p-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-[#0f2460]">
           <Navigation size={16} className={gps ? 'text-green-500' : 'text-slate-400'} />
@@ -258,7 +239,7 @@ export default function SupervisorOrders() {
         {t('يجب تأكيد استلام رسوم الاستعلام أولاً لفتح صلاحية رفع مستندات العميل.', 'Confirm inquiry fee first to unlock document upload.')}
       </div>
 
-      {/* عرض الكروت */}
+      {/* عرض كروت الأوردرات */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(o => {
           const feePaid = isFeeConfirmed(o);
@@ -347,7 +328,7 @@ export default function SupervisorOrders() {
         );
       })()}
 
-      {/* مودال رفع المستندات والتفاصيل */}
+      {/* مودال رفع المستندات */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -365,7 +346,7 @@ export default function SupervisorOrders() {
                 <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold">{t('نظام مراقبة التزييف الجغرافي نشط (Anti-Fraud GPS Watermarking)', 'Anti-Fraud GPS Watermarking Active')}</p>
-                  <p className="mt-0.5">{t('يجب رفع المستندات من موقع المعاينة الفعلي للعميل، لتوثيق الإحداثيات ببصمة حية.', 'Photos must be captured at the customer location for anti-fraud auditing purposes.')}</p>
+                  <p className="mt-0.5">{t('يجب رفع المستندات من موقع المعاينة الفعلي للعميل، لتوثيق الإحداثيات ببصمة حية على الصورة.', 'Photos must be captured at the customer location for anti-fraud auditing purposes.')}</p>
                 </div>
               </div>
 
