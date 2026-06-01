@@ -3,7 +3,7 @@
  * Validates all critical components on app startup
  */
 
-import type { User, SiteSettings } from '@/types';
+import type { User } from '@/types';
 import { getCurrentUser } from './auth';
 import { getStoredUsers } from './auth';
 import { isGoogleOAuthConfigured } from './googleAuth';
@@ -33,6 +33,7 @@ interface CheckResult {
 export function runSystemCheck(): SystemCheckResult {
   const warnings: string[] = [];
   const errors: string[] = [];
+
   const checks = {
     storage: checkLocalStorage(),
     auth: checkAuthSystem(),
@@ -47,7 +48,8 @@ export function runSystemCheck(): SystemCheckResult {
     if (check.status === 'fail') errors.push(check.message);
   });
 
-  const overall = errors.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'healthy';
+  const overall =
+    errors.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'healthy';
 
   return { overall, checks, warnings, errors };
 }
@@ -57,8 +59,10 @@ export function runSystemCheck(): SystemCheckResult {
  */
 function checkLocalStorage(): CheckResult {
   try {
+    // Test write/read capability
     const testKey = '_system_check_test_' + Date.now();
     const testValue = 'test_' + Math.random();
+
     localStorage.setItem(testKey, testValue);
     const retrieved = localStorage.getItem(testKey);
     localStorage.removeItem(testKey);
@@ -66,20 +70,33 @@ function checkLocalStorage(): CheckResult {
     if (retrieved !== testValue) {
       return {
         status: 'fail',
-        message: 'localStorage not working correctly',
+        message: 'localStorage not working correctly - data mismatch',
       };
     }
 
+    // Estimate storage usage
     const estimatedSize = estimateStorageSize();
+
+    // Warn if storage is getting full
+    if (estimatedSize > 5) {
+      return {
+        status: 'warning',
+        message: `localStorage nearing capacity (${estimatedSize}MB / ~5MB limit)`,
+        details: { storageSize: estimatedSize },
+      };
+    }
+
     return {
       status: 'pass',
-      message: `localStorage OK (est. ${estimatedSize}MB used)`,
+      message: `localStorage OK (${estimatedSize.toFixed(2)}MB used)`,
       details: { storageSize: estimatedSize },
     };
   } catch (error) {
     return {
       status: 'fail',
-      message: 'localStorage unavailable: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      message: `localStorage unavailable: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
     };
   }
 }
@@ -90,29 +107,45 @@ function checkLocalStorage(): CheckResult {
 function checkAuthSystem(): CheckResult {
   try {
     const currentUser = getCurrentUser();
-    const authKey = 'qastly_auth_user';
-    const hasAuthData = localStorage.getItem(authKey) !== null;
+    const AUTH_KEY = 'paynex_auth_user';
+    const hasAuthData = localStorage.getItem(AUTH_KEY) !== null;
 
+    // Check consistency
     if (currentUser && !hasAuthData) {
       return {
         status: 'fail',
-        message: 'Auth state inconsistent (getCurrentUser worked but no auth data)',
+        message:
+          'Auth state inconsistent - getCurrentUser() worked but no auth data in storage',
+      };
+    }
+
+    if (!currentUser && hasAuthData) {
+      return {
+        status: 'warning',
+        message:
+          'Auth data exists but getCurrentUser() returned null - possible corruption',
       };
     }
 
     if (currentUser) {
       // Validate user structure
-      if (!currentUser.id || !currentUser.email || !currentUser.role) {
+      const requiredFields = ['id', 'email', 'role'];
+      const missingFields = requiredFields.filter(
+        field => !currentUser[field as keyof User]
+      );
+
+      if (missingFields.length > 0) {
         return {
           status: 'fail',
-          message: 'Current user has invalid structure',
-          details: currentUser,
+          message: `Current user missing required fields: ${missingFields.join(', ')}`,
+          details: { user: currentUser, missing: missingFields },
         };
       }
+
       return {
         status: 'pass',
-        message: `Auth system OK (user: ${currentUser.email})`,
-        details: { loggedInUser: currentUser.name },
+        message: `Auth system OK (user: ${currentUser.email}, role: ${currentUser.role})`,
+        details: { userId: currentUser.id, email: currentUser.email },
       };
     } else {
       return {
@@ -123,7 +156,9 @@ function checkAuthSystem(): CheckResult {
   } catch (error) {
     return {
       status: 'fail',
-      message: 'Auth system check failed: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      message: `Auth system check failed: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
     };
   }
 }
@@ -143,13 +178,16 @@ function checkGoogleOAuth(): CheckResult {
     } else {
       return {
         status: 'warning',
-        message: 'Google OAuth not configured (set VITE_GOOGLE_CLIENT_ID in .env)',
+        message:
+          'Google OAuth not configured (optional - set VITE_GOOGLE_CLIENT_ID in .env for OAuth login)',
       };
     }
   } catch (error) {
     return {
-      status: 'fail',
-      message: 'Google OAuth check failed: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      status: 'warning',
+      message: `Google OAuth check failed: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
     };
   }
 }
@@ -160,13 +198,30 @@ function checkGoogleOAuth(): CheckResult {
 function checkUserData(): CheckResult {
   try {
     const users = getStoredUsers();
+
+    if (!Array.isArray(users)) {
+      return {
+        status: 'fail',
+        message: 'User data is not an array',
+      };
+    }
+
     const issues: string[] = [];
 
     users.forEach((user, index) => {
+      if (!user || typeof user !== 'object') {
+        issues.push(`User ${index} is not a valid object`);
+        return;
+      }
+
       if (!user.id) issues.push(`User ${index} missing id`);
       if (!user.email) issues.push(`User ${index} missing email`);
       if (!user.role) issues.push(`User ${index} missing role`);
-      if (!user.createdAt) issues.push(`User ${index} missing createdAt`);
+
+      // CreatedAt is recommended but not mandatory
+      if (user.createdAt && typeof user.createdAt !== 'string') {
+        issues.push(`User ${index} has invalid createdAt format`);
+      }
     });
 
     if (issues.length > 0) {
@@ -179,13 +234,15 @@ function checkUserData(): CheckResult {
 
     return {
       status: 'pass',
-      message: `User data OK (${users.length} users)`,
+      message: `User data OK (${users.length} user${users.length === 1 ? '' : 's'})`,
       details: { userCount: users.length },
     };
   } catch (error) {
     return {
       status: 'fail',
-      message: 'User data check failed: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      message: `User data check failed: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
     };
   }
 }
@@ -195,34 +252,62 @@ function checkUserData(): CheckResult {
  */
 function checkPerformance(): CheckResult {
   try {
-    const navigationTiming = (window as any).performance?.timing;
-    if (!navigationTiming) {
+    // Use modern Performance API
+    if (!window.performance || !window.performance.timing) {
       return {
         status: 'warning',
-        message: 'Performance API not available',
+        message: 'Performance API not available - skipping performance check',
       };
     }
 
-    const loadTime = navigationTiming.loadEventEnd - navigationTiming.navigationStart;
-    const domContentLoaded = navigationTiming.domContentLoadedEventEnd - navigationTiming.navigationStart;
+    const { timing } = window.performance;
 
-    if (loadTime > 5000) {
+    // Ensure all required values exist
+    if (
+      !timing.navigationStart ||
+      !timing.loadEventEnd ||
+      !timing.domContentLoadedEventEnd
+    ) {
       return {
         status: 'warning',
-        message: `App load time slow: ${loadTime}ms`,
+        message: 'Performance timing data incomplete',
+      };
+    }
+
+    const loadTime = timing.loadEventEnd - timing.navigationStart;
+    const domContentLoaded = timing.domContentLoadedEventEnd - timing.navigationStart;
+
+    // Performance thresholds
+    const SLOW_LOAD_THRESHOLD = 5000; // 5 seconds
+    const VERY_SLOW_LOAD_THRESHOLD = 10000; // 10 seconds
+
+    if (loadTime > VERY_SLOW_LOAD_THRESHOLD) {
+      return {
+        status: 'warning',
+        message: `⚠️ App load time very slow: ${loadTime}ms (target: <3000ms)`,
+        details: { loadTime, domContentLoaded },
+      };
+    }
+
+    if (loadTime > SLOW_LOAD_THRESHOLD) {
+      return {
+        status: 'warning',
+        message: `⚠️ App load time slow: ${loadTime}ms (target: <3000ms)`,
         details: { loadTime, domContentLoaded },
       };
     }
 
     return {
       status: 'pass',
-      message: `Performance OK (load: ${loadTime}ms)`,
+      message: `Performance OK (load: ${loadTime}ms, DOMContentLoaded: ${domContentLoaded}ms)`,
       details: { loadTime, domContentLoaded },
     };
   } catch (error) {
     return {
       status: 'warning',
-      message: 'Performance check unavailable',
+      message: `Performance check unavailable: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
     };
   }
 }
@@ -233,12 +318,21 @@ function checkPerformance(): CheckResult {
 function estimateStorageSize(): number {
   try {
     let total = 0;
+
+    if (!window.localStorage) {
+      return 0;
+    }
+
     for (const key in localStorage) {
       if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
-        total += localStorage[key].length + key.length;
+        const item = localStorage.getItem(key);
+        if (item) {
+          total += (key.length + item.length) * 2; // Rough estimate: 2 bytes per character
+        }
       }
     }
-    return Math.round(total / 1024 / 1024 * 100) / 100; // MB
+
+    return Math.round((total / 1024 / 1024) * 100) / 100; // Convert to MB
   } catch {
     return 0;
   }
@@ -254,33 +348,42 @@ export function logSystemCheckResults(result: SystemCheckResult): void {
     error: '❌',
   };
 
-  console.group(`${statusEmoji[result.overall]} System Health Check - ${result.overall.toUpperCase()}`);
+  console.group(
+    `${statusEmoji[result.overall]} System Health Check - ${result.overall.toUpperCase()}`
+  );
 
-  console.group('Detailed Checks');
+  console.group('🔍 Detailed Checks');
   Object.entries(result.checks).forEach(([name, check]) => {
     const emoji = {
       pass: '✅',
       warning: '⚠️',
       fail: '❌',
     }[check.status];
+
     console.log(`${emoji} ${name}: ${check.message}`);
-    if (check.details) {
+
+    if (check.details && Object.keys(check.details).length > 0) {
       console.table(check.details);
     }
   });
   console.groupEnd();
 
   if (result.warnings.length > 0) {
-    console.group('Warnings');
-    result.warnings.forEach(w => console.warn(w));
+    console.group(`⚠️ Warnings (${result.warnings.length})`);
+    result.warnings.forEach((w, i) => console.warn(`${i + 1}. ${w}`));
     console.groupEnd();
   }
 
   if (result.errors.length > 0) {
-    console.group('Errors');
-    result.errors.forEach(e => console.error(e));
+    console.group(`❌ Errors (${result.errors.length})`);
+    result.errors.forEach((e, i) => console.error(`${i + 1}. ${e}`));
     console.groupEnd();
   }
+
+  // Summary
+  console.log(
+    `\n📊 Summary: System is ${result.overall} - ${result.errors.length} errors, ${result.warnings.length} warnings`
+  );
 
   console.groupEnd();
 }
