@@ -34,12 +34,14 @@ export interface OrderWithDetails {
   customer_name: string;
   customer_phone: string;
   customer_national_id: string;
+  customer_province: string;
   status: string;
   total_amount: number;
   created_at: string;
   updated_at: string;
   product_id?: string;
   user_id?: string;
+  supervisor_id?: string;
 }
 
 export interface AuditLogEntry {
@@ -104,6 +106,26 @@ export async function fetchSupervisorById(id: string): Promise<SupervisorData | 
   }
 }
 
+export async function fetchSupervisorByEmail(email: string): Promise<SupervisorData | null> {
+  try {
+    const { data, error } = await supabase
+      .from('supervisors')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Error fetching supervisor by email:', error);
+      throw new Error(`Supabase Error: ${error.message}`);
+    }
+
+    return data as SupervisorData | null;
+  } catch (err) {
+    console.error('❌ Supervisor fetch by email failed:', err);
+    throw err;
+  }
+}
+
 // ─────────────────────────────────────────────────────────
 // ORDERS QUERIES (Raw table data only - no nested relations)
 // ─────────────────────────────────────────────────────────
@@ -143,6 +165,53 @@ export async function fetchOrdersByStatus(status: string): Promise<OrderWithDeta
     return (data as OrderWithDetails[]) || [];
   } catch (err) {
     console.error('❌ Orders by status fetch failed:', err);
+    throw err;
+  }
+}
+
+/**
+ * Fetch orders by supervisor province
+ * Returns all orders where customer_province matches supervisor's province
+ */
+export async function fetchOrdersByProvince(province: string): Promise<OrderWithDetails[]> {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('customer_province', province)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching orders by province:', error);
+      throw new Error(`Supabase Error: ${error.message}`);
+    }
+
+    return (data as OrderWithDetails[]) || [];
+  } catch (err) {
+    console.error('❌ Orders by province fetch failed:', err);
+    throw err;
+  }
+}
+
+/**
+ * Fetch orders assigned to a specific supervisor
+ */
+export async function fetchOrdersBySupervisor(supervisorId: string): Promise<OrderWithDetails[]> {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('supervisor_id', supervisorId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching orders by supervisor:', error);
+      throw new Error(`Supabase Error: ${error.message}`);
+    }
+
+    return (data as OrderWithDetails[]) || [];
+  } catch (err) {
+    console.error('❌ Orders by supervisor fetch failed:', err);
     throw err;
   }
 }
@@ -264,7 +333,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
 /**
  * Orders aggregation by province
  */
-export async function fetchOrdersByProvince(): Promise<Array<{ province: string; count: number; revenue: number }>> {
+export async function fetchOrdersByProvinceAgg(): Promise<Array<{ province: string; count: number; revenue: number }>> {
   try {
     const { data, error } = await supabase
       .from('orders')
