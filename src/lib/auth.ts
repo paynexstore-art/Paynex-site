@@ -119,7 +119,7 @@ function setPasswordHash(userId: string, hash: string): void {
   }
 }
 
-// Fetch supervisors from Supabase with retry logic
+// Fetch supervisors from Supabase with retry logic and better error handling
 async function fetchSupervisorsFromDB(retries = 2): Promise<Array<{
   id: string;
   email: string;
@@ -136,13 +136,20 @@ async function fetchSupervisorsFromDB(retries = 2): Promise<Array<{
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
+      console.log(`🔄 Fetching supervisors from Supabase (attempt ${attempt + 1}/${retries})...`);
+      
       const { data, error } = await supabase
         .from('supervisors')
         .select('id, email, password, province, is_active, is_locked, name')
         .timeout(5000); // 5 second timeout
 
       if (error) {
-        console.error(`❌ Attempt ${attempt + 1}: Error fetching supervisors:`, error);
+        console.error(`❌ Attempt ${attempt + 1}: Supabase error:`, {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        
         if (attempt < retries - 1) {
           // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
@@ -151,14 +158,25 @@ async function fetchSupervisorsFromDB(retries = 2): Promise<Array<{
       }
 
       if (!Array.isArray(data)) {
-        console.warn('⚠️ Invalid supervisors response from database');
+        console.warn('⚠️ Invalid supervisors response from database - not an array');
         return null;
       }
 
       console.log(`✅ Successfully fetched ${data.length} supervisors from database`);
-      return data;
+      
+      // Validate each supervisor record
+      const validSupervisors = data.filter(s => {
+        if (!s.id || !s.email || !s.password || !s.province || !s.name) {
+          console.warn('⚠️ Skipping supervisor with missing required fields:', s);
+          return false;
+        }
+        return true;
+      });
+
+      console.log(`✅ Validated ${validSupervisors.length} supervisors`);
+      return validSupervisors.length > 0 ? validSupervisors : data;
     } catch (err) {
-      console.error(`❌ Attempt ${attempt + 1}: Failed to fetch supervisors:`, err);
+      console.error(`❌ Attempt ${attempt + 1}: Network/parsing error:`, err);
       if (attempt < retries - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
       }
@@ -228,6 +246,8 @@ export async function loginWithEmail(
   email: string,
   password: string
 ): Promise<{ user: User; error?: string } | { user: null; error: string }> {
+  console.log('🔐 Starting login process for:', email);
+  
   // Validate inputs
   if (!email || !email.includes('@')) {
     logLogin('unknown', email, 'customer', false);
@@ -250,10 +270,12 @@ export async function loginWithEmail(
 
   try {
     // --- Super Admin ---
+    console.log('👤 Checking for admin credentials...');
     if (
       email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() &&
       password === ADMIN_CREDENTIALS.password
     ) {
+      console.log('✅ Admin login successful');
       const adminUser: User = { ...ADMIN_CREDENTIALS.user };
       setCurrentUser(adminUser);
       clearLoginAttempts(email);
@@ -262,15 +284,22 @@ export async function loginWithEmail(
     }
 
     // --- Supervisor (from Supabase database) ---
+    console.log('👥 Attempting to fetch supervisors from Supabase...');
     const dbSupervisors = await fetchSupervisorsFromDB();
+    
     if (dbSupervisors && Array.isArray(dbSupervisors)) {
+      console.log(`📊 Found ${dbSupervisors.length} supervisors in database`);
+      
       const dbSupervisor = dbSupervisors.find(
         s => s.email?.toLowerCase() === email.toLowerCase()
       );
 
       if (dbSupervisor) {
+        console.log('✅ Supervisor found in database:', dbSupervisor.name);
+        
         // Validate supervisor status
         if (!dbSupervisor.is_active) {
+          console.warn('❌ Supervisor account is inactive');
           recordLoginAttempt(email);
           logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
           return {
@@ -280,6 +309,7 @@ export async function loginWithEmail(
         }
 
         if (dbSupervisor.is_locked) {
+          console.warn('❌ Supervisor account is locked');
           recordLoginAttempt(email);
           logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
           return {
@@ -290,7 +320,13 @@ export async function loginWithEmail(
 
         // Validate password
         const correctPassword = dbSupervisor.password;
+        console.log('🔑 Verifying password...');
+        
         if (!correctPassword || password !== correctPassword) {
+          console.error('❌ Password mismatch');
+          console.error('Expected:', correctPassword ? '****' : 'EMPTY');
+          console.error('Received:', password ? '****' : 'EMPTY');
+          
           recordLoginAttempt(email);
           logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
           return { user: null, error: 'كلمة المرور غير صحيحة' };
@@ -298,10 +334,16 @@ export async function loginWithEmail(
 
         // Validate supervisor data
         if (!dbSupervisor.id || !dbSupervisor.name || !dbSupervisor.province) {
-          console.error('❌ Invalid supervisor data from database');
+          console.error('❌ Invalid supervisor data from database:', {
+            id: dbSupervisor.id ? '✅' : '❌',
+            name: dbSupervisor.name ? '✅' : '❌',
+            province: dbSupervisor.province ? '✅' : '❌',
+          });
           return { user: null, error: 'خطأ في بيانات المشرف' };
         }
 
+        console.log('✅ All validations passed - creating supervisor user');
+        
         const supervisorUser: User = {
           id: dbSupervisor.id,
           name: dbSupervisor.name,
@@ -315,17 +357,25 @@ export async function loginWithEmail(
         setCurrentUser(supervisorUser);
         clearLoginAttempts(email);
         logLogin(supervisorUser.id, supervisorUser.name, 'supervisor', true);
+        console.log('✅ Supervisor login successful');
         return { user: supervisorUser };
+      } else {
+        console.log('⚠️ Supervisor not found in Supabase database');
       }
+    } else {
+      console.log('⚠️ Could not fetch supervisors from Supabase');
     }
 
     // --- Fallback to localStorage supervisors ---
+    console.log('📱 Checking localStorage for supervisors...');
     const allSupervisors = getSupervisors();
     const supervisor = allSupervisors.find(
       (s: Supervisor) => s.email.toLowerCase() === email.toLowerCase()
     );
 
     if (supervisor) {
+      console.log('✅ Supervisor found in localStorage:', supervisor.name);
+      
       if (!supervisor.isActive) {
         recordLoginAttempt(email);
         logLogin(supervisor.id, supervisor.name, 'supervisor', false);
@@ -357,10 +407,12 @@ export async function loginWithEmail(
       setCurrentUser(supervisor);
       clearLoginAttempts(email);
       logLogin(supervisor.id, supervisor.name, 'supervisor', true);
+      console.log('✅ Supervisor login successful (from localStorage)');
       return { user: supervisor };
     }
 
     // --- Customer (stored in localStorage) ---
+    console.log('👤 Checking for customer accounts...');
     const allUsers = getStoredUsers();
     const customer = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
 
@@ -371,6 +423,7 @@ export async function loginWithEmail(
         setCurrentUser(customer);
         clearLoginAttempts(email);
         logLogin(customer.id, customer.name, 'customer', true);
+        console.log('✅ Customer login successful');
         return { user: customer };
       } else {
         recordLoginAttempt(email);
@@ -380,6 +433,7 @@ export async function loginWithEmail(
     }
 
     // No user found
+    console.log('❌ No user found with this email');
     recordLoginAttempt(email);
     logLogin('unknown', email, 'customer', false);
     return {
@@ -388,6 +442,10 @@ export async function loginWithEmail(
     };
   } catch (error) {
     console.error('❌ Unexpected error during login:', error);
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+    });
     recordLoginAttempt(email);
     logLogin('unknown', email, 'customer', false);
     return { user: null, error: 'حدث خطأ أثناء محاولة الدخول' };
