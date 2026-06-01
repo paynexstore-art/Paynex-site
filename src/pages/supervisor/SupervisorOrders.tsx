@@ -1,427 +1,202 @@
+/**
+ * SupervisorOrders — reads orders for supervisor from Supabase (with localStorage fallback)
+ */
 import { useState, useEffect, useCallback } from 'react';
 import {
   Eye, DollarSign, Upload, FileCheck, Search, AlertCircle,
-  CheckCircle, MapPin, X, Camera, Navigation
+  CheckCircle, MapPin, X, Camera, Navigation, Loader2, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
-import { supabase } from '@/lib/supabase';
-import { formatCurrency, formatDate, getOrderStatusLabel, getOrderStatusColor } from '@/lib/utils';
+import {
+  getOrdersBySupervisor, updateOrder, addFeeToWallet, addNotification, getSupervisorById
+} from '@/lib/storage';
+import { fetchOrders } from '@/lib/db';
+import { formatCurrency, formatDate, getOrderStatusLabel, getOrderStatusColor, generateId } from '@/lib/utils';
 import { getCurrentGps, addGpsWatermark } from '@/lib/geofencing';
-import type { OrderDocuments, GpsCoords } from '@/types';
+import type { Order, OrderDocuments, GpsCoords } from '@/types';
 import { toast } from 'sonner';
 
 export default function SupervisorOrders() {
-  const { user } = useAuth();
-  const { t, lang } = useApp();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<any | null>(null);
+  const { user }      = useAuth();
+  const { t, lang }   = useApp();
+  const [orders, setOrders]           = useState<Order[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
+  const [selected, setSelected]       = useState<Order | null>(null);
   const [docPreviews, setDocPreviews] = useState<Record<string, string>>({});
   const [confirmingFee, setConfirmingFee] = useState<string | null>(null);
-  const [gps, setGps] = useState<GpsCoords | null>(null);
+  const [gps, setGps]                 = useState<GpsCoords | null>(null);
   const [fetchingGps, setFetchingGps] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [loading, setLoading] = useState(false);
 
-  // ✅ FIX #1: جلب الطلبات الصحيحة حسب محافظة المشرف وحالة الطلب
   const reload = useCallback(async () => {
-    if (!user) {
-      console.warn('⚠️ No user logged in');
-      return;
-    }
-
+    if (!user) return;
     setLoading(true);
     try {
-      const supervisorProvince = (user as any).province?.trim() || '';
-      const supervisorId = user.id;
-
-      if (!supervisorProvince) {
-        console.error('❌ Supervisor province not set:', user);
-        toast.error(lang === 'ar' ? 'محافظة المشرف غير مسجلة' : 'Supervisor province not set');
-        setOrders([]);
-        return;
+      // Try Supabase first, filter by supervisor
+      const all = await fetchOrders();
+      const mine = all.filter(o => o.supervisorId === user.id);
+      // If nothing found via Supabase, fallback to localStorage
+      if (mine.length === 0) {
+        const local = getOrdersBySupervisor(user.id);
+        setOrders(local);
+      } else {
+        setOrders(mine);
       }
-
-      // جلب جميع الطلبات
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*');
-
-      if (error) {
-        console.error('❌ Supabase Error:', error);
-        throw error;
-      }
-
-      // ✅ تصفية الطلبات: تلك التي في محافظة المشرف أو المخصصة له مباشرة
-      const mappedOrders = (data || [])
-        .filter((row: any) => {
-          const orderProvince = (row.province || row.customer_province || '').trim();
-          const isInSupervisorProvince = orderProvince === supervisorProvince;
-          const isAssignedToSupervisor = row.assigned_supervisor_id === supervisorId || row.supervisor_id === supervisorId;
-          
-          // ✅ عرض فقط الطلبات المعلقة أو قيد الاستعلام
-          const isPendingRequest = ['pending', 'under-inquiry'].includes(row.status);
-          
-          return (isInSupervisorProvince || isAssignedToSupervisor) && isPendingRequest;
-        })
-        .map((row: any) => {
-          const totalAmt = Number(row.total_amount || 0);
-          return {
-            id: row.id,
-            customerId: row.user_id || '',
-            customerName: row.client_name || row.customer_name || (lang === 'ar' ? 'عميل بدون اسم' : 'Unnamed Client'),
-            customerPhone: row.client_phone || row.customer_phone || '',
-            customerProvince: row.province || row.customer_province || '',
-            customerAddress: row.address || row.customer_address || '',
-            customerNationalId: row.national_id || row.customer_national_id || '',
-            status: row.status || 'pending',
-            notes: row.admin_notes || '',
-            created_at: row.created_at || new Date().toISOString(),
-            installmentPlan: {
-              monthlyPayment: totalAmt ? totalAmt / 12 : 0,
-              inquiryFee: 150,
-              months: 12,
-              totalAmount: totalAmt
-            },
-            product: {
-              nameAr: lang === 'ar' ? 'طلب تقسيط مالي' : 'Financial Installment Request',
-              nameEn: 'Financial Installment Request'
-            },
-            documents: row.documents || {},
-            supervisorId: supervisorId
-          };
-        });
-
-      console.log(`✅ Loaded ${mappedOrders.length} orders for supervisor ${supervisorId} in province ${supervisorProvince}`);
-      setOrders(mappedOrders);
-
-      // تحديث الكائن المختار إذا كان مفتوحاً
-      if (selected) {
-        const currentSelected = mappedOrders.find(o => o.id === selected.id);
-        if (currentSelected) {
-          setSelected(currentSelected);
-        }
-      }
-    } catch (err: any) {
-      console.error('❌ Error loading orders:', err);
-      toast.error(lang === 'ar' ? 'حدث خطأ أثناء تحميل الطلبات' : 'Error loading orders');
-      setOrders([]);
+    } catch {
+      setOrders(getOrdersBySupervisor(user.id));
     } finally {
       setLoading(false);
     }
-  }, [user, lang, selected]);
+  }, [user]);
 
-  useEffect(() => {
-    reload();
-  }, [user, reload]);
+  useEffect(() => { reload(); }, [reload]);
 
-  // دالة تتبع الـ GPS
   async function fetchGps() {
     setFetchingGps(true);
-    try {
-      const coords = await getCurrentGps();
-      if (coords) {
-        setGps({
-          latitude: (coords as any).latitude || (coords as any).lat,
-          longitude: (coords as any).longitude || (coords as any).lng
-        } as any);
-        toast.success(lang === 'ar' ? 'تم تحديد موقعك بنجاح' : 'Location set successfully');
-      } else {
-        setGps(null);
-        toast.warning(lang === 'ar' ? 'لم يتمكن من الوصول للموقع' : 'Could not access location');
-      }
-    } catch (err) {
-      console.error('❌ GPS error:', err);
-      setGps(null);
-    } finally {
-      setFetchingGps(false);
-    }
+    const coords = await getCurrentGps();
+    setGps(coords);
+    setFetchingGps(false);
+    if (!coords) toast.warning(t('لم يتم الحصول على الموقع', 'GPS unavailable'));
+    else toast.success(t('تم تحديد موقعك بنجاح', 'GPS acquired'));
   }
 
-  useEffect(() => {
-    fetchGps();
-  }, []);
-
-  // ✅ FIX #2: فحص السداد - يجب أن تكون الحالة 'under-inquiry' لتفعيل رفع المستندات
-  function isFeeConfirmed(order: any): boolean {
-    if (!order) return false;
-    // عندما يكون الطلب في حالة under-inquiry، معناه تم تأكيد استلام الرسوم بنجاح
-    return order.status === 'under-inquiry' || (order.notes?.includes('fee_paid') ?? false);
+  function isFeeConfirmed(order: Order): boolean {
+    return ['under-inquiry', 'admin-review', 'approved', 'delivered', 'under-review', 'active', 'completed']
+      .includes(order.status) || (order.notes?.includes('fee_paid') ?? false);
   }
 
-  // ✅ FIX #2: تأكيد استلام الرسوم وإضافتها للعهدة تلقائياً
-  async function handleConfirmFeeReceived(order: any) {
+  async function handleConfirmFeeReceived(order: Order) {
     if (!user) return;
-    
-    const feeAmount = 150;
-    const loadingToast = toast.loading(lang === 'ar' ? 'جاري معالجة الرسوم...' : 'Processing fees...');
-    
-    try {
-      const nowIso = new Date().toISOString();
-      const updatedNotes = `fee_paid_150:${nowIso}`;
-
-      // 1️⃣ تحديث حالة الطلب إلى under-inquiry
-      const { error: orderUpdateError } = await supabase
-        .from('orders')
-        .update({
-          status: 'under-inquiry',
-          admin_notes: updatedNotes,
-          updated_at: nowIso
-        })
-        .eq('id', order.id);
-
-      if (orderUpdateError) throw orderUpdateError;
-      console.log(`✅ Order ${order.id} status updated to under-inquiry`);
-
-      // 2️⃣ إضافة الرسوم إلى عهدة المشرف
-      const { data: supervisorData, error: supFetchError } = await supabase
-        .from('supervisors')
-        .select('pending_debt')
-        .eq('id', user.id)
-        .single();
-
-      if (supFetchError && supFetchError.code !== 'PGRST116') {
-        console.warn('⚠️ Warning fetching supervisor debt:', supFetchError);
-      }
-
-      const currentDebt = supervisorData?.pending_debt ? Number(supervisorData.pending_debt) : 0;
-      const newDebt = currentDebt + feeAmount;
-
-      const { error: supUpdateError } = await supabase
-        .from('supervisors')
-        .update({ 
-          pending_debt: newDebt,
-          updated_at: nowIso
-        })
-        .eq('id', user.id);
-
-      if (supUpdateError) throw supUpdateError;
-      console.log(`✅ Supervisor ${user.id} debt updated: ${currentDebt} -> ${newDebt}`);
-
-      // 3️⃣ تحديث الـ state محلياً فوراً
-      const updatedOrder = {
-        ...order,
-        status: 'under-inquiry',
-        notes: updatedNotes
-      };
-
-      setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-      
-      if (selected && selected.id === order.id) {
-        setSelected(updatedOrder);
-      }
-
-      toast.dismiss(loadingToast);
-      toast.success(
-        lang === 'ar' 
-          ? `✅ تم إدراج ${feeAmount} ج.م في عهدتك — تم فتح واجهة رفع المستندات`
-          : `✅ ${feeAmount} EGP added to custody — Document upload enabled`
-      );
-      setConfirmingFee(null);
-
-      // 4️⃣ إعادة تحميل البيانات للتأكد من التزامن
-      await reload();
-    } catch (err: any) {
-      console.error('❌ Critical Error:', err);
-      toast.dismiss(loadingToast);
-      toast.error(
-        lang === 'ar' 
-          ? `❌ فشل المعالجة: ${err.message}`
-          : `❌ Failed: ${err.message}`
-      );
-    }
+    const fee = order.installmentPlan.inquiryFee;
+    addFeeToWallet(user.id, fee, order.id, order.customerName);
+    updateOrder(order.id, {
+      status: 'under-inquiry',
+      inquiryFeePaidAt: new Date().toISOString(),
+      notes: `fee_paid:${new Date().toISOString()}`,
+    });
+    addNotification({
+      userId: order.customerId, type: 'order-update',
+      titleAr: 'تم استلام رسوم الاستعلام',
+      titleEn: 'Inquiry Fee Received',
+      messageAr: 'تم استلام رسوم الاستعلام وطلبك الآن جاري الاستعلام الميداني.',
+      messageEn: 'Inquiry fee received. Field visit in progress.',
+      orderId: order.id,
+    });
+    toast.success(t(`تم إضافة ${formatCurrency(fee)} لمحفظتك`, `EGP ${fee} added to wallet`));
+    setConfirmingFee(null);
+    reload();
+    setSelected(null);
   }
 
-  // ✅ FIX #3: رفع المستندات - يجب أن تكون مفعلة عندما يكون status = under-inquiry
   async function handleDocUpload(field: keyof OrderDocuments, file: File, orderId: string) {
     const currentOrder = orders.find(o => o.id === orderId);
-    if (!currentOrder) {
-      toast.error(lang === 'ar' ? 'الطلب غير موجود' : 'Order not found');
-      return;
-    }
+    if (!currentOrder) return;
 
-    if (!isFeeConfirmed(currentOrder)) {
-      toast.error(
-        lang === 'ar'
-          ? 'يجب تأكيد استلام الرسوم أولاً'
-          : 'Must confirm fee receipt first'
-      );
-      return;
-    }
+    const reader = new FileReader();
+    reader.onload = async e => {
+      let dataUrl = e.target?.result as string;
+      const sup = user ? getSupervisorById(user.id) : null;
+      if (gps) dataUrl = await addGpsWatermark(dataUrl, gps, sup?.name ?? user?.name ?? 'مشرف');
 
-    const uploadToast = toast.loading(lang === 'ar' ? 'جاري رفع المستند...' : 'Uploading document...');
-
-    try {
-      const reader = new FileReader();
-      reader.onload = async e => {
-        let dataUrl = e.target?.result as string;
-
-        const currentLat = gps ? ((gps as any).latitude || (gps as any).lat) : null;
-        const currentLng = gps ? ((gps as any).longitude || (gps as any).lng) : null;
-
-        // إضافة علامة GPS على الصورة إن وجدت
-        if (currentLat && currentLng) {
-          try {
-            dataUrl = await addGpsWatermark(
-              dataUrl,
-              { lat: currentLat, lng: currentLng } as any,
-              user?.name || 'مشرف الاستعلام'
-            );
-          } catch (watermarkErr) {
-            console.warn('⚠️ Could not add GPS watermark:', watermarkErr);
-          }
-        }
-
-        setDocPreviews(prev => ({ ...prev, [field]: dataUrl }));
-        
-        // حفظ المستند في قاعدة البيانات
-        const updatedDocs = {
-          ...currentOrder.documents,
-          [field]: dataUrl,
-          uploadedAt: new Date().toISOString()
-        };
-
-        try {
-          const { error: uploadError } = await supabase
-            .from('orders')
-            .update({ documents: updatedDocs })
-            .eq('id', orderId);
-
-          if (uploadError) throw uploadError;
-
-          const updatedOrder = { ...currentOrder, documents: updatedDocs };
-          setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
-          if (selected && selected.id === orderId) {
-            setSelected(updatedOrder);
-          }
-
-          toast.dismiss(uploadToast);
-          toast.success(
-            lang === 'ar'
-              ? '✅ تم حفظ المستند بنجاح'
-              : '✅ Document saved successfully'
-          );
-        } catch (err: any) {
-          toast.dismiss(uploadToast);
-          toast.error(
-            lang === 'ar'
-              ? `❌ فشل الحفظ: ${err.message}`
-              : `❌ Save failed: ${err.message}`
-          );
-        }
+      setDocPreviews(prev => ({ ...prev, [field]: dataUrl }));
+      const updatedDocs: OrderDocuments = {
+        ...currentOrder.documents,
+        [field]: dataUrl,
+        uploadedAt: new Date().toISOString(),
+        uploadedGps: gps ?? undefined,
       };
-      reader.readAsDataURL(file);
-    } catch (err: any) {
-      toast.dismiss(uploadToast);
-      toast.error(lang === 'ar' ? '❌ خطأ في رفع الملف' : '❌ Upload error');
-    }
+
+      const hasRequired = updatedDocs.nationalIdFront && updatedDocs.nationalIdBack;
+      const newStatus = hasRequired ? 'admin-review' : currentOrder.status;
+
+      updateOrder(orderId, { documents: updatedDocs, fieldVisitGps: gps ?? currentOrder.fieldVisitGps, status: newStatus });
+      if (newStatus === 'admin-review' && currentOrder.status !== 'admin-review') {
+        toast.success(t('اكتملت المستندات — تم إرسال الطلب لمراجعة المدير', 'Documents complete — escalated to Admin Review'));
+      } else {
+        toast.success(t('تم رفع المستند', 'Document uploaded'));
+      }
+      reload();
+    };
+    reader.readAsDataURL(file);
   }
 
-  // تصعيد الملف للمدير
-  async function handleEscalateToAdmin(orderId: string) {
-    const escalateToast = toast.loading(lang === 'ar' ? 'جاري التصعيد...' : 'Escalating...');
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'admin-review',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      toast.dismiss(escalateToast);
-      toast.success(
-        lang === 'ar'
-          ? '✅ تم تصعيد الملف للمراجعة الإدارية'
-          : '✅ File escalated to admin review'
-      );
-      
-      await reload();
-      setSelected(null);
-    } catch (err: any) {
-      toast.dismiss(escalateToast);
-      toast.error(
-        lang === 'ar'
-          ? `❌ فشل التصعيد: ${err.message}`
-          : `❌ Escalation failed: ${err.message}`
-      );
-    }
+  function handleEscalateToAdmin(orderId: string) {
+    updateOrder(orderId, { status: 'admin-review' });
+    toast.success(t('تم إرسال الطلب لمراجعة المدير', 'Escalated to Admin Review'));
+    reload();
+    setSelected(null);
   }
 
-  const statuses = ['all', 'pending', 'under-inquiry'];
-  
+  const statuses = ['all', 'pending', 'under-inquiry', 'admin-review', 'approved', 'delivered', 'rejected'];
   const filtered = orders.filter(o => {
-    const nameStr = String(o.customerName || '').toLowerCase();
-    const phoneStr = String(o.customerPhone || '');
-    const searchStr = search.toLowerCase();
-
-    const matchSearch = !search || nameStr.includes(searchStr) || phoneStr.includes(searchStr);
+    const matchSearch = !search || o.customerName.includes(search) || o.customerPhone.includes(search);
     const matchStatus = statusFilter === 'all' || o.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const docFields: { key: keyof OrderDocuments; label: string }[] = [
-    { key: 'nationalIdFront', label: t('البطاقة - الوجه الأمامي *', 'ID Front *') },
-    { key: 'nationalIdBack',  label: t('البطاقة - الوجه الخلفي *', 'ID Back *') },
-    { key: 'utilityBill',     label: t('إيصال مرافق حديث', 'Utility Bill') },
-    { key: 'incomeProof',     label: t('إثبات دخل أو مفردات مرتب', 'Income Proof') },
-    { key: 'customerHousePhoto', label: t('صورة منزل العميل من الطبيعة', 'House Photo') },
+    { key: 'nationalIdFront',    label: t('البطاقة - الوجه الأمامي *', 'ID Front *') },
+    { key: 'nationalIdBack',     label: t('البطاقة - الوجه الخلفي *', 'ID Back *') },
+    { key: 'utilityBill',        label: t('إيصال مرافق', 'Utility Bill') },
+    { key: 'incomeProof',        label: t('إثبات دخل', 'Income Proof') },
+    { key: 'customerHousePhoto', label: t('صورة منزل العميل', "House Photo") },
   ];
 
   return (
     <div className="space-y-4">
-      {/* مراقبة الـ GPS الحي */}
-      <div className="bg-[#0f2460]/5 border border-[#0f2460]/20 rounded-xl p-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-[#0f2460]">
-          <Navigation size={16} className={gps ? 'text-green-500 animate-pulse' : 'text-slate-400'} />
+      {/* GPS Bar */}
+      <div className="bg-[#0a1628]/5 border border-[#0a1628]/20 rounded-xl p-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-[#0a1628]">
+          <Navigation size={16} className={gps ? 'text-emerald-500' : 'text-slate-400'} />
           {gps
-            ? t(`موقعك الميداني مفعّل: ${Number((gps as any).latitude || (gps as any).lat).toFixed(4)}`, 'GPS active')
-            : t('الموقع الجغرافي غير محدد — مطلوب لتوثيق صور المعاينة', 'GPS location required')}
+            ? `${t('موقعك:', 'Location:')} ${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)}`
+            : t('الموقع الجغرافي غير محدد — مطلوب لرفع المستندات', 'GPS not set — required for uploads')}
         </div>
         <button onClick={fetchGps} disabled={fetchingGps} className="btn-outline text-xs px-3 py-2 flex items-center gap-1">
-          <MapPin size={13} />
-          {fetchingGps ? t('جاري التحديد...', 'Getting...') : t('تحديد موقعي', 'Get Location')}
+          {fetchingGps ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
+          {fetchingGps ? t('جاري...', 'Getting...') : t('تحديد موقعي', 'Get GPS')}
         </button>
       </div>
 
-      {/* شريط البحث والفلترة */}
+      {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[180px]">
           <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('بحث باسم العميل أو رقم الهاتف...', 'Search...')}
-            className="input-field ps-9 text-sm" />
+            placeholder={t('بحث بالاسم أو الهاتف...', 'Search...')} className="input-field ps-9 text-sm" />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input-field text-sm w-auto">
           {statuses.map(s => (
-            <option key={s} value={s}>
-              {s === 'all' ? t('كل الحالات', 'All') : getOrderStatusLabel(s, lang)}
-            </option>
+            <option key={s} value={s}>{s === 'all' ? t('الكل', 'All') : getOrderStatusLabel(s, lang)}</option>
           ))}
         </select>
+        <button onClick={reload} disabled={loading} className="btn-outline flex items-center gap-1 text-sm px-3">
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
       </div>
 
-      {/* حالة التحميل */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
+        <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+        {t('يجب تأكيد استلام رسوم الاستعلام أولاً لفتح صلاحية رفع المستندات. المبلغ يُضاف لمحفظتك فوراً.', 'Confirm inquiry fee first to unlock document upload. Amount added to wallet immediately.')}
+      </div>
+
+      {/* Loading */}
       {loading && (
-        <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-          <div className="inline-block mb-3">
-            <div className="w-8 h-8 border-4 border-[#0f2460]/30 border-t-[#0f2460] rounded-full animate-spin" />
-          </div>
-          <p className="text-slate-500">{t('جاري تحميل الطلبات...', 'Loading orders...')}</p>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 size={28} className="animate-spin text-[#0a1628]" />
         </div>
       )}
 
-      {/* جدول البيانات */}
+      {/* Table */}
       {!loading && (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  {[t('العميل', 'Customer'), t('المحافظة', 'Province'), t('إجمالي القيمة', 'Total Amount'), t('رسوم الاستعلام', 'Inquiry Fee'), t('الحالة', 'Status'), t('الإجراء', 'Action')].map(h => (
+                  {[t('العميل', 'Customer'), t('المنتج', 'Product'), t('القسط', 'Monthly'), t('الرسوم', 'Fee'), t('الدفع', 'Payment'), t('الحالة', 'Status'), ''].map(h => (
                     <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-slate-500">{h}</th>
                   ))}
                 </tr>
@@ -432,27 +207,38 @@ export default function SupervisorOrders() {
                   return (
                     <tr key={o.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-800">{o.customerName}</div>
-                        <div className="text-xs text-slate-400 font-mono">{o.customerPhone}</div>
+                        <div className="font-medium text-[#0a1628]">{o.customerName}</div>
+                        <div className="text-xs text-slate-400">{o.customerPhone}</div>
                       </td>
-                      <td className="px-4 py-3 text-slate-600 font-medium">{o.customerProvince}</td>
-                      <td className="px-4 py-3 font-bold text-[#0f2460]">{formatCurrency(o.installmentPlan.totalAmount, lang)}</td>
-                      <td className="px-4 py-3 font-bold text-[#d4a339]">{formatCurrency(o.installmentPlan.inquiryFee, lang)}</td>
+                      <td className="px-4 py-3 text-slate-600 max-w-[130px]">
+                        <div className="truncate">{o.product?.nameAr ?? '—'}</div>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-[#0a1628]">
+                        {o.installmentPlan ? formatCurrency(o.installmentPlan.monthlyPayment, lang) : '—'}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-[#c9a84c]">
+                        {o.installmentPlan ? formatCurrency(o.installmentPlan.inquiryFee, lang) : '—'}
+                      </td>
                       <td className="px-4 py-3">
                         {feePaid ? (
-                          <span className="flex items-center gap-1 text-green-600 text-xs font-semibold">
-                            <CheckCircle size={13} /> {t('مستلمة (بالعهدة)', 'In Custody')}
+                          <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                            <CheckCircle size={13} /> {t('مدفوعة', 'Paid')}
                           </span>
                         ) : (
                           <button onClick={() => setConfirmingFee(o.id)}
-                            className="text-xs bg-[#d4a339] text-white px-3 py-1.5 rounded-lg hover:bg-[#c49330] transition-colors flex items-center gap-1 font-medium shadow-sm">
-                            <DollarSign size={12} /> {t('تأكيد الاستلام', 'Confirm')}
+                            className="text-xs bg-[#c9a84c] text-white px-3 py-1.5 rounded-lg hover:bg-[#b8913d] transition-colors flex items-center gap-1">
+                            <DollarSign size={12} /> {t('تأكيد', 'Confirm')}
                           </button>
                         )}
                       </td>
                       <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${getOrderStatusColor(o.status)}`}>
+                          {getOrderStatusLabel(o.status, lang)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
                         <button onClick={() => { setSelected(o); setDocPreviews({}); }}
-                          className="w-8 h-8 rounded-lg bg-[#0f2460]/10 hover:bg-[#0f2460] text-[#0f2460] hover:text-white flex items-center justify-center transition-all">
+                          className="w-8 h-8 rounded-lg bg-[#0a1628]/10 hover:bg-[#0a1628] text-[#0a1628] hover:text-white flex items-center justify-center transition-all">
                           <Eye size={13} />
                         </button>
                       </td>
@@ -461,16 +247,14 @@ export default function SupervisorOrders() {
                 })}
               </tbody>
             </table>
-            {!loading && filtered.length === 0 && (
-              <div className="text-center py-10 text-slate-400 text-sm">
-                {t('لا توجد طلبات معلقة في محافظتك', 'No pending orders in your province')}
-              </div>
+            {filtered.length === 0 && (
+              <div className="text-center py-10 text-slate-400 text-sm">{t('لا توجد طلبات', 'No orders')}</div>
             )}
           </div>
         </div>
       )}
 
-      {/* مودال تأكيد استلام الرسوم */}
+      {/* Confirm Fee Modal */}
       {confirmingFee && (() => {
         const order = orders.find(o => o.id === confirmingFee);
         if (!order) return null;
@@ -478,27 +262,24 @@ export default function SupervisorOrders() {
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setConfirmingFee(null)}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
               <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-[#d4a339]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <DollarSign size={32} className="text-[#d4a339]" />
+                <div className="w-16 h-16 bg-[#c9a84c]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <DollarSign size={32} className="text-[#c9a84c]" />
                 </div>
-                <h3 className="font-bold text-[#0f2460] text-lg mb-1">{t('تأكيد استلام رسوم الاستعلام', 'Confirm Fee Receipt')}</h3>
+                <h3 className="font-bold text-[#0a1628] text-lg mb-1">{t('تأكيد استلام رسوم الاستعلام', 'Confirm Fee Receipt')}</h3>
                 <p className="text-slate-500 text-sm mb-1">{t('العميل:', 'Customer:')} <strong>{order.customerName}</strong></p>
-                <p className="text-3xl font-black text-[#d4a339] my-3">{formatCurrency(order.installmentPlan.inquiryFee, lang)}</p>
-                
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 mb-4 text-start leading-relaxed">
-                  <p className="font-bold mb-1">🔗 ما الذي سيحدث:</p>
-                  <ul className="space-y-1 list-disc list-inside">
-                    <li>✅ تُسجل الرسوم كعهدة مالية في حسابك</li>
-                    <li>✅ تتحول حالة الطلب إلى "جاري الاستعلام"</li>
-                    <li>✅ يتم فتح صلاحية رفع مستندات العميل فوراً</li>
-                  </ul>
+                <p className="text-3xl font-black text-[#c9a84c] my-3">
+                  {order.installmentPlan ? formatCurrency(order.installmentPlan.inquiryFee, lang) : '—'}
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 mb-4 text-start space-y-1">
+                  <p>✅ {t('يُضاف هذا المبلغ فوراً لمحفظتك كمديونية', 'Amount added to wallet as debt')}</p>
+                  <p>✅ {t('يفتح لك صلاحية رفع مستندات العميل', 'Unlocks document upload')}</p>
+                  <p>⚠️ {t('يجب تسليم العهدة للمدير يومياً', 'Must settle with admin daily')}</p>
                 </div>
-
                 <div className="flex gap-3">
-                  <button onClick={() => handleConfirmFeeReceived(order)} className="btn-gold flex-1 text-sm font-medium">
-                    {t('تأكيد الاستلام والنزول بالعهدة', 'Confirm & Custody')}
+                  <button onClick={() => handleConfirmFeeReceived(order)} className="btn-primary flex-1">
+                    {t('تأكيد الاستلام', 'Confirm Receipt')}
                   </button>
-                  <button onClick={() => setConfirmingFee(null)} className="btn-outline flex-1 text-sm font-medium">
+                  <button onClick={() => setConfirmingFee(null)} className="btn-outline flex-1">
                     {t('إلغاء', 'Cancel')}
                   </button>
                 </div>
@@ -508,93 +289,97 @@ export default function SupervisorOrders() {
         );
       })()}
 
-      {/* مودال رفع ملفات المعاينة الميدانية */}
-      {selected && (() => {
-        const feePaid = isFeeConfirmed(selected);
-        return (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white">
-                <div>
-                  <h3 className="font-bold text-[#0f2460]">{t('تفاصيل ومستندات طلب المعاينة', 'Inquiry Details')}</h3>
-                  <p className="text-xs text-slate-400">#{selected.id} — {selected.customerName}</p>
-                </div>
-                <button onClick={() => setSelected(null)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"><X size={16} /></button>
+      {/* Order Detail Modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white">
+              <div>
+                <h3 className="font-bold text-[#0a1628]">{t('تفاصيل الطلب', 'Order Details')}</h3>
+                <p className="text-xs text-slate-400">{selected.id}</p>
               </div>
-              <div className="p-5 space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm border-b pb-3">
-                  {[
-                    { label: t('الاسم بالكامل', 'Name'), v: selected.customerName },
-                    { label: t('رقم الهاتف', 'Phone'), v: selected.customerPhone },
-                    { label: t('المحافظة جغرافياً', 'Province'), v: selected.customerProvince },
-                    { label: t('عنوان المعاينة الميداني', 'Address'), v: selected.customerAddress },
-                    { label: t('إجمالي القيمة المطلوب تقسيطها', 'Total'), v: formatCurrency(selected.installmentPlan.totalAmount, lang) },
-                  ].map(item => (
-                    <div key={item.label}><p className="text-xs text-slate-400">{item.label}</p><p className="font-medium text-slate-800">{item.v}</p></div>
-                  ))}
+              <button onClick={() => setSelected(null)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {[
+                  { label: t('الاسم', 'Name'), v: selected.customerName },
+                  { label: t('الهاتف', 'Phone'), v: selected.customerPhone },
+                  { label: t('المحافظة', 'Province'), v: selected.customerProvince },
+                  { label: t('الوظيفة', 'Job'), v: selected.customerJob },
+                  { label: t('القسط الشهري', 'Monthly'), v: selected.installmentPlan ? formatCurrency(selected.installmentPlan.monthlyPayment, lang) : '—' },
+                  { label: t('الرسوم', 'Fee'), v: selected.installmentPlan ? formatCurrency(selected.installmentPlan.inquiryFee, lang) : '—' },
+                ].map(item => (
+                  <div key={item.label}><p className="text-xs text-slate-400">{item.label}</p><p className="font-medium text-[#0a1628]">{item.v}</p></div>
+                ))}
+              </div>
+
+              {/* Documents */}
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  {isFeeConfirmed(selected) ? <FileCheck size={16} className="text-emerald-500" /> : <AlertCircle size={16} className="text-amber-500" />}
+                  <h4 className="font-semibold text-sm">{t('رفع المستندات', 'Upload Documents')}</h4>
                 </div>
 
-                <div className="pt-1">
-                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-1.5 text-slate-700">
-                    <Camera size={16} className="text-slate-500" />
-                    {t('رفع وثائق وملفات العميل من الطبيعة المعاينية:', 'Upload Documents:')}
-                  </h4>
-
-                  {feePaid ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        {docFields.map(({ key, label }) => {
-                          const existing = selected.documents?.[key] as string | undefined;
-                          const preview = docPreviews[key] ?? existing;
-                          return (
-                            <div key={key} className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 text-center hover:border-[#0f2460] transition-all">
-                              <p className="text-xs text-slate-500 mb-2 font-medium">{label}</p>
-                              {preview ? (
-                                <div className="relative rounded-lg overflow-hidden h-20 border bg-black">
-                                  <img src={preview} alt={label} className="w-full h-full object-cover opacity-90" />
-                                  <label className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                                    <span className="text-white text-xs flex items-center gap-1"><Camera size={12} /> {t('تعديل الصورة', 'Change')}</span>
-                                    <input type="file" accept="image/*" className="hidden"
-                                      onChange={e => e.target.files?.[0] && handleDocUpload(key, e.target.files[0], selected.id)} />
-                                  </label>
-                                </div>
-                              ) : (
-                                <label className="flex flex-col items-center gap-1 cursor-pointer py-3 bg-white border rounded-lg shadow-sm hover:bg-slate-50 transition-colors">
-                                  <Upload size={18} className="text-slate-400" />
-                                  <span className="text-xs text-slate-400">{t('التقاط الصورة حياً', 'Capture')}</span>
+                {isFeeConfirmed(selected) ? (
+                  <>
+                    {!gps && (
+                      <button onClick={fetchGps} disabled={fetchingGps}
+                        className="w-full flex items-center justify-center gap-2 py-2 mb-3 border border-dashed border-slate-300 rounded-xl text-sm text-slate-500 hover:border-[#0a1628] transition-colors">
+                        <MapPin size={14} />
+                        {fetchingGps ? t('جاري تحديد الموقع...', 'Getting GPS...') : t('تحديد الموقع الجغرافي (لإضافة watermark)', 'Get GPS for watermark')}
+                      </button>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      {docFields.map(({ key, label }) => {
+                        const existing = selected.documents[key as keyof typeof selected.documents] as string | undefined;
+                        const preview  = docPreviews[key] ?? existing;
+                        return (
+                          <div key={key} className="border-2 border-dashed border-slate-200 rounded-xl p-3 hover:border-[#0a1628]/50 transition-colors">
+                            <p className="text-xs text-slate-500 mb-2">{label}</p>
+                            {preview ? (
+                              <div className="relative">
+                                <img src={preview} alt={label} className="w-full h-20 object-cover rounded-lg" />
+                                <label className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 flex items-center justify-center cursor-pointer rounded-lg transition-opacity">
+                                  <span className="text-white text-xs flex items-center gap-1"><Camera size={12} /> {t('تغيير', 'Change')}</span>
                                   <input type="file" accept="image/*" className="hidden"
                                     onChange={e => e.target.files?.[0] && handleDocUpload(key, e.target.files[0], selected.id)} />
                                 </label>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {selected.status === 'under-inquiry' && (
-                        <button onClick={() => handleEscalateToAdmin(selected.id)} className="btn-primary w-full mt-5 flex items-center justify-center gap-2 text-sm py-2.5 font-semibold">
-                          <CheckCircle size={15} />
-                          {t('تصعيد وإرسال الملف للمراجعة الإدارية النهائية', 'Escalate to Admin Review')}
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <div className="bg-red-50 rounded-xl p-5 text-center border border-red-200">
-                      <AlertCircle size={32} className="text-red-400 mx-auto mb-2" />
-                      <p className="text-red-700 text-sm mb-3 font-medium">
-                        {t('❌ رفع المستندات مغلق — يفتح تلقائياً فور تأكيد استلام رسوم الاستعلام (150 ج.م)', '❌ Document upload is locked — opens after confirming fee receipt')}
-                      </p>
-                      <button onClick={() => { setSelected(null); setConfirmingFee(selected.id); }} className="btn-gold text-xs px-4 py-2 font-semibold w-full">
-                        {t('تأكيد الرسوم الآن ↓', 'Confirm Fees Now ↓')}
-                      </button>
+                              </div>
+                            ) : (
+                              <label className="flex flex-col items-center gap-1 cursor-pointer py-3">
+                                <Upload size={18} className="text-slate-400" />
+                                <span className="text-xs text-slate-400">{t('رفع صورة', 'Upload')}</span>
+                                <input type="file" accept="image/*" className="hidden"
+                                  onChange={e => e.target.files?.[0] && handleDocUpload(key, e.target.files[0], selected.id)} />
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
+                    {selected.status === 'under-inquiry' && (
+                      <button onClick={() => handleEscalateToAdmin(selected.id)} className="btn-primary w-full mt-4 flex items-center justify-center gap-2 text-sm">
+                        <CheckCircle size={15} />
+                        {t('إرسال للمراجعة النهائية من المدير', 'Submit for Admin Review')}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-slate-50 rounded-xl p-5 text-center">
+                    <AlertCircle size={32} className="text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-400 text-sm mb-3">{t('مقفل — يفتح بعد تأكيد الرسوم', 'Locked — confirm fee first')}</p>
+                    <button onClick={() => { setSelected(null); setConfirmingFee(selected.id); }} className="btn-primary text-sm px-4 py-2">
+                      {t('تأكيد الرسوم', 'Confirm Fee')}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
     </div>
   );
 }
