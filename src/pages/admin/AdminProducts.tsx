@@ -118,7 +118,7 @@ export default function AdminProducts() {
       <div className="flex gap-2 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
         <div className="relative flex-1">
           <Search size={14} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" placeholder={t('بحث باسم المنتج أو الماركة...', 'Search...')} value={search} onChange={e => setSearch(e.target.value)} className="w-full p-1.5 px-3 rounded-lg border outline-none" />
+          <input type="text" placeholder={t('بحث باسم المنتج أو الماركة...', 'Search...')} value={search} onChange={e => setSearch(e.target.value)} className="w-full p-1.5 ps-8 text-xs border rounded-lg outline-none" />
         </div>
         <button onClick={reload} className="p-1.5 border rounded-lg hover:bg-slate-50 transition-colors">
           <RefreshCw size={14} className={loading ? 'animate-spin text-[#0f2460]' : 'text-slate-500'} />
@@ -155,7 +155,7 @@ export default function AdminProducts() {
               </div>
               <div className="col-span-2">
                 <label className="block text-slate-500 mb-0.5">{t('رابط الصورة أونلاين', 'Image URL')}</label>
-                <input type="text" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} className="w-full p-2 border rounded-lg outline-none" placeholder="https://..." />
+                <input type="text" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} className="w-full p-2 border rounded-lg outline-none" placeholder="https://example.com/image.jpg" />
               </div>
             </div>
             <div className="flex justify-end gap-2 text-xs pt-2 border-t">
@@ -177,7 +177,7 @@ export default function AdminProducts() {
             <div key={p.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm p-2.5 flex flex-col justify-between space-y-2">
               <div className="space-y-2">
                 <div className="aspect-square bg-slate-50 rounded-lg overflow-hidden relative">
-                  <img src={p.images?.[0] ?? 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop'} className="w-full h-full object-cover" alt="" onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop'; }} />
+                  <img src={p.images?.[0] ?? 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop'} className="w-full h-full object-cover" alt="" onError={e => { (e.target as any).src = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop'; }} />
                   <span className="absolute top-1.5 start-1.5 bg-emerald-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">Live DB</span>
                 </div>
                 <div className="font-bold text-xs text-slate-700 truncate">{lang === 'ar' ? p.nameAr : p.nameEn}</div>
