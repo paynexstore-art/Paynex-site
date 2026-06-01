@@ -2,7 +2,7 @@ import type { User, UserRole, Supervisor } from '@/types';
 import { ADMIN_CREDENTIALS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId } from './utils';
 import { logLogin } from './auditLog';
-import { supabase, isSupabaseConfigured } from '@/supabaseClient';
+import { supabase, isSupabaseConfigured } from '@/supabaseClient.ts';
 import CryptoJS from 'crypto-js';
 
 // Constants
