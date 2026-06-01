@@ -1,540 +1,243 @@
-import type { User, UserRole, Supervisor } from '@/types';
+import type { User } from '@/types';
 import { ADMIN_CREDENTIALS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId } from './utils';
 import { logLogin } from './auditLog';
-import { supabase, isSupabaseConfigured } from '@/supabaseClient.ts';
-import CryptoJS from 'crypto-js';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
-// Constants
-const AUTH_KEY = 'paynex_auth_user';
-const USERS_KEY = 'paynex_users';
-const SALT_KEY = 'paynex_salt_';
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOGIN_ATTEMPT_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+// ─── Super Admin permission matrix ───────────────────────────────────────────
+export type AdminPermission =
+  | 'manage_users' | 'manage_supervisors' | 'manage_products' | 'manage_orders'
+  | 'manage_wallets' | 'manage_salary' | 'manage_settings' | 'approve_orders'
+  | 'reject_orders' | 'view_audit_logs' | 'manage_coupons' | 'manage_testimonials'
+  | 'lock_unlock_supervisors' | 'settle_wallet_debt' | 'approve_salary'
+  | 'manage_rls' | 'database_admin' | 'export_data' | 'import_data' | 'manage_integrations';
 
-// Simple password hashing function (note: for production use bcrypt)
-function hashPassword(password: string): string {
-  return CryptoJS.SHA256(password + import.meta.env.VITE_SUPABASE_ANON_KEY).toString();
+export interface AdminRole {
+  userId: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'super_admin';
+  permissions: Record<AdminPermission, boolean>;
+  isActive: boolean;
 }
 
-function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash;
+// Default Super Admin — hardcoded fallback, DB is source of truth
+const SUPER_ADMIN_PERMISSIONS: Record<AdminPermission, boolean> = {
+  manage_users: true, manage_supervisors: true, manage_products: true,
+  manage_orders: true, manage_wallets: true, manage_salary: true,
+  manage_settings: true, approve_orders: true, reject_orders: true,
+  view_audit_logs: true, manage_coupons: true, manage_testimonials: true,
+  lock_unlock_supervisors: true, settle_wallet_debt: true, approve_salary: true,
+  manage_rls: true, database_admin: true, export_data: true,
+  import_data: true, manage_integrations: true,
+};
+
+/** Fetch admin role + permissions from Supabase */
+export async function fetchAdminRole(userId: string): Promise<AdminRole | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase
+    .from('admin_roles').select('*').eq('user_id', userId).maybeSingle();
+  if (error || !data) return null;
+  return {
+    userId:      data.user_id,
+    email:       data.email,
+    name:        data.name,
+    role:        data.role,
+    permissions: data.permissions as Record<AdminPermission, boolean>,
+    isActive:    data.is_active,
+  };
 }
 
-// Get current authenticated user
+/** Check if admin has a specific permission */
+export function hasPermission(adminRole: AdminRole | null, permission: AdminPermission): boolean {
+  if (!adminRole) return false;
+  if (adminRole.role === 'super_admin') return true; // Super Admin bypasses all checks
+  return adminRole.permissions?.[permission] === true;
+}
+
+/** Check if current user is Super Admin */
+export function isSuperAdmin(user: User | null, adminRole?: AdminRole | null): boolean {
+  if (!user || user.role !== 'admin') return false;
+  if (adminRole) return adminRole.role === 'super_admin';
+  // Fallback: check hardcoded credential
+  return user.id === ADMIN_CREDENTIALS.user.id;
+}
+
+const AUTH_KEY   = 'paynexsmart_auth_user';
+const USERS_KEY  = 'paynexsmart_users';
+
 export function getCurrentUser(): User | null {
-  try {
-    const stored = localStorage.getItem(AUTH_KEY);
-    if (!stored) return null;
-    
-    const user = JSON.parse(stored) as User;
-    
-    // Validate user structure
-    if (!user.id || !user.email || !user.role) {
-      console.warn('⚠️ Invalid user structure in storage');
-      return null;
-    }
-    
-    return user;
-  } catch (error) {
-    console.error('❌ Error retrieving current user:', error);
-    return null;
-  }
+  // Support both old and new key names for backwards-compatibility
+  const stored = localStorage.getItem(AUTH_KEY) ?? localStorage.getItem('paynexsmart_auth_user');
+  if (!stored) return null;
+  try { return JSON.parse(stored) as User; } catch { return null; }
 }
-
 export function setCurrentUser(user: User): void {
-  try {
-    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-  } catch (error) {
-    console.error('❌ Error saving current user:', error);
-  }
+  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
 }
-
 export function clearCurrentUser(): void {
-  try {
-    localStorage.removeItem(AUTH_KEY);
-  } catch (error) {
-    console.error('❌ Error clearing current user:', error);
-  }
+  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem('paynexsmart_auth_user');
 }
-
-// Get all stored users
 export function getStoredUsers(): User[] {
-  try {
-    const stored = localStorage.getItem(USERS_KEY);
-    if (!stored) return [];
-    
-    const users = JSON.parse(stored) as User[];
-    
-    // Validate users
-    return Array.isArray(users) ? users : [];
-  } catch (error) {
-    console.error('❌ Error retrieving stored users:', error);
-    return [];
-  }
+  const stored = localStorage.getItem(USERS_KEY) ?? localStorage.getItem('paynexsmart_users') ?? '[]';
+  try { return JSON.parse(stored) as User[]; } catch { return []; }
 }
-
 export function saveUsers(users: User[]): void {
-  try {
-    if (!Array.isArray(users)) {
-      console.warn('⚠️ Invalid users array provided');
-      return;
-    }
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  } catch (error) {
-    console.error('❌ Error saving users:', error);
-  }
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-// Get supervisors from local storage
-function getSupervisors(): Supervisor[] {
+function getSupervisors() {
   try {
-    const stored = localStorage.getItem('paynex_supervisors');
-    if (stored) {
-      const supervisors = JSON.parse(stored) as Supervisor[];
-      return Array.isArray(supervisors) ? supervisors : MOCK_SUPERVISORS;
-    }
-  } catch (err) {
-    console.warn('⚠️ Failed to parse supervisors from storage:', err);
-  }
+    const stored = localStorage.getItem('paynexsmart_supervisors') ?? localStorage.getItem('paynexsmart_supervisors');
+    if (stored) return JSON.parse(stored);
+  } catch {}
   return MOCK_SUPERVISORS;
 }
 
-// Get password hashes from storage
-function getPasswordHashes(): Record<string, string> {
+function getPasswords(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem('paynex_pass_hashes') ?? '{}');
-  } catch {
-    return {};
-  }
-}
-
-function setPasswordHash(userId: string, hash: string): void {
-  try {
-    const hashes = getPasswordHashes();
-    hashes[userId] = hash;
-    localStorage.setItem('paynex_pass_hashes', JSON.stringify(hashes));
-  } catch (error) {
-    console.error('❌ Error saving password hash:', error);
-  }
-}
-
-// Fetch supervisors from Supabase with retry logic and better error handling
-async function fetchSupervisorsFromDB(retries = 2): Promise<Array<{
-  id: string;
-  email: string;
-  password: string;
-  province: string;
-  is_active: boolean;
-  is_locked: boolean;
-  name: string;
-}> | null> {
-  if (!isSupabaseConfigured()) {
-    console.warn('⚠️ Supabase not configured, using localStorage');
-    return null;
-  }
-
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      console.log(`🔄 Fetching supervisors from Supabase (attempt ${attempt + 1}/${retries})...`);
-      
-      const { data, error } = await supabase
-        .from('supervisors')
-        .select('id, email, password, province, is_active, is_locked, name')
-        .timeout(5000); // 5 second timeout
-
-      if (error) {
-        console.error(`❌ Attempt ${attempt + 1}: Supabase error:`, {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-        });
-        
-        if (attempt < retries - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-        }
-        continue;
-      }
-
-      if (!Array.isArray(data)) {
-        console.warn('⚠️ Invalid supervisors response from database - not an array');
-        return null;
-      }
-
-      console.log(`✅ Successfully fetched ${data.length} supervisors from database`);
-      
-      // السماح بمرور البيانات للمطابقة بشكل مرن وتجنب سقوط الحقول غير المكتملة
-      return data;
-    } catch (err) {
-      console.error(`❌ Attempt ${attempt + 1}: Network/parsing error:`, err);
-      if (attempt < retries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-      }
-    }
-  }
-
-  console.warn('⚠️ Failed to fetch supervisors after retries, falling back to localStorage');
-  return null;
-}
-
-// Check login attempts
-function checkLoginAttempts(email: string): boolean {
-  const key = `login_attempts_${email}`;
-  const data = localStorage.getItem(key);
-  
-  if (!data) return true;
-
-  try {
-    const { count, timestamp } = JSON.parse(data);
-    const elapsed = Date.now() - timestamp;
-
-    if (elapsed > LOGIN_ATTEMPT_TIMEOUT) {
-      localStorage.removeItem(key);
-      return true;
-    }
-
-    if (count >= MAX_LOGIN_ATTEMPTS) {
-      console.warn(`⚠️ Too many login attempts for ${email}. Try again later.`);
-      return false;
-    }
-  } catch (error) {
-    console.error('❌ Error checking login attempts:', error);
-  }
-
-  return true;
-}
-
-// Record login attempt
-function recordLoginAttempt(email: string): void {
-  const key = `login_attempts_${email}`;
-  const data = localStorage.getItem(key);
-
-  try {
-    if (!data) {
-      localStorage.setItem(key, JSON.stringify({ count: 1, timestamp: Date.now() }));
-    } else {
-      const parsed = JSON.parse(data);
-      parsed.count += 1;
-      localStorage.setItem(key, JSON.stringify(parsed));
-    }
-  } catch (error) {
-    console.error('❌ Error recording login attempt:', error);
-  }
-}
-
-// Clear login attempts on success
-function clearLoginAttempts(email: string): void {
-  const key = `login_attempts_${email}`;
-  localStorage.removeItem(key);
+    return JSON.parse(
+      localStorage.getItem('paynexsmart_sup_passwords') ??
+      localStorage.getItem('paynexsmart_sup_passwords') ??
+      '{}'
+    );
+  } catch { return {}; }
 }
 
 /**
- * Email + Password login
- * Handles admin, supervisor, and customer authentication
+ * Email + Password login — handles admin, supervisor, and customer.
  */
-export async function loginWithEmail(
+export function loginWithEmail(
   email: string,
   password: string
-): Promise<{ user: User; error?: string } | { user: null; error: string }> {
-  console.log('🔐 Starting login process for:', email);
-  
-  // معالجة المدخلات وإزالة أي فراغات زائدة قد تحدث أثناء النسخ أو الإدخال
-  const cleanEmail = email ? email.trim().toLowerCase() : '';
-  const cleanPassword = password ? password.trim() : '';
+): { user: User; error?: string } | { user: null; error: string } {
 
-  // Validate inputs
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    logLogin('unknown', cleanEmail, 'customer', false);
-    return { user: null, error: 'بريد إلكتروني غير صحيح' };
+  // ——— Super Admin ———
+  if (
+    email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() &&
+    password === ADMIN_CREDENTIALS.password
+  ) {
+    const adminUser: User = { ...ADMIN_CREDENTIALS.user };
+    setCurrentUser(adminUser);
+    logLogin(adminUser.id, adminUser.name, 'admin', true);
+    return { user: adminUser };
   }
 
-  if (!cleanPassword || cleanPassword.length < 1) {
-    logLogin('unknown', cleanEmail, 'customer', false);
-    return { user: null, error: 'كلمة المرور مطلوبة' };
-  }
-
-  // Check rate limiting
-  if (!checkLoginAttempts(cleanEmail)) {
-    logLogin('unknown', cleanEmail, 'customer', false);
-    return {
-      user: null,
-      error: 'تم تجاوز عدد محاولات الدخول. حاول مرة أخرى لاحقاً.',
-    };
-  }
-
-  try {
-    // --- Super Admin ---
-    console.log('👤 Checking for admin credentials...');
-    if (
-      cleanEmail === ADMIN_CREDENTIALS.email.toLowerCase() &&
-      cleanPassword === ADMIN_CREDENTIALS.password
-    ) {
-      console.log('✅ Admin login successful');
-      const adminUser: User = { ...ADMIN_CREDENTIALS.user };
-      setCurrentUser(adminUser);
-      clearLoginAttempts(cleanEmail);
-      logLogin(adminUser.id, adminUser.name, 'admin', true);
-      return { user: adminUser };
+  // ——— Supervisor ———
+  const allSupervisors = getSupervisors();
+  const supervisor = allSupervisors.find(
+    (s: any) => s.email.toLowerCase() === email.toLowerCase()
+  );
+  if (supervisor) {
+    if (!supervisor.isActive) {
+      logLogin(supervisor.id, supervisor.name, 'supervisor', false);
+      return { user: null, error: 'تم إيقاف هذا الحساب — تواصل مع المدير العام.' };
     }
-
-    // --- Supervisor (from Supabase database) ---
-    console.log('👥 Attempting to fetch supervisors from Supabase...');
-    const dbSupervisors = await fetchSupervisorsFromDB();
-    
-    if (dbSupervisors && Array.isArray(dbSupervisors)) {
-      console.log(`📊 Found ${dbSupervisors.length} supervisors in database`);
-      
-      // البحث عن المشرف مع إزالة الفراغات وحساسية حالة الأحرف بالكامل
-      const dbSupervisor = dbSupervisors.find(
-        s => s.email?.trim().toLowerCase() === cleanEmail
-      );
-
-      if (dbSupervisor) {
-        console.log('✅ Supervisor found in database:', dbSupervisor.name);
-        
-        // التحقق من حالة الحساب البرمجية مع وضع قيم افتراضية عند غياب الحقل
-        const isActive = dbSupervisor.is_active ?? true;
-        const isLocked = dbSupervisor.is_locked ?? false;
-
-        if (!isActive) {
-          console.warn('❌ Supervisor account is inactive');
-          recordLoginAttempt(cleanEmail);
-          logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
-          return {
-            user: null,
-            error: 'تم إيقاف هذا الحساب - تواصل مع المدير العام.',
-          };
-        }
-
-        if (isLocked) {
-          console.warn('❌ Supervisor account is locked');
-          recordLoginAttempt(cleanEmail);
-          logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
-          return {
-            user: null,
-            error: 'حسابك مقفل بسبب عدم تسليم العهدة - راجع المدير العام.',
-          };
-        }
-
-        // مطابقة كلمة المرور النصية الصريحة المخزنة مباشرة في الجدول (مثل paynexb)
-        const correctPassword = dbSupervisor.password ? dbSupervisor.password.trim() : '';
-        console.log('🔑 Verifying password plain text matching...');
-        
-        if (!correctPassword || cleanPassword !== correctPassword) {
-          console.error('❌ Password mismatch');
-          recordLoginAttempt(cleanEmail);
-          logLogin(dbSupervisor.id, dbSupervisor.name, 'supervisor', false);
-          return { user: null, error: 'كلمة المرور غير صحيحة' };
-        }
-
-        console.log('✅ All validations passed - creating supervisor user');
-        
-        const supervisorUser: User = {
-          id: dbSupervisor.id || generateId(),
-          name: dbSupervisor.name || 'مشرف باينكس',
-          email: dbSupervisor.email,
-          role: 'supervisor',
-          province: dbSupervisor.province || '',
-          isActive: isActive,
-          createdAt: new Date().toISOString(),
-        };
-
-        setCurrentUser(supervisorUser);
-        clearLoginAttempts(cleanEmail);
-        logLogin(supervisorUser.id, supervisorUser.name, 'supervisor', true);
-        console.log('✅ Supervisor login successful');
-        return { user: supervisorUser };
-      } else {
-        console.log('⚠️ Supervisor not found in Supabase database');
-      }
-    } else {
-      console.log('⚠️ Could not fetch supervisors from Supabase');
+    if (supervisor.isLocked) {
+      logLogin(supervisor.id, supervisor.name, 'supervisor', false);
+      return { user: null, error: 'حسابك مقفل بسبب عدم تسليم العهدة — راجع المدير العام لفتح الحساب.' };
     }
-
-    // --- Fallback to localStorage supervisors ---
-    console.log('📱 Checking localStorage for supervisors...');
-    const allSupervisors = getSupervisors();
-    const supervisor = allSupervisors.find(
-      (s: Supervisor) => s.email.toLowerCase() === cleanEmail
-    );
-
-    if (supervisor) {
-      console.log('✅ Supervisor found in localStorage:', supervisor.name);
-      
-      if (!supervisor.isActive) {
-        recordLoginAttempt(cleanEmail);
-        logLogin(supervisor.id, supervisor.name, 'supervisor', false);
-        return {
-          user: null,
-          error: 'تم إيقاف هذا الحساب - تواصل مع المدير العام.',
-        };
-      }
-
-      if (supervisor.isLocked) {
-        recordLoginAttempt(cleanEmail);
-        logLogin(supervisor.id, supervisor.name, 'supervisor', false);
-        return {
-          user: null,
-          error: 'حسابك مقفل بسبب عدم تسليم العهدة - راجع المدير العام.',
-        };
-      }
-
-      const passwordHashes = getPasswordHashes();
-      const storedHash = passwordHashes[supervisor.id];
-
-      if (storedHash && !verifyPassword(cleanPassword, storedHash)) {
-        recordLoginAttempt(cleanEmail);
-        logLogin(supervisor.id, supervisor.name, 'supervisor', false);
-        return { user: null, error: 'كلمة المرور غير صحيحة' };
-      }
-
+    const passwords = getPasswords();
+    const storedPass = passwords[supervisor.id];
+    if (password === (storedPass ?? '000000') || (!storedPass && password === '000000')) {
       setCurrentUser(supervisor);
-      clearLoginAttempts(cleanEmail);
       logLogin(supervisor.id, supervisor.name, 'supervisor', true);
-      console.log('✅ Supervisor login successful (from localStorage)');
       return { user: supervisor };
     }
-
-    // --- Customer (stored in localStorage) ---
-    console.log('👤 Checking for customer accounts...');
-    const allUsers = getStoredUsers();
-    const customer = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
-
-    if (customer) {
-      const storedHash = localStorage.getItem(`paynex_pass_hash_${customer.id}`);
-      
-      if (storedHash && verifyPassword(cleanPassword, storedHash)) {
-        setCurrentUser(customer);
-        clearLoginAttempts(cleanEmail);
-        logLogin(customer.id, customer.name, 'customer', true);
-        console.log('✅ Customer login successful');
-        return { user: customer };
-      } else {
-        recordLoginAttempt(cleanEmail);
-        logLogin(customer.id, customer.email, 'customer', false);
-        return { user: null, error: 'كلمة المرور غير صحيحة' };
-      }
-    }
-
-    // No user found
-    console.log('❌ No user found with this email');
-    recordLoginAttempt(cleanEmail);
-    logLogin('unknown', cleanEmail, 'customer', false);
-    return {
-      user: null,
-      error: 'بريد إلكتروني أو كلمة مرور غير صحيحة',
-    };
-  } catch (error) {
-    console.error('❌ Unexpected error during login:', error);
-    recordLoginAttempt(cleanEmail);
-    logLogin('unknown', cleanEmail, 'customer', false);
-    return { user: null, error: 'حدث خطأ أثناء محاولة الدخول' };
+    logLogin(supervisor.id, supervisor.name, 'supervisor', false);
+    return { user: null, error: 'كلمة المرور غير صحيحة' };
   }
+
+  // ——— Customer ———
+  const users = getStoredUsers();
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (!user) {
+    return { user: null, error: 'البريد الإلكتروني غير مسجل' };
+  }
+  // Check both old and new key patterns
+  const storedPass =
+    localStorage.getItem(`paynexsmart_pass_${user.id}`) ??
+    localStorage.getItem(`paynexsmart_pass_${user.id}`);
+  if (storedPass !== password) {
+    logLogin(user.id, user.name, 'customer', false);
+    return { user: null, error: 'كلمة المرور غير صحيحة' };
+  }
+  setCurrentUser(user);
+  logLogin(user.id, user.name, 'customer', true);
+  return { user };
 }
 
 /**
- * User registration with validation and dual storage
+ * Phone + OTP login (mock: OTP always 1234 in demo).
  */
-export async function registerUser(data: {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-}): Promise<{ user: User; error?: string } | { user: null; error: string }> {
-  // Validate inputs
-  if (!data.name?.trim()) {
-    return { user: null, error: 'الاسم مطلوب' };
-  }
-
-  if (!data.email || !data.email.includes('@')) {
-    return { user: null, error: 'بريد إلكتروني غير صحيح' };
-  }
-
-  if (!data.password || data.password.length < 8) {
-    return {
-      user: null,
-      error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
-    };
-  }
-
-  // Validate password strength
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  if (!passwordRegex.test(data.password)) {
-    return {
-      user: null,
-      error: 'يجب أن تحتوي كلمة المرور على حروف كبيرة وصغيرة وأرقام ورموز خاصة',
-    };
-  }
-
-  try {
-    const allUsers = getStoredUsers();
-
-    // Check for duplicate email in localStorage
-    if (allUsers.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
-      logLogin('unknown', data.email, 'customer', false);
-      return { user: null, error: 'البريد الإلكتروني مستخدم بالفعل' };
-    }
-
-    // Check for duplicate phone
-    if (data.phone && allUsers.some(u => u.phone === data.phone)) {
-      logLogin('unknown', data.phone, 'customer', false);
-      return { user: null, error: 'رقم الهاتف مستخدم بالفعل' };
-    }
-
-    // Create new user with complete data
-    const newUser: User = {
+export function loginWithPhone(
+  phone: string,
+  otp: string
+): { user: User; error?: string } | { user: null; error: string } {
+  if (otp !== '1234') return { user: null, error: 'رمز التحقق غير صحيح (استخدم 1234 للتجربة)' };
+  const users = getStoredUsers();
+  let user = users.find(u => u.phone === phone);
+  if (!user) {
+    user = {
       id: generateId(),
-      name: data.name.trim(),
-      email: data.email.toLowerCase(),
-      phone: data.phone || undefined,
+      name: `مستخدم ${phone.slice(-4)}`,
+      email: '',
+      phone,
       role: 'customer',
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`,
+      isActive: true,
       createdAt: new Date().toISOString(),
     };
-
-    // Hash and save password
-    const passwordHash = hashPassword(data.password);
-    setPasswordHash(newUser.id, passwordHash);
-
-    // Save to localStorage
-    const updated = [...allUsers, newUser];
-    saveUsers(updated);
-
-    // Attempt to save to Supabase
-    if (isSupabaseConfigured()) {
-      try {
-        const { error: supabaseError } = await supabase
-          .from('user_profiles')
-          .insert([
-            {
-              user_id: newUser.id,
-              full_name: newUser.name,
-              email: newUser.email,
-              phone: newUser.phone || null,
-              national_id: null,
-              created_at: newUser.createdAt,
-            },
-          ])
-          .timeout(5000);
-
-        if (supabaseError) {
-          console.error('⚠️ Failed to save user to Supabase:', supabaseError);
-        } else {
-          console.log('✅ User registered in Supabase successfully');
-        }
-      } catch (err) {
-        console.error('⚠️ Error saving user to Supabase:', err);
-      }
-    }
-
-    setCurrentUser(newUser);
-    logLogin(newUser.id, newUser.name, 'customer', true);
-    console.log('✅ User registration successful');
-
-    return { user: newUser };
-  } catch (error) {
-    console.error('❌ Unexpected error during registration:', error);
-    logLogin('unknown', data.email, 'customer', false);
-    return { user: null, error: 'حدث خطأ أثناء التسجيل' };
+    saveUsers([...users, user]);
   }
+  setCurrentUser(user);
+  return { user };
 }
+
+/**
+ * New customer registration.
+ */
+export function registerUser(data: {
+  name: string; email: string; phone: string; password: string;
+}): { user: User; error?: string } | { user: null; error: string } {
+  const users = getStoredUsers();
+  if (users.find(u => u.email === data.email)) {
+    return { user: null, error: 'البريد الإلكتروني مستخدم بالفعل' };
+  }
+  const user: User = {
+    id: generateId(),
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    role: 'customer',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  };
+  localStorage.setItem(`paynexsmart_pass_${user.id}`, data.password);
+  saveUsers([...users, user]);
+  setCurrentUser(user);
+  return { user };
+}
+
+/** Mock Google OAuth login */
+export function mockGoogleLogin(): User {
+  const googleUser: User = {
+    id: `google-${generateId()}`,
+    name: 'مستخدم Google',
+    email: `user.${Date.now()}@gmail.com`,
+    role: 'customer',
+    isActive: true,
+    googleId: `google-${generateId()}`,
+    avatar: `https://ui-avatars.com/api/?name=Google+User&background=0a1628&color=fff`,
+    createdAt: new Date().toISOString(),
+  };
+  const users = getStoredUsers();
+  saveUsers([...users, googleUser]);
+  setCurrentUser(googleUser);
+  return googleUser;
+}
+
+export const isAdmin          = (u: User | null) => u?.role === 'admin';
+export const isSuperAdminUser = (u: User | null) => u?.role === 'admin' && u?.id === ADMIN_CREDENTIALS.user.id;
+export const isSupervisor     = (u: User | null) => u?.role === 'supervisor';
+export const isCustomer       = (u: User | null) => u?.role === 'customer';
