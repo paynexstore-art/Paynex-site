@@ -69,7 +69,7 @@ export default function SupervisorOrders() {
 
       setOrders(mappedOrders);
 
-      // إصلاح: تحديث الكائن المختار داخل المودال إذا كان مفتوحاً لضمان مزامنة البيانات والـ UI
+      // تحديث الكائن المختار داخل المودال إذا كان مفتوحاً لضمان مزامنة البيانات والـ UI
       if (selected) {
         const currentSelected = mappedOrders.find(o => o.id === selected.id);
         if (currentSelected) {
@@ -84,7 +84,7 @@ export default function SupervisorOrders() {
 
   useEffect(() => {
     reload();
-  }, [user]);
+  }, [user, reload]);
 
   // دالة تتبع الـ GPS للمعاينة
   async function fetchGps() {
@@ -102,7 +102,7 @@ export default function SupervisorOrders() {
     } catch (err) {
       console.error('GPS error:', err);
       setGps(null);
-    } finaly {
+    } finally {
       setFetchingGps(false);
     }
   }
@@ -111,14 +111,14 @@ export default function SupervisorOrders() {
     fetchGps();
   }, []);
 
-  // دالة فحص السداد الحقيقية (تعتمد على الحالة أو الملاحظات المسجلة)
+  // دالة فحص السداد الحقيقية
   function isFeeConfirmed(order: any): boolean {
     if (!order) return false;
     return ['under-inquiry', 'admin-review', 'approved', 'delivered', 'under-review', 'active', 'completed']
       .includes(order.status) || (order.notes?.includes('fee_paid') ?? false);
   }
 
-  // 2. تأكيد استلام الرسوم كاش سحابياً + حل مشكلة عدم فتح واجهة الرفع فوراً
+  // 2. تأكيد استلام الرسوم كاش سحابياً وتحديث الواجهة لحظياً
   async function handleConfirmFeeReceived(order: any) {
     if (!user) return;
     try {
@@ -152,17 +152,15 @@ export default function SupervisorOrders() {
           .eq('id', user.id);
       }
 
-      // ✨ الحل الجذري: نقوم بتحديث الـ state الحالي محلياً فوراً لكسر الحلقة المفرغة وفتح المودال والرفع في نفس الملي ثانية
+      // تحديث الـ state الحالي محلياً فوراً لفتح المودال والرفع في نفس الملي ثانية دون أي حلقة مفرغة
       const updatedOrder = {
         ...order,
         status: 'under-inquiry',
         notes: updatedNotes
       };
 
-      // تحديث المصفوفة الكلية
       setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
       
-      // تحديث المودال النشط ليفتح الرفع فوراً بدون انتظار الـ reload لقاعدة البيانات
       if (selected && selected.id === order.id) {
         setSelected(updatedOrder);
       }
@@ -170,7 +168,6 @@ export default function SupervisorOrders() {
       toast.success(lang === 'ar' ? `تم إدراج 150 ج.م في عهدتك المادية — تم تفعيل واجهة الرفع` : `150 EGP registered in custody.`);
       setConfirmingFee(null);
 
-      // جلب تأكيدي للبيانات من السيرفر للتأكد من المزامنة الكاملة
       await reload();
     } catch (err: any) {
       console.error("Critical Transaction Failure:", err.message);
@@ -178,7 +175,7 @@ export default function SupervisorOrders() {
     }
   }
 
-  // 3. رفع وحفظ مستندات العميل الميدانية حقيقياً في السوبابيز فور تحويل الصور لبصمة جغرافية مائية
+  // 3. رفع وحفظ مستندات العميل الميدانية حقيقياً في السوبابيز
   async function handleDocUpload(field: keyof OrderDocuments, file: File, orderId: string) {
     const currentOrder = orders.find(o => o.id === orderId);
     if (!currentOrder) return;
@@ -202,7 +199,6 @@ export default function SupervisorOrders() {
         uploadedAt: new Date().toISOString()
       };
 
-      // حفظ التحديث مباشرة في السيرفر لضمان أن العملية حقيقية وليست fake
       const { error: uploadError } = await supabase
         .from('orders')
         .update({ documents: updatedDocs })
@@ -210,7 +206,6 @@ export default function SupervisorOrders() {
 
       if (uploadError) throw uploadError;
 
-      // تحديث الـ local state لضمان بقاء الصور المعروضة أمام المشرف ثابتة وحقيقية
       const updatedOrder = { ...currentOrder, documents: updatedDocs };
       setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
       if (selected && selected.id === orderId) {
@@ -222,7 +217,7 @@ export default function SupervisorOrders() {
     reader.readAsDataURL(file);
   }
 
-  // تصعيد كلي لملف المعاينة الرقمي للمدير العام للمراجعة والموافقة النهائية
+  // تصعيد كلي لملف المعاينة الرقمي للمدير العام
   async function handleEscalateToAdmin(orderId: string) {
     try {
       const { error } = await supabase
@@ -293,7 +288,7 @@ export default function SupervisorOrders() {
         </select>
       </div>
 
-      {/* جدول البيانات المتجاوب المتصل بسوبابيز */}
+      {/* جدول البيانات المتجاوب */}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -350,7 +345,7 @@ export default function SupervisorOrders() {
         </div>
       </div>
 
-      {/* مودال تأكيد استلام الرسوم (150 ج.م) والنزول بالعهدة */}
+      {/* مودال تأكيد استلام الرسوم */}
       {confirmingFee && (() => {
         const order = orders.find(o => o.id === confirmingFee);
         if (!order) return null;
@@ -388,7 +383,7 @@ export default function SupervisorOrders() {
         );
       })()}
 
-      {/* مودال رفع ملفات المعاينة الميدانية الرقمية */}
+      {/* مودال رفع ملفات المعاينة الميدانية */}
       {selected && (() => {
         const feePaid = isFeeConfirmed(selected);
         return (
