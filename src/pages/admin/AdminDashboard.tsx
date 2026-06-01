@@ -336,23 +336,42 @@ export default function AdminDashboard() {
   };
 
   // ──────────────────────────────────────────────────────────────
-  // Fetch Orders
+  // Fetch Orders with Pagination (Fixed: Handle All Orders)
   // ──────────────────────────────────────────────────────────────
   const fetchOrders = async () => {
     setLoading(prev => ({ ...prev, orders: true }));
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .limit(100);
+      const allOrders: Order[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error fetching orders:', error);
-        toast.error(`خطأ في تحميل الطلبات: ${error.message}`);
-        return;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .range(offset, offset + pageSize - 1)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching orders:', error);
+          toast.error(`خطأ في تحميل الطلبات: ${error.message}`);
+          break;
+        }
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allOrders.push(...data);
+          offset += pageSize;
+          if (data.length < pageSize) {
+            hasMore = false;
+          }
+        }
       }
 
-      setTableData(prev => ({ ...prev, orders: data || [] }));
+      setTableData(prev => ({ ...prev, orders: allOrders }));
+      toast.success(`تم تحميل ${allOrders.length} طلب بنجاح`);
     } catch (err) {
       console.error('Unexpected error fetching orders:', err);
       toast.error('خطأ غير متوقع في تحميل الطلبات');
