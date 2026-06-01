@@ -22,34 +22,59 @@ export default function SupervisorOrders() {
   const [gps, setGps] = useState<GpsCoords | null>(null);
   const [fetchingGps, setFetchingGps] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
 
-  // 1. جلب البيانات والفلترة الجغرافية الحقيقية حسب محافظة المشرف
+  // ✅ FIX #1: جلب الطلبات الصحيحة حسب محافظة المشرف وحالة الطلب
   const reload = useCallback(async () => {
-    if (!user) return;
-    try {
-      const supervisorProvince = (user as any).province || '';
+    if (!user) {
+      console.warn('⚠️ No user logged in');
+      return;
+    }
 
+    setLoading(true);
+    try {
+      const supervisorProvince = (user as any).province?.trim() || '';
+      const supervisorId = user.id;
+
+      if (!supervisorProvince) {
+        console.error('❌ Supervisor province not set:', user);
+        toast.error(lang === 'ar' ? 'محافظة المشرف غير مسجلة' : 'Supervisor province not set');
+        setOrders([]);
+        return;
+      }
+
+      // جلب جميع الطلبات
       const { data, error } = await supabase
         .from('orders')
         .select('*');
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase Error:', error);
+        throw error;
+      }
 
+      // ✅ تصفية الطلبات: تلك التي في محافظة المشرف أو المخصصة له مباشرة
       const mappedOrders = (data || [])
         .filter((row: any) => {
-          const orderProvince = row.province || row.customer_province || '';
-          return orderProvince.trim() === supervisorProvince.trim() || row.assigned_supervisor_id === user.id;
+          const orderProvince = (row.province || row.customer_province || '').trim();
+          const isInSupervisorProvince = orderProvince === supervisorProvince;
+          const isAssignedToSupervisor = row.assigned_supervisor_id === supervisorId || row.supervisor_id === supervisorId;
+          
+          // ✅ عرض فقط الطلبات المعلقة أو قيد الاستعلام
+          const isPendingRequest = ['pending', 'under-inquiry'].includes(row.status);
+          
+          return (isInSupervisorProvince || isAssignedToSupervisor) && isPendingRequest;
         })
         .map((row: any) => {
           const totalAmt = Number(row.total_amount || 0);
           return {
             id: row.id,
             customerId: row.user_id || '',
-            customerName: row.client_name || (lang === 'ar' ? 'عميل بدون اسم' : 'Unnamed Client'),
-            customerPhone: row.client_phone || '',
-            customerProvince: row.province || '',
-            customerAddress: row.address || '',
-            customerNationalId: row.national_id || '',
+            customerName: row.client_name || row.customer_name || (lang === 'ar' ? 'عميل بدون اسم' : 'Unnamed Client'),
+            customerPhone: row.client_phone || row.customer_phone || '',
+            customerProvince: row.province || row.customer_province || '',
+            customerAddress: row.address || row.customer_address || '',
+            customerNationalId: row.national_id || row.customer_national_id || '',
             status: row.status || 'pending',
             notes: row.admin_notes || '',
             created_at: row.created_at || new Date().toISOString(),
@@ -63,13 +88,15 @@ export default function SupervisorOrders() {
               nameAr: lang === 'ar' ? 'طلب تقسيط مالي' : 'Financial Installment Request',
               nameEn: 'Financial Installment Request'
             },
-            documents: row.documents || {}
+            documents: row.documents || {},
+            supervisorId: supervisorId
           };
         });
 
+      console.log(`✅ Loaded ${mappedOrders.length} orders for supervisor ${supervisorId} in province ${supervisorProvince}`);
       setOrders(mappedOrders);
 
-      // تحديث الكائن المختار داخل المودال إذا كان مفتوحاً لضمان مزامنة البيانات والـ UI
+      // تحديث الكائن المختار إذا كان مفتوحاً
       if (selected) {
         const currentSelected = mappedOrders.find(o => o.id === selected.id);
         if (currentSelected) {
@@ -77,8 +104,11 @@ export default function SupervisorOrders() {
         }
       }
     } catch (err: any) {
-      console.error("Supabase Database fetch failure:", err.message);
-      toast.error(lang === 'ar' ? "حدث خطأ أثناء الاتصال بقاعدة البيانات" : "Database error");
+      console.error('❌ Error loading orders:', err);
+      toast.error(lang === 'ar' ? 'حدث خطأ أثناء تحميل الطلبات' : 'Error loading orders');
+      setOrders([]);
+    } finally {
+      setLoading(false);
     }
   }, [user, lang, selected]);
 
@@ -86,7 +116,7 @@ export default function SupervisorOrders() {
     reload();
   }, [user, reload]);
 
-  // دالة تتبع الـ GPS للمعاينة
+  // دالة تتبع الـ GPS
   async function fetchGps() {
     setFetchingGps(true);
     try {
@@ -96,11 +126,13 @@ export default function SupervisorOrders() {
           latitude: (coords as any).latitude || (coords as any).lat,
           longitude: (coords as any).longitude || (coords as any).lng
         } as any);
+        toast.success(lang === 'ar' ? 'تم تحديد موقعك بنجاح' : 'Location set successfully');
       } else {
         setGps(null);
+        toast.warning(lang === 'ar' ? 'لم يتمكن من الوصول للموقع' : 'Could not access location');
       }
     } catch (err) {
-      console.error('GPS error:', err);
+      console.error('❌ GPS error:', err);
       setGps(null);
     } finally {
       setFetchingGps(false);
@@ -111,48 +143,63 @@ export default function SupervisorOrders() {
     fetchGps();
   }, []);
 
-  // دالة فحص السداد الحقيقية
+  // ✅ FIX #2: فحص السداد - يجب أن تكون الحالة 'under-inquiry' لتفعيل رفع المستندات
   function isFeeConfirmed(order: any): boolean {
     if (!order) return false;
-    return ['under-inquiry', 'admin-review', 'approved', 'delivered', 'under-review', 'active', 'completed']
-      .includes(order.status) || (order.notes?.includes('fee_paid') ?? false);
+    // عندما يكون الطلب في حالة under-inquiry، معناه تم تأكيد استلام الرسوم بنجاح
+    return order.status === 'under-inquiry' || (order.notes?.includes('fee_paid') ?? false);
   }
 
-  // 2. تأكيد استلام الرسوم كاش سحابياً وتحديث الواجهة لحظياً
+  // ✅ FIX #2: تأكيد استلام الرسوم وإضافتها للعهدة تلقائياً
   async function handleConfirmFeeReceived(order: any) {
     if (!user) return;
+    
+    const feeAmount = 150;
+    const loadingToast = toast.loading(lang === 'ar' ? 'جاري معالجة الرسوم...' : 'Processing fees...');
+    
     try {
-      const feeAmount = 150;
       const nowIso = new Date().toISOString();
       const updatedNotes = `fee_paid_150:${nowIso}`;
 
-      // أولاً: التحديث الفوري في السيرفر لجدول orders
+      // 1️⃣ تحديث حالة الطلب إلى under-inquiry
       const { error: orderUpdateError } = await supabase
         .from('orders')
         .update({
           status: 'under-inquiry',
-          admin_notes: updatedNotes
+          admin_notes: updatedNotes,
+          updated_at: nowIso
         })
         .eq('id', order.id);
 
       if (orderUpdateError) throw orderUpdateError;
+      console.log(`✅ Order ${order.id} status updated to under-inquiry`);
 
-      // ثانياً: زيادة مديونية/عهدة المشرف بـ 150 ج.م حقيقياً في السيرفر بجدول supervisors
+      // 2️⃣ إضافة الرسوم إلى عهدة المشرف
       const { data: supervisorData, error: supFetchError } = await supabase
         .from('supervisors')
         .select('pending_debt')
         .eq('id', user.id)
         .single();
 
-      if (!supFetchError && supervisorData) {
-        const currentDebt = Number(supervisorData.pending_debt || 0);
-        await supabase
-          .from('supervisors')
-          .update({ pending_debt: currentDebt + feeAmount })
-          .eq('id', user.id);
+      if (supFetchError && supFetchError.code !== 'PGRST116') {
+        console.warn('⚠️ Warning fetching supervisor debt:', supFetchError);
       }
 
-      // تحديث الـ state الحالي محلياً فوراً لفتح المودال والرفع في نفس الملي ثانية دون أي حلقة مفرغة
+      const currentDebt = supervisorData?.pending_debt ? Number(supervisorData.pending_debt) : 0;
+      const newDebt = currentDebt + feeAmount;
+
+      const { error: supUpdateError } = await supabase
+        .from('supervisors')
+        .update({ 
+          pending_debt: newDebt,
+          updated_at: nowIso
+        })
+        .eq('id', user.id);
+
+      if (supUpdateError) throw supUpdateError;
+      console.log(`✅ Supervisor ${user.id} debt updated: ${currentDebt} -> ${newDebt}`);
+
+      // 3️⃣ تحديث الـ state محلياً فوراً
       const updatedOrder = {
         ...order,
         status: 'under-inquiry',
@@ -165,77 +212,146 @@ export default function SupervisorOrders() {
         setSelected(updatedOrder);
       }
 
-      toast.success(lang === 'ar' ? `تم إدراج 150 ج.م في عهدتك المادية — تم تفعيل واجهة الرفع` : `150 EGP registered in custody.`);
+      toast.dismiss(loadingToast);
+      toast.success(
+        lang === 'ar' 
+          ? `✅ تم إدراج ${feeAmount} ج.م في عهدتك — تم فتح واجهة رفع المستندات`
+          : `✅ ${feeAmount} EGP added to custody — Document upload enabled`
+      );
       setConfirmingFee(null);
 
+      // 4️⃣ إعادة تحميل البيانات للتأكد من التزامن
       await reload();
     } catch (err: any) {
-      console.error("Critical Transaction Failure:", err.message);
-      toast.error(lang === 'ar' ? 'فشل معالجة حركة العهدة السحابية' : 'Cloud sync failure');
+      console.error('❌ Critical Error:', err);
+      toast.dismiss(loadingToast);
+      toast.error(
+        lang === 'ar' 
+          ? `❌ فشل المعالجة: ${err.message}`
+          : `❌ Failed: ${err.message}`
+      );
     }
   }
 
-  // 3. رفع وحفظ مستندات العميل الميدانية حقيقياً في السوبابيز
+  // ✅ FIX #3: رفع المستندات - يجب أن تكون مفعلة عندما يكون status = under-inquiry
   async function handleDocUpload(field: keyof OrderDocuments, file: File, orderId: string) {
     const currentOrder = orders.find(o => o.id === orderId);
-    if (!currentOrder) return;
+    if (!currentOrder) {
+      toast.error(lang === 'ar' ? 'الطلب غير موجود' : 'Order not found');
+      return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = async e => {
-      let dataUrl = e.target?.result as string;
+    if (!isFeeConfirmed(currentOrder)) {
+      toast.error(
+        lang === 'ar'
+          ? 'يجب تأكيد استلام الرسوم أولاً'
+          : 'Must confirm fee receipt first'
+      );
+      return;
+    }
 
-      const currentLat = gps ? ((gps as any).latitude || (gps as any).lat) : null;
-      const currentLng = gps ? ((gps as any).longitude || (gps as any).lng) : null;
+    const uploadToast = toast.loading(lang === 'ar' ? 'جاري رفع المستند...' : 'Uploading document...');
 
-      if (currentLat && currentLng) {
-        dataUrl = await addGpsWatermark(dataUrl, { lat: currentLat, lng: currentLng } as any, user?.name || 'مشرف الاستعلام');
-      }
+    try {
+      const reader = new FileReader();
+      reader.onload = async e => {
+        let dataUrl = e.target?.result as string;
 
-      setDocPreviews(prev => ({ ...prev, [field]: dataUrl }));
-      
-      const updatedDocs = {
-        ...currentOrder.documents,
-        [field]: dataUrl,
-        uploadedAt: new Date().toISOString()
+        const currentLat = gps ? ((gps as any).latitude || (gps as any).lat) : null;
+        const currentLng = gps ? ((gps as any).longitude || (gps as any).lng) : null;
+
+        // إضافة علامة GPS على الصورة إن وجدت
+        if (currentLat && currentLng) {
+          try {
+            dataUrl = await addGpsWatermark(
+              dataUrl,
+              { lat: currentLat, lng: currentLng } as any,
+              user?.name || 'مشرف الاستعلام'
+            );
+          } catch (watermarkErr) {
+            console.warn('⚠️ Could not add GPS watermark:', watermarkErr);
+          }
+        }
+
+        setDocPreviews(prev => ({ ...prev, [field]: dataUrl }));
+        
+        // حفظ المستند في قاعدة البيانات
+        const updatedDocs = {
+          ...currentOrder.documents,
+          [field]: dataUrl,
+          uploadedAt: new Date().toISOString()
+        };
+
+        try {
+          const { error: uploadError } = await supabase
+            .from('orders')
+            .update({ documents: updatedDocs })
+            .eq('id', orderId);
+
+          if (uploadError) throw uploadError;
+
+          const updatedOrder = { ...currentOrder, documents: updatedDocs };
+          setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+          if (selected && selected.id === orderId) {
+            setSelected(updatedOrder);
+          }
+
+          toast.dismiss(uploadToast);
+          toast.success(
+            lang === 'ar'
+              ? '✅ تم حفظ المستند بنجاح'
+              : '✅ Document saved successfully'
+          );
+        } catch (err: any) {
+          toast.dismiss(uploadToast);
+          toast.error(
+            lang === 'ar'
+              ? `❌ فشل الحفظ: ${err.message}`
+              : `❌ Save failed: ${err.message}`
+          );
+        }
       };
-
-      const { error: uploadError } = await supabase
-        .from('orders')
-        .update({ documents: updatedDocs })
-        .eq('id', orderId);
-
-      if (uploadError) throw uploadError;
-
-      const updatedOrder = { ...currentOrder, documents: updatedDocs };
-      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
-      if (selected && selected.id === orderId) {
-        setSelected(updatedOrder);
-      }
-
-      toast.success(t('تم حفظ وتثبيت المستند سحابياً بنجاح', 'Document secured on cloud'));
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast.dismiss(uploadToast);
+      toast.error(lang === 'ar' ? '❌ خطأ في رفع الملف' : '❌ Upload error');
+    }
   }
 
-  // تصعيد كلي لملف المعاينة الرقمي للمدير العام
+  // تصعيد الملف للمدير
   async function handleEscalateToAdmin(orderId: string) {
+    const escalateToast = toast.loading(lang === 'ar' ? 'جاري التصعيد...' : 'Escalating...');
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ status: 'admin-review' })
+        .update({ 
+          status: 'admin-review',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', orderId);
 
       if (error) throw error;
 
-      toast.success(t('تم تصعيد الملف بالكامل للإدارة العليا', 'Submitted to Admin'));
-      reload();
+      toast.dismiss(escalateToast);
+      toast.success(
+        lang === 'ar'
+          ? '✅ تم تصعيد الملف للمراجعة الإدارية'
+          : '✅ File escalated to admin review'
+      );
+      
+      await reload();
       setSelected(null);
     } catch (err: any) {
-      toast.error(lang === 'ar' ? 'فشل تصعيد الملف' : 'Escalation failed');
+      toast.dismiss(escalateToast);
+      toast.error(
+        lang === 'ar'
+          ? `❌ فشل التصعيد: ${err.message}`
+          : `❌ Escalation failed: ${err.message}`
+      );
     }
   }
 
-  const statuses = ['all', 'pending', 'under-inquiry', 'admin-review', 'approved', 'delivered', 'rejected'];
+  const statuses = ['all', 'pending', 'under-inquiry'];
   
   const filtered = orders.filter(o => {
     const nameStr = String(o.customerName || '').toLowerCase();
@@ -252,7 +368,7 @@ export default function SupervisorOrders() {
     { key: 'nationalIdBack',  label: t('البطاقة - الوجه الخلفي *', 'ID Back *') },
     { key: 'utilityBill',     label: t('إيصال مرافق حديث', 'Utility Bill') },
     { key: 'incomeProof',     label: t('إثبات دخل أو مفردات مرتب', 'Income Proof') },
-    { key: 'customerHousePhoto', label: t('صورة منزل العميل من الطبيعة', "House Photo") },
+    { key: 'customerHousePhoto', label: t('صورة منزل العميل من الطبيعة', 'House Photo') },
   ];
 
   return (
@@ -288,62 +404,71 @@ export default function SupervisorOrders() {
         </select>
       </div>
 
-      {/* جدول البيانات المتجاوب */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                {[t('العميل', 'Customer'), t('المحافظة', 'Province'), t('إجمالي القيمة', 'Total Amount'), t('رسوم الاستعلام', 'Inquiry Fee'), t('حالة الرسوم', 'Fee Status'), t('الحالة', 'Status'), ''].map(h => (
-                  <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-slate-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map(o => {
-                const feePaid = isFeeConfirmed(o);
-                return (
-                  <tr key={o.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">{o.customerName}</div>
-                      <div className="text-xs text-slate-400 font-mono">{o.customerPhone}</div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 font-medium">{o.customerProvince}</td>
-                    <td className="px-4 py-3 font-bold text-[#0f2460]">{formatCurrency(o.installmentPlan.totalAmount, lang)}</td>
-                    <td className="px-4 py-3 font-bold text-[#d4a339]">{formatCurrency(o.installmentPlan.inquiryFee, lang)}</td>
-                    <td className="px-4 py-3">
-                      {feePaid ? (
-                        <span className="flex items-center gap-1 text-green-600 text-xs font-semibold">
-                          <CheckCircle size={13} /> {t('مستلمة (بالعهدة)', 'In Custody')}
-                        </span>
-                      ) : (
-                        <button onClick={() => setConfirmingFee(o.id)}
-                          className="text-xs bg-[#d4a339] text-white px-3 py-1.5 rounded-lg hover:bg-[#c49330] transition-colors flex items-center gap-1 font-medium shadow-sm">
-                          <DollarSign size={12} /> {t('تأكيد الاستلام', 'Confirm')}
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${getOrderStatusColor(o.status)}`}>
-                        {getOrderStatusLabel(o.status, lang)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => { setSelected(o); setDocPreviews({}); }}
-                        className="w-8 h-8 rounded-lg bg-[#0f2460]/10 hover:bg-[#0f2460] text-[#0f2460] hover:text-white flex items-center justify-center transition-all">
-                        <Eye size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="text-center py-10 text-slate-400 text-sm">{t('لا توجد طلبات معلقة بمحافظتك الحالية', 'No orders found')}</div>
-          )}
+      {/* حالة التحميل */}
+      {loading && (
+        <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
+          <div className="inline-block mb-3">
+            <div className="w-8 h-8 border-4 border-[#0f2460]/30 border-t-[#0f2460] rounded-full animate-spin" />
+          </div>
+          <p className="text-slate-500">{t('جاري تحميل الطلبات...', 'Loading orders...')}</p>
         </div>
-      </div>
+      )}
+
+      {/* جدول البيانات */}
+      {!loading && (
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  {[t('العميل', 'Customer'), t('المحافظة', 'Province'), t('إجمالي القيمة', 'Total Amount'), t('رسوم الاستعلام', 'Inquiry Fee'), t('الحالة', 'Status'), t('الإجراء', 'Action')].map(h => (
+                    <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-slate-500">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.map(o => {
+                  const feePaid = isFeeConfirmed(o);
+                  return (
+                    <tr key={o.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-800">{o.customerName}</div>
+                        <div className="text-xs text-slate-400 font-mono">{o.customerPhone}</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 font-medium">{o.customerProvince}</td>
+                      <td className="px-4 py-3 font-bold text-[#0f2460]">{formatCurrency(o.installmentPlan.totalAmount, lang)}</td>
+                      <td className="px-4 py-3 font-bold text-[#d4a339]">{formatCurrency(o.installmentPlan.inquiryFee, lang)}</td>
+                      <td className="px-4 py-3">
+                        {feePaid ? (
+                          <span className="flex items-center gap-1 text-green-600 text-xs font-semibold">
+                            <CheckCircle size={13} /> {t('مستلمة (بالعهدة)', 'In Custody')}
+                          </span>
+                        ) : (
+                          <button onClick={() => setConfirmingFee(o.id)}
+                            className="text-xs bg-[#d4a339] text-white px-3 py-1.5 rounded-lg hover:bg-[#c49330] transition-colors flex items-center gap-1 font-medium shadow-sm">
+                            <DollarSign size={12} /> {t('تأكيد الاستلام', 'Confirm')}
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => { setSelected(o); setDocPreviews({}); }}
+                          className="w-8 h-8 rounded-lg bg-[#0f2460]/10 hover:bg-[#0f2460] text-[#0f2460] hover:text-white flex items-center justify-center transition-all">
+                          <Eye size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {!loading && filtered.length === 0 && (
+              <div className="text-center py-10 text-slate-400 text-sm">
+                {t('لا توجد طلبات معلقة في محافظتك', 'No pending orders in your province')}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* مودال تأكيد استلام الرسوم */}
       {confirmingFee && (() => {
@@ -361,11 +486,11 @@ export default function SupervisorOrders() {
                 <p className="text-3xl font-black text-[#d4a339] my-3">{formatCurrency(order.installmentPlan.inquiryFee, lang)}</p>
                 
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 mb-4 text-start leading-relaxed">
-                  <p className="font-bold mb-1">🔗 الأثر المالي والسحابي الفوري للعملية:</p>
+                  <p className="font-bold mb-1">🔗 ما الذي سيحدث:</p>
                   <ul className="space-y-1 list-disc list-inside">
-                    <li>تُسجل كعهدة مالية مستلمة بذمتك في جدول المشرفين بالسيرفر.</li>
-                    <li>تتحول حالة الطلب سحابياً إلى "جاري الاستعلام".</li>
-                    <li>فتح صلاحية تصوير ورفع المستندات الميدانية للعميل فوراً.</li>
+                    <li>✅ تُسجل الرسوم كعهدة مالية في حسابك</li>
+                    <li>✅ تتحول حالة الطلب إلى "جاري الاستعلام"</li>
+                    <li>✅ يتم فتح صلاحية رفع مستندات العميل فوراً</li>
                   </ul>
                 </div>
 
@@ -389,7 +514,7 @@ export default function SupervisorOrders() {
         return (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="p-5 border-b flex items-center justify-between">
+              <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white">
                 <div>
                   <h3 className="font-bold text-[#0f2460]">{t('تفاصيل ومستندات طلب المعاينة', 'Inquiry Details')}</h3>
                   <p className="text-xs text-slate-400">#{selected.id} — {selected.customerName}</p>
@@ -417,7 +542,7 @@ export default function SupervisorOrders() {
 
                   {feePaid ? (
                     <>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3 mb-4">
                         {docFields.map(({ key, label }) => {
                           const existing = selected.documents?.[key] as string | undefined;
                           const preview = docPreviews[key] ?? existing;
@@ -449,18 +574,18 @@ export default function SupervisorOrders() {
                       {selected.status === 'under-inquiry' && (
                         <button onClick={() => handleEscalateToAdmin(selected.id)} className="btn-primary w-full mt-5 flex items-center justify-center gap-2 text-sm py-2.5 font-semibold">
                           <CheckCircle size={15} />
-                          {t('تصعيد وإرسال الملف للمراجعة الإدارية النهائية', 'Escalate to General Management')}
+                          {t('تصعيد وإرسال الملف للمراجعة الإدارية النهائية', 'Escalate to Admin Review')}
                         </button>
                       )}
                     </>
                   ) : (
-                    <div className="bg-slate-50 rounded-xl p-5 text-center border border-dashed border-slate-200">
-                      <AlertCircle size={32} className="text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-500 text-sm mb-3 font-medium">
-                        {t('صلاحية رفع صور المعاينة مقفلة — تفتح تلقائياً فور تأكيد استلام رسوم الاستعلام كاش ونزولها في عهدتك ماليًا', 'Locked — confirm fee first')}
+                    <div className="bg-red-50 rounded-xl p-5 text-center border border-red-200">
+                      <AlertCircle size={32} className="text-red-400 mx-auto mb-2" />
+                      <p className="text-red-700 text-sm mb-3 font-medium">
+                        {t('❌ رفع المستندات مغلق — يفتح تلقائياً فور تأكيد استلام رسوم الاستعلام (150 ج.م)', '❌ Document upload is locked — opens after confirming fee receipt')}
                       </p>
-                      <button onClick={() => { setConfirmingFee(selected.id); }} className="btn-gold text-xs px-4 py-2 font-semibold">
-                        {t('تأكيد استلام رسوم الاستعلام الآن (150 ج.م)', 'Confirm Fee Receipt Now')}
+                      <button onClick={() => { setSelected(null); setConfirmingFee(selected.id); }} className="btn-gold text-xs px-4 py-2 font-semibold w-full">
+                        {t('تأكيد الرسوم الآن ↓', 'Confirm Fees Now ↓')}
                       </button>
                     </div>
                   )}
