@@ -1,6 +1,7 @@
 import type { SiteSettings, Order, Product, Supervisor, AttendanceRecord } from '@/types';
 import { DEFAULT_SETTINGS, MOCK_PRODUCTS, MOCK_ORDERS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId, addDays } from './utils';
+import * as supabaseSync from './supabaseDataSync';
 
 const KEY = {
   settings:    'paynix_settings',
@@ -10,62 +11,103 @@ const KEY = {
 };
 
 // ===== SITE SETTINGS =====
-export function getSiteSettings(): SiteSettings {
+export async function getSiteSettings(): Promise<SiteSettings> {
+  // Try Supabase first, fall back to localStorage
+  return await supabaseSync.fetchSiteSettings();
+}
+
+export function getSiteSettingsSync(): SiteSettings {
   const stored = localStorage.getItem(KEY.settings);
   if (!stored) return DEFAULT_SETTINGS;
   try { return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) }; }
   catch { return DEFAULT_SETTINGS; }
 }
-export function saveSiteSettings(settings: SiteSettings): void {
+
+export async function saveSiteSettings(settings: SiteSettings): Promise<void> {
+  // Save to localStorage immediately for performance
   localStorage.setItem(KEY.settings, JSON.stringify(settings));
+  // Sync to Supabase in background
+  await supabaseSync.saveSiteSettingsToSupabase(settings);
 }
 
 // ===== PRODUCTS =====
-export function getProducts(): Product[] {
+export async function getProducts(): Promise<Product[]> {
+  // Try Supabase first, fall back to localStorage
+  return await supabaseSync.fetchAllProducts();
+}
+
+export function getProductsSync(): Product[] {
   const stored = localStorage.getItem(KEY.products);
   if (!stored) { localStorage.setItem(KEY.products, JSON.stringify(MOCK_PRODUCTS)); return MOCK_PRODUCTS; }
   try { return JSON.parse(stored) as Product[]; } catch { return MOCK_PRODUCTS; }
 }
-export function saveProducts(products: Product[]): void {
+
+export async function saveProducts(products: Product[]): Promise<void> {
   localStorage.setItem(KEY.products, JSON.stringify(products));
 }
-export function addProduct(product: Omit<Product, 'id' | 'createdAt'>): Product {
-  const products = getProducts();
+
+export async function getProductById(id: string): Promise<Product | null> {
+  return await supabaseSync.fetchProductById(id);
+}
+
+export async function getProductsByCategory(category: string): Promise<Product[]> {
+  return await supabaseSync.fetchProductsByCategory(category);
+}
+
+export async function addProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> {
+  const products = await getProducts();
   const newProduct: Product = { ...product, id: generateId(), createdAt: new Date().toISOString() };
-  saveProducts([...products, newProduct]);
+  await saveProducts([...products, newProduct]);
   return newProduct;
 }
-export function updateProduct(id: string, updates: Partial<Product>): void {
-  saveProducts(getProducts().map(p => p.id === id ? { ...p, ...updates } : p));
+
+export async function updateProduct(id: string, updates: Partial<Product>): Promise<void> {
+  const products = await getProducts();
+  await saveProducts(products.map(p => p.id === id ? { ...p, ...updates } : p));
 }
-export function deleteProduct(id: string): void {
-  saveProducts(getProducts().filter(p => p.id !== id));
+
+export async function deleteProduct(id: string): Promise<void> {
+  const products = await getProducts();
+  await saveProducts(products.filter(p => p.id !== id));
 }
 
 // ===== ORDERS =====
-export function getOrders(): Order[] {
+export async function getOrders(): Promise<Order[]> {
+  // Try Supabase first, fall back to localStorage
+  return await supabaseSync.fetchAllOrders();
+}
+
+export function getOrdersSync(): Order[] {
   const stored = localStorage.getItem(KEY.orders);
   if (!stored) { localStorage.setItem(KEY.orders, JSON.stringify(MOCK_ORDERS)); return MOCK_ORDERS; }
   try { return JSON.parse(stored) as Order[]; } catch { return MOCK_ORDERS; }
 }
-export function saveOrders(orders: Order[]): void {
+
+export async function saveOrders(orders: Order[]): Promise<void> {
   localStorage.setItem(KEY.orders, JSON.stringify(orders));
 }
-export function getOrdersByCustomer(customerId: string): Order[] {
-  return getOrders().filter(o => o.customerId === customerId);
+
+export async function getOrdersByCustomer(customerId: string): Promise<Order[]> {
+  return await supabaseSync.fetchOrdersByCustomer(customerId);
 }
-export function getOrdersBySupervisor(supervisorId: string): Order[] {
-  return getOrders().filter(o => o.supervisorId === supervisorId);
+
+export async function getOrdersBySupervisor(supervisorId: string): Promise<Order[]> {
+  return await supabaseSync.fetchOrdersBySupervisor(supervisorId);
 }
-export function addOrder(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Order {
-  const orders = getOrders();
+
+export async function getOrdersByStatus(status: string): Promise<Order[]> {
+  return await supabaseSync.fetchOrdersByStatus(status);
+}
+
+export async function addOrder(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
+  const orders = await getOrders();
   const newOrder: Order = {
     ...order,
     id: `ord-${generateId()}`,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  saveOrders([...orders, newOrder]);
+  await saveOrders([...orders, newOrder]);
   addNotification({
     userId: 'admin-001', type: 'new-order',
     titleAr: 'طلب جديد', titleEn: 'New Order',
@@ -85,8 +127,8 @@ export function addOrder(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): 
   return newOrder;
 }
 
-export function updateOrder(id: string, updates: Partial<Order>): void {
-  const orders = getOrders();
+export async function updateOrder(id: string, updates: Partial<Order>): Promise<void> {
+  const orders = await getOrders();
   const updated = orders.map(o => {
     if (o.id !== id) return o;
     const updatedOrder = { ...o, ...updates, updatedAt: new Date().toISOString() };
@@ -132,31 +174,39 @@ export function updateOrder(id: string, updates: Partial<Order>): void {
     }
     return updatedOrder;
   });
-  saveOrders(updated);
+  await saveOrders(updated);
 }
 
 // ===== SUPERVISORS =====
-export function getSupervisors(): Supervisor[] {
+export async function getSupervisors(): Promise<Supervisor[]> {
+  // Try Supabase first, fall back to localStorage
+  return await supabaseSync.fetchAllSupervisors();
+}
+
+export function getSupervisorsSync(): Supervisor[] {
   const stored = localStorage.getItem(KEY.supervisors);
   if (!stored) { localStorage.setItem(KEY.supervisors, JSON.stringify(MOCK_SUPERVISORS)); return MOCK_SUPERVISORS; }
   try { return JSON.parse(stored) as Supervisor[]; } catch { return MOCK_SUPERVISORS; }
 }
-export function saveSupervisors(supervisors: Supervisor[]): void {
+
+export async function saveSupervisors(supervisors: Supervisor[]): Promise<void> {
   localStorage.setItem(KEY.supervisors, JSON.stringify(supervisors));
 }
-export function getSupervisorByProvince(provinceId: string): Supervisor | null {
-  return getSupervisors().find(s => s.province === provinceId) ?? null;
+
+export async function getSupervisorByProvince(provinceId: string): Promise<Supervisor | null> {
+  return await supabaseSync.fetchSupervisorByProvince(provinceId);
 }
-export function getSupervisorById(id: string): Supervisor | null {
-  return getSupervisors().find(s => s.id === id) ?? null;
+
+export async function getSupervisorById(id: string): Promise<Supervisor | null> {
+  return await supabaseSync.fetchSupervisorById(id);
 }
 
 // ===== FINANCIAL LOCK SYSTEM =====
 
 /** Lock supervisor account after check-out */
-export function lockSupervisor(supervisorId: string): void {
-  const sups = getSupervisors();
-  saveSupervisors(sups.map(s =>
+export async function lockSupervisor(supervisorId: string): Promise<void> {
+  const sups = await getSupervisors();
+  await saveSupervisors(sups.map(s =>
     s.id === supervisorId
       ? { ...s, isLocked: true, lastCheckOutAt: new Date().toISOString() }
       : s
@@ -167,8 +217,8 @@ export function lockSupervisor(supervisorId: string): void {
  * Admin confirms cash received → full or partial settlement.
  * Any remaining balance becomes negative debt (رصيد سالب).
  */
-export function clearSupervisorDebt(supervisorId: string, adminId: string, amount: number): void {
-  const sups = getSupervisors();
+export async function clearSupervisorDebt(supervisorId: string, adminId: string, amount: number): Promise<void> {
+  const sups = await getSupervisors();
   const idx = sups.findIndex(s => s.id === supervisorId);
   if (idx === -1) return;
   const sup = sups[idx];
@@ -200,7 +250,7 @@ export function clearSupervisorDebt(supervisorId: string, adminId: string, amoun
       lastUpdated: new Date().toISOString(),
     },
   };
-  saveSupervisors(sups);
+  await saveSupervisors(sups);
 
   addNotification({
     userId: supervisorId, type: 'wallet',
@@ -212,8 +262,8 @@ export function clearSupervisorDebt(supervisorId: string, adminId: string, amoun
 }
 
 /** Add fee collection to supervisor wallet — registers as pending debt */
-export function addFeeToWallet(supervisorId: string, fee: number, orderId: string, customerName: string): void {
-  const sups = getSupervisors();
+export async function addFeeToWallet(supervisorId: string, fee: number, orderId: string, customerName: string): Promise<void> {
+  const sups = await getSupervisors();
   const idx = sups.findIndex(s => s.id === supervisorId);
   if (idx === -1) return;
   const sup = sups[idx];
@@ -239,12 +289,12 @@ export function addFeeToWallet(supervisorId: string, fee: number, orderId: strin
       lastUpdated: new Date().toISOString(),
     },
   };
-  saveSupervisors(sups);
+  await saveSupervisors(sups);
 }
 
 /** Auto-suspend supervisors who have outstanding debt > 24h */
-export function checkAndAutoLockSupervisors(): void {
-  const sups = getSupervisors();
+export async function checkAndAutoLockSupervisors(): Promise<void> {
+  const sups = await getSupervisors();
   const now = Date.now();
   let changed = false;
 
@@ -265,12 +315,12 @@ export function checkAndAutoLockSupervisors(): void {
     return s;
   });
 
-  if (changed) saveSupervisors(updated);
+  if (changed) await saveSupervisors(updated);
 }
 
 /** Admin manual deduction */
-export function deductWalletBalance(supervisorId: string, amount: number, description: string): void {
-  const sups = getSupervisors();
+export async function deductWalletBalance(supervisorId: string, amount: number, description: string): Promise<void> {
+  const sups = await getSupervisors();
   const idx = sups.findIndex(s => s.id === supervisorId);
   if (idx === -1) return;
   const sup = sups[idx];
@@ -293,7 +343,7 @@ export function deductWalletBalance(supervisorId: string, amount: number, descri
       lastUpdated: new Date().toISOString(),
     },
   };
-  saveSupervisors(sups);
+  await saveSupervisors(sups);
 }
 
 // ===== SALARY MANAGEMENT =====
@@ -332,7 +382,7 @@ export function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export function getOrCreateSalaryRecord(supervisorId: string, month?: string): SalaryRecord {
+export async function getOrCreateSalaryRecord(supervisorId: string, month?: string): Promise<SalaryRecord> {
   const m = month ?? getCurrentMonth();
   const existing = getSalaryRecord(supervisorId, m);
   if (existing) return existing;
@@ -346,7 +396,7 @@ export function getOrCreateSalaryRecord(supervisorId: string, month?: string): S
     ? Math.abs(prevRecord.finalAmount)
     : 0;
 
-  const sup = getSupervisors().find(s => s.id === supervisorId);
+  const sup = await getSupervisorById(supervisorId);
   const newRecord: SalaryRecord = {
     id: generateId(),
     supervisorId,
@@ -362,8 +412,8 @@ export function getOrCreateSalaryRecord(supervisorId: string, month?: string): S
   return newRecord;
 }
 
-export function addBonus(supervisorId: string, amount: number, reason: string): void {
-  const record = getOrCreateSalaryRecord(supervisorId);
+export async function addBonus(supervisorId: string, amount: number, reason: string): Promise<void> {
+  const record = await getOrCreateSalaryRecord(supervisorId);
   const updated: SalaryRecord = {
     ...record,
     bonuses: [...record.bonuses, { id: generateId(), amount, reason, date: new Date().toISOString() }],
@@ -372,8 +422,8 @@ export function addBonus(supervisorId: string, amount: number, reason: string): 
   saveSalaryRecord(updated);
 }
 
-export function addPenalty(supervisorId: string, amount: number, reason: string): void {
-  const record = getOrCreateSalaryRecord(supervisorId);
+export async function addPenalty(supervisorId: string, amount: number, reason: string): Promise<void> {
+  const record = await getOrCreateSalaryRecord(supervisorId);
   const updated: SalaryRecord = {
     ...record,
     penalties: [...record.penalties, { id: generateId(), amount, reason, date: new Date().toISOString() }],
@@ -386,11 +436,11 @@ export function addPenalty(supervisorId: string, amount: number, reason: string)
  * Monthly close — approve and archive salary.
  * Carries forward any negative balance to next month.
  */
-export function approveMonthlySalary(supervisorId: string, adminId: string): SalaryRecord {
-  const record = getOrCreateSalaryRecord(supervisorId);
+export async function approveMonthlySalary(supervisorId: string, adminId: string): Promise<SalaryRecord> {
+  const record = await getOrCreateSalaryRecord(supervisorId);
   if (record.isApproved) throw new Error('Already approved');
 
-  const sup = getSupervisors().find(s => s.id === supervisorId);
+  const sup = await getSupervisorById(supervisorId);
   const pendingDebt = sup?.pendingDebt ?? 0;
   const netFinal = record.finalAmount - pendingDebt;
 
@@ -405,11 +455,11 @@ export function approveMonthlySalary(supervisorId: string, adminId: string): Sal
   saveSalaryRecord(approved);
 
   // Reset supervisor pending debt after salary settlement
-  const sups = getSupervisors();
+  const sups = await getSupervisors();
   const idx = sups.findIndex(s => s.id === supervisorId);
   if (idx !== -1) {
     sups[idx] = { ...sups[idx], pendingDebt: 0, wallet: { ...sups[idx].wallet, totalFees: 0, totalBalance: 0, transactions: [], lastUpdated: new Date().toISOString() } };
-    saveSupervisors(sups);
+    await saveSupervisors(sups);
   }
 
   addNotification({
@@ -424,17 +474,22 @@ export function approveMonthlySalary(supervisorId: string, adminId: string): Sal
 }
 
 // ===== NOTIFICATIONS =====
-export function getNotifications(userId: string): import('@/types').Notification[] {
+export async function getNotifications(userId: string): Promise<import('@/types').Notification[]> {
   try { return JSON.parse(localStorage.getItem(`paynix_notifications_${userId}`) ?? '[]'); }
   catch { return []; }
 }
-export function addNotification(notif: Omit<import('@/types').Notification, 'id' | 'createdAt' | 'isRead'>): void {
-  const notifications = getNotifications(notif.userId);
+
+export async function addNotification(notif: Omit<import('@/types').Notification, 'id' | 'createdAt' | 'isRead'>): Promise<void> {
+  const notifications = await getNotifications(notif.userId);
   const newNotif = { ...notif, id: generateId(), isRead: false, createdAt: new Date().toISOString() };
   localStorage.setItem(`paynix_notifications_${notif.userId}`, JSON.stringify([newNotif, ...notifications]));
+  
+  // Also sync to Supabase
+  await supabaseSync.saveNotificationToSupabase(notif);
 }
-export function markNotificationsRead(userId: string): void {
-  const n = getNotifications(userId).map(n => ({ ...n, isRead: true }));
+
+export async function markNotificationsRead(userId: string): Promise<void> {
+  const n = (await getNotifications(userId)).map(notif => ({ ...notif, isRead: true }));
   localStorage.setItem(`paynix_notifications_${userId}`, JSON.stringify(n));
 }
 
@@ -443,145 +498,18 @@ export function getAttendanceRecords(supervisorId: string): AttendanceRecord[] {
   try { return JSON.parse(localStorage.getItem(`paynix_attendance_${supervisorId}`) ?? '[]'); }
   catch { return []; }
 }
+
 export function saveAttendanceRecord(record: Omit<AttendanceRecord, 'id'>): AttendanceRecord {
   const records = getAttendanceRecords(record.supervisorId);
   const newRecord: AttendanceRecord = { ...record, id: generateId() };
   localStorage.setItem(`paynix_attendance_${record.supervisorId}`, JSON.stringify([newRecord, ...records]));
   return newRecord;
 }
+
 export function updateAttendanceRecord(supervisorId: string, date: string, updates: Partial<AttendanceRecord>): void {
   const records = getAttendanceRecords(supervisorId);
   const updated = records.map(r => r.date === date ? { ...r, ...updates } : r);
   localStorage.setItem(`paynix_attendance_${supervisorId}`, JSON.stringify(updated));
-}
-
-// ===== SCRAPER / SYNC HISTORY =====
-
-export interface ScraperImportRecord {
-  id: string;
-  importedAt: string;
-  source: 'btech' | 'manual';
-  totalInFile: number;
-  added: number;
-  updated: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-  durationMs: number;
-}
-
-const SCRAPER_HISTORY_KEY = 'paynix_scraper_history';
-const MAX_HISTORY = 20;
-
-export function getScraperHistory(): ScraperImportRecord[] {
-  try {
-    return JSON.parse(localStorage.getItem(SCRAPER_HISTORY_KEY) ?? '[]') as ScraperImportRecord[];
-  } catch { return []; }
-}
-
-export function getLastScraperImport(): ScraperImportRecord | null {
-  const h = getScraperHistory();
-  return h.length > 0 ? h[0] : null;
-}
-
-export function addScraperImport(record: Omit<ScraperImportRecord, 'id'>): ScraperImportRecord {
-  const history = getScraperHistory();
-  const newRecord: ScraperImportRecord = { ...record, id: generateId() };
-  const updated = [newRecord, ...history].slice(0, MAX_HISTORY);
-  localStorage.setItem(SCRAPER_HISTORY_KEY, JSON.stringify(updated));
-
-  // Update site settings sync date
-  const settings = getSiteSettings();
-  settings.lastSyncDate = record.importedAt;
-  settings.syncErrorMessage = record.errors.length > 0
-    ? `${record.failed} منتج فشل في الاستيراد`
-    : undefined;
-  saveSiteSettings(settings);
-
-  return newRecord;
-}
-
-/**
- * Import an array of scraped products (BTech schema) into the product store.
- * Returns a summary record.
- */
-export function importScrapedProducts(
-  rawProducts: Record<string, unknown>[],
-  source: 'btech' | 'manual' = 'btech',
-): ScraperImportRecord {
-  const startTime = Date.now();
-  const existing = getProducts();
-  const existingMap = new Map(existing.map(p => [p.sourceId ?? p.id, p]));
-
-  let added = 0;
-  let updated = 0;
-  let skipped = 0;
-  let failed = 0;
-  const errors: string[] = [];
-  const newProducts: Product[] = [...existing];
-
-  for (const raw of rawProducts) {
-    try {
-      if (!raw.name && !raw.nameAr) { skipped++; continue; }
-      const price = parseFloat(String(raw.price ?? '0')) || 0;
-      if (price <= 0) { skipped++; continue; }
-
-      const sourceId = String(raw.sourceId ?? raw.sku ?? raw.id ?? '');
-      const existingProduct = sourceId ? existingMap.get(sourceId) : undefined;
-
-      const mapped: Product = {
-        id: existingProduct?.id ?? generateId(),
-        name: String(raw.name ?? raw.nameAr ?? ''),
-        nameAr: String(raw.nameAr ?? raw.name ?? ''),
-        nameEn: String(raw.nameEn ?? raw.name ?? ''),
-        description: String(raw.description ?? raw.descriptionAr ?? ''),
-        descriptionAr: String(raw.descriptionAr ?? raw.description ?? ''),
-        descriptionEn: String(raw.descriptionEn ?? raw.description ?? ''),
-        price,
-        originalPrice: raw.originalPrice ? parseFloat(String(raw.originalPrice)) : undefined,
-        images: Array.isArray(raw.images) && raw.images.length > 0
-          ? (raw.images as string[])
-          : [`https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop`],
-        category: String(raw.category ?? ''),
-        categoryAr: String(raw.categoryAr ?? raw.category ?? ''),
-        brand: String(raw.brand ?? ''),
-        source,
-        sourceId,
-        sourceUrl: String(raw.sourceUrl ?? ''),
-        isActive: raw.availability !== 'out-of-stock',
-        stock: raw.availability === 'out-of-stock' ? 0 : (Number(raw.stock) || 99),
-        specs: (raw.specs && typeof raw.specs === 'object') ? raw.specs as Record<string, string> : {},
-        lastSyncedAt: new Date().toISOString(),
-        createdAt: existingProduct?.createdAt ?? new Date().toISOString(),
-        adminPriceOverride: existingProduct?.adminPriceOverride,
-      };
-
-      if (existingProduct) {
-        const idx = newProducts.findIndex(p => p.id === existingProduct.id);
-        if (idx !== -1) { newProducts[idx] = mapped; updated++; }
-      } else {
-        newProducts.push(mapped);
-        added++;
-      }
-    } catch (err) {
-      failed++;
-      errors.push(err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  saveProducts(newProducts);
-
-  return addScraperImport({
-    importedAt: new Date().toISOString(),
-    source,
-    totalInFile: rawProducts.length,
-    added,
-    updated,
-    skipped,
-    failed,
-    errors: errors.slice(0, 10),
-    durationMs: Date.now() - startTime,
-  });
 }
 
 // ===== TESTIMONIALS (Admin-managed) =====
