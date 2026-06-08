@@ -34,6 +34,8 @@ const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'));
 const AdminAnalytics = lazy(() => import('@/pages/admin/AdminAnalytics'));
 const AdminWallets = lazy(() => import('@/pages/admin/AdminWallets'));
 const AdminMarketing = lazy(() => import('@/pages/admin/AdminMarketing'));
+const AdminAIMarketing = lazy(() => import('@/pages/admin/AdminAIMarketing'));
+const AdminSocialExport = lazy(() => import('@/pages/admin/AdminSocialExport'));
 const AdminSupervisorActivity = lazy(
   () => import('@/pages/admin/AdminSupervisorActivity')
 );
@@ -123,6 +125,8 @@ function AppInner() {
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="wallets" element={<AdminWallets />} />
             <Route path="marketing" element={<AdminMarketing />} />
+            <Route path="ai-marketing" element={<AdminAIMarketing />} />
+            <Route path="social-export" element={<AdminSocialExport />} />
             <Route path="supervisor-activity" element={<AdminSupervisorActivity />} />
             <Route path="audit-log" element={<AdminAuditLog />} />
             <Route path="seo" element={<AdminSEO />} />
