@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import {
   Shield, Zap, CreditCard, Star,
-  CheckCircle, TrendingUp, MapPin, Calculator
+  CheckCircle, TrendingUp, MapPin, Calculator, Sparkles
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -13,25 +13,33 @@ import PWAInstallBanner from '@/components/features/PWAInstallBanner';
 import { useApp } from '@/contexts/AppContext';
 import { PRODUCT_CATEGORIES } from '@/constants/categories';
 import type { Product } from '@/types';
-import paynexHero from '@/assets/paynex-hero.jpg';
+import qastlyHero from '@/assets/qastly-hero.jpg';
 
-// Direct Supabase client initialization (self-contained, no external file dependencies)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-/* ── 20 Testimonials ── */
 const TESTIMONIALS = [
-  { name: 'أحمد محمد', province: 'القاهرة', text: 'خدمة رائعة! حصلت على موبايلي بقسط شهري بسيط وبدون أي مشاكل. تجربة من الذ' },
-  { name: 'سارة علي', province: 'الجيزة', text: 'المشرف كان محترماً جداً وإجراءات سريعة. باينكس غيرت فكرتي عن التقسيط تمام' },
+  { name: 'أحمد محمد', province: 'القاهرة', text: 'خدمة رائعة! حصلت على موبايلي بقسط شهري بسيط وبدون أي مشاكل. تجربة ممتازة.' },
+  { name: 'سارة علي', province: 'الجيزة', text: 'المشرف كان محترماً جداً وإجراءات سريعة. قسطلي غيرت فكرتي عن التقسيط تماماً.' },
   { name: 'محمود حسن', province: 'الإسكندرية', text: 'أفضل خدمة تقسيط في مصر. أسعار مناسبة وخدمة عملاء استثنائية.' },
-  { name: 'فاطمة إبراهيم', province: 'الشرقية', text: 'كنت محتاجة لابتوب للشغل وباينكس حلت مشكلتي في أسرع وقت ممكن.' },
-  { name: 'عمر خالد', province: 'الإسماعيلية', text: 'اشتريت تليفزيون كبير وقسطته على 24 شهر، الدفعة الشهرية خفيفة جداً عل' },
-  { name: 'منى سعيد', province: 'المنيا', text: 'تعامل راقي من المشرف وسرعة في إتمام الطلب. نصحت كل أصحابي بباينكس.' },
+  { name: 'فاطمة إبراهيم', province: 'الشرقية', text: 'كنت محتاجة لابتوب للشغل وقسطلي حلت مشكلتي في أسرع وقت ممكن.' },
+  { name: 'عمر خالد', province: 'الإسماعيلية', text: 'اشتريت تليفزيون كبير وقسطته على 24 شهر، الدفعة الشهرية خفيفة جداً على الميزانية.' },
+  { name: 'منى سعيد', province: 'المنيا', text: 'تعامل راقي من المشرف وسرعة في إتمام الطلب. نصحت كل أصحابي بقسطلي.' },
   { name: 'كريم رمضان', province: 'أسيوط', text: 'بدون فوائد حقيقي! حصلت على PS5 بسهولة تامة. الكلام ده صحيح فعلاً.' },
   { name: 'هدى عبد الله', province: 'قنا', text: 'خدمة عملاء ممتازة والمشرف رد في أقل من ساعة على جميع استفساراتي.' },
   { name: 'أيمن طه', province: 'سوهاج', text: 'الموقع سهل جداً وواضح. قدمت الطلب واتقبل في نفس اليوم تقريباً.' },
-  { name: 'نهاد مصطفى', province: 'بني سويف', text: 'اشتريت غسالة جديدة لبيتي بدون أي ضغط مالي. شكراً باينكس على الخدمة الر' },
+  { name: 'نهاد مصطفى', province: 'بني سويف', text: 'اشتريت غسالة جديدة لبيتي بدون أي ضغط مالي. شكراً قسطلي على الخدمة الرائعة.' },
+  { name: 'محمد عبدالعزيز', province: 'القاهرة', text: 'تجربة ممتازة وموثوقة. قسطلي فعلاً حلت لي مشكلة التقسيط البنكي المعقد.' },
+  { name: 'ليلى سامي', province: 'الجيزة', text: 'الموافقة سريعة والمشرف محترم. أنصح أي حد يفكر يقسط من قسطلي.' },
+  { name: 'خالد محمود', province: 'الإسكندرية', text: 'سعر المنتج نفس السوق والقسط مناسب. ما فيش زيادة خفية ولا رسوم غير متوقعة.' },
+  { name: 'نورهان أحمد', province: 'الدقهلية', text: 'أول مرة أقسط online وكانت تجربة رائعة. شكراً لفريق قسطلي على التواصل المستمر.' },
+  { name: 'عبدالرحمن علي', province: 'القليوبية', text: 'التوصيل سريع والمشرف جاب كل المستندات المطلوبة. 10/10 للخدمة.' },
+  { name: 'سامية فؤاد', province: 'الفيوم', text: 'قسطت تليفزيون لمطبخي. القسط الشهري أقل من فاتورة النت! شكراً قسطلي.' },
+  { name: 'مصطفى إبراهيم', province: 'كفر الشيخ', text: 'التعامل شفاف والمشرف واضح في كل خطوة. قسطلي اسمها على مسمى.' },
+  { name: 'ريم حسام', province: 'دمياط', text: 'المنتج وصلني سليم ومغلف بعناية. تجربة تقسيط ناجحة بكل المقاييس.' },
+  { name: 'ياسر محسن', province: 'بور سعيد', text: 'الحاسبة التفاعلية ساعدتني أختار أفضل خطة. قسطلي فعلاً ذكية.' },
+  { name: 'هاجر سيد', province: 'السويس', text: 'خدمة ما بعد البيع ممتازة. لما واجهت مشكلة في الجهاز، ردوا عليّ فوراً.' },
 ];
 
 const BRANDS = [
@@ -52,71 +60,24 @@ export default function HomePage() {
   const statsRef = useRef<HTMLDivElement>(null);
   const countersTriggered = useRef(false);
 
-  // Fetch total product count from Supabase
   useEffect(() => {
     async function fetchTotalProductCount() {
       try {
-        console.log('🔄 Fetching total product count from Supabase...');
-
-        // Get only count without fetching all data
-        const { count, error: countError } = await supabase
-          .from('products')
-          .select('id', { count: 'exact', head: true });
-
-        if (countError) {
-          console.error('❌ Error fetching product count:', countError);
-          setTotalProductCount(0);
-        } else {
-          const actualCount = count || 0;
-          console.log(`📊 Total products in database: ${actualCount}`);
-          setTotalProductCount(actualCount);
-        }
-      } catch (err) {
-        console.error('❌ Unexpected error fetching product count:', err);
-        setTotalProductCount(0);
-      }
+        const { count, error: countError } = await supabase.from('products').select('id', { count: 'exact', head: true });
+        if (countError) { setTotalProductCount(0); } else { setTotalProductCount(count || 0); }
+      } catch { setTotalProductCount(0); }
     }
-
     fetchTotalProductCount();
   }, []);
 
-  // Fetch live products from Supabase and group by category
   useEffect(() => {
     async function fetchProducts() {
       try {
         setLoading(true);
-
-        console.log('🔄 Fetching live products from Supabase for homepage...');
-        console.log('Supabase URL:', supabaseUrl ? '✅ Configured' : '❌ Missing');
-        console.log('Supabase Key:', supabaseAnonKey ? '✅ Configured' : '❌ Missing');
-
-        // Fetch active products ordered by newest first (limited for homepage display)
         const { data, error: queryError } = await supabase
-          .from('products')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(100); // Limit to prevent excessive data transfer
-
-        if (queryError) {
-          console.error('❌ Error fetching products from Supabase:', queryError);
-          setProducts([]);
-          setProductsByCategory(new Map());
-          setLoading(false);
-          return;
-        }
-
-        if (!data || data.length === 0) {
-          console.warn('⚠️ No active products found in Supabase');
-          setProducts([]);
-          setProductsByCategory(new Map());
-          setLoading(false);
-          return;
-        }
-
-        console.log(`📊 Fetched ${data.length} active products from Supabase`);
-
-        // Manual mapping from Supabase underscored columns to Product interface
+          .from('products').select('*').eq('is_active', true)
+          .order('created_at', { ascending: false }).limit(100);
+        if (queryError || !data || data.length === 0) { setProducts([]); setProductsByCategory(new Map()); setLoading(false); return; }
         const mappedProducts: Product[] = (data as Record<string, unknown>[]).map((item) => ({
           id: item.id || '',
           name: item.name_en || item.name_ar || '',
@@ -141,42 +102,19 @@ export default function HomePage() {
           createdAt: item.created_at || new Date().toISOString(),
           adminPriceOverride: item.admin_price_override ? Number(item.admin_price_override) : undefined,
         }));
-
-        console.log(`✅ Mapped ${mappedProducts.length} products`);
-
-        // Group products by category
         const grouped = new Map<string, Product[]>();
-        mappedProducts.forEach(p => {
-          if (!grouped.has(p.category)) {
-            grouped.set(p.category, []);
-          }
-          grouped.get(p.category)!.push(p);
-        });
-
+        mappedProducts.forEach(p => { if (!grouped.has(p.category)) grouped.set(p.category, []); grouped.get(p.category)!.push(p); });
         setProducts(mappedProducts);
         setProductsByCategory(grouped);
-      } catch (err) {
-        console.error('❌ Unexpected error fetching products:', err);
-        setProducts([]);
-        setProductsByCategory(new Map());
-      } finally {
-        setLoading(false);
-      }
+      } catch { setProducts([]); setProductsByCategory(new Map()); }
+      finally { setLoading(false); }
     }
-
     fetchProducts();
   }, []);
 
-  // Banner rotation
   const activeBannerCount = (settings?.banners ?? []).filter(b => b?.isActive).length || 1;
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBannerIndex(i => (i + 1) % activeBannerCount);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [activeBannerCount]);
+  useEffect(() => { const interval = setInterval(() => setBannerIndex(i => (i + 1) % activeBannerCount), 5000); return () => clearInterval(interval); }, [activeBannerCount]);
 
-  // Animate counters
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting && !countersTriggered.current) {
@@ -205,37 +143,17 @@ export default function HomePage() {
   const currentBanner = activeBanners[bannerIndex] ?? activeBanners[0];
 
   const features = [
-    {
-      icon: CreditCard,
-      titleAr: 'أقساط من 0 مقدم', titleEn: 'Zero Down Payment',
-      descAr: 'لا مقدم ولا فوائد خفية', descEn: 'No down payment, no hidden interest',
-      color: 'bg-[#00d4ff]/10 text-[#00d4ff]',
-    },
-    {
-      icon: Zap,
-      titleAr: 'موافقة سريعة', titleEn: 'Fast Approval',
-      descAr: 'قرار خلال ساعات قليلة', descEn: 'Decision within hours',
-      color: 'bg-amber-50 text-amber-600',
-    },
-    {
-      icon: Shield,
-      titleAr: 'بيانات آمنة', titleEn: 'Secure Data',
-      descAr: 'تشفير كامل لبياناتك الشخصية', descEn: 'Full AES-256 encryption',
-      color: 'bg-emerald-50 text-emerald-600',
-    },
-    {
-      icon: MapPin,
-      titleAr: 'مشرفون محليون', titleEn: 'Local Supervisors',
-      descAr: 'خدمة ميدانية في جميع المحافظات', descEn: 'Field service across all provinces',
-      color: 'bg-purple-50 text-purple-600',
-    },
+    { icon: CreditCard, titleAr: 'أقساط من 0 مقدم', titleEn: 'Zero Down Payment', descAr: 'لا مقدم ولا فوائد خفية', descEn: 'No down payment, no hidden interest' },
+    { icon: Zap, titleAr: 'موافقة سريعة', titleEn: 'Fast Approval', descAr: 'قرار خلال ساعات قليلة', descEn: 'Decision within hours' },
+    { icon: Shield, titleAr: 'بيانات آمنة', titleEn: 'Secure Data', descAr: 'تشفير AES-256 كامل', descEn: 'Full AES-256 encryption' },
+    { icon: MapPin, titleAr: 'مشرفون محليون', titleEn: 'Local Supervisors', descAr: 'خدمة ميدانية في 27 محافظة', descEn: 'Field service across 27 provinces' },
   ];
 
   const steps = [
     { num: '01', titleAr: 'اختر منتجك', titleEn: 'Choose Product', descAr: 'تصفح مئات المنتجات من أفضل الماركات', descEn: 'Browse hundreds of products' },
-    { num: '02', titleAr: 'احسب قسطك', titleEn: 'Calculate Installment', descAr: 'استخدم الحاسبة التفاعلية', descEn: 'Use our calculator' },
-    { num: '03', titleAr: 'قدم طلبك', titleEn: 'Submit Request', descAr: 'أكمل نموذج الطلب', descEn: 'Fill in your details' },
-    { num: '04', titleAr: 'استلم منتجك', titleEn: 'Receive Product', descAr: 'بعد الموافقة يصلك المشرف', descEn: 'Get your product' },
+    { num: '02', titleAr: 'احسب قسطك', titleEn: 'Calculate Installment', descAr: 'استخدم الحاسبة التفاعلية', descEn: 'Use our interactive calculator' },
+    { num: '03', titleAr: 'قدم طلبك', titleEn: 'Submit Request', descAr: 'أكمل نموذج الطلب بخطوات بسيطة', descEn: 'Fill in your details in simple steps' },
+    { num: '04', titleAr: 'استلم منتجك', titleEn: 'Receive Product', descAr: 'بعد الموافقة يصلك المشرف في موعدك', descEn: 'Supervisor delivers at your convenience' },
   ];
 
   return (
@@ -243,62 +161,49 @@ export default function HomePage() {
       <Navbar />
       <PWAInstallBanner />
 
-      {/* ══════════ HERO SECTION ══════════ */}
+      {/* ══════════ HERO ══════════ */}
       <section className="relative min-h-[92vh] overflow-hidden flex items-center">
         <div className="absolute inset-0">
-          <img
-            src={currentBanner?.imageUrl ?? paynexHero}
-            alt="PayNex باينكس"
-            className="w-full h-full object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-l from-[#0a1628]/95 via-[#0a1628]/80 to-[#0a1628]/50" />
-          <div className="absolute inset-0 opacity-5"
-            style={{ backgroundImage: 'linear-gradient(#00d4ff 1px, transparent 1px), linear-gradient(90deg, #00d4ff 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
+          <img src={currentBanner?.imageUrl ?? qastlyHero} alt="Qastly قسطلي" className="w-full h-full object-cover object-center" />
+          <div className="absolute inset-0 bg-[#0a1628]/80 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #00d4ff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 w-full py-24">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] text-sm font-semibold px-4 py-2 rounded-full mb-6 backdrop-blur">
-              <span className="w-2 h-2 bg-[#00d4ff] rounded-full animate-pulse" />
+            <div className="inline-flex items-center gap-2 bg-[#00d4ff]/10 border border-[#00d4ff]/20 text-[#00d4ff] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 backdrop-blur">
+              <Sparkles size={12} />
               {t('التقسيط الذكي في مصر', 'Smart Installments in Egypt')}
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-4">
+            <h1 className="text-5xl md:text-7xl font-black text-white leading-[1.1] mb-6 tracking-tight">
               {t('اشتري الآن', 'Buy Now')}<br />
-              <span className="text-gradient-cyan">{t('ادفع بالأقساط', 'Pay in Installments')}</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#c9a84c]">
+                {t('ادفع بالأقساط', 'Pay in Installments')}
+              </span>
             </h1>
 
-            <p className="text-white/70 text-lg md:text-xl leading-relaxed mb-8 max-w-xl">
-              {t(
-                'باينكس تقدم لك حلول التقسيط الذكي على أحدث المنتجات الإلكترونية بدون فوائد خفية',
-                'PayNex offers smart installment solutions with zero hidden interest'
-              )}
+            <p className="text-white/60 text-lg md:text-xl leading-relaxed mb-10 max-w-lg font-light">
+              {t('حلول تقسيط ذكية على أحدث الإلكترونيات بدون فوائد خفية. أكثر من ألف منتج في انتظارك.', 'Smart installment solutions on the latest electronics with zero hidden interest. 1000+ products waiting for you.')}
             </p>
 
-            <div className="flex flex-wrap gap-3 mb-10">
+            <div className="flex flex-wrap gap-4 mb-12">
               {[
                 t('✓ بدون فوائد', '✓ Zero Interest'),
                 t('✓ من 0 مقدم', '✓ 0 Down Payment'),
                 t('✓ موافقة سريعة', '✓ Fast Approval'),
-                t('✓ 27 محافظة', '✓ 27 Provinces'),
               ].map(item => (
-                <span key={item} className="bg-white/10 backdrop-blur border border-white/20 text-white text-sm font-medium px-4 py-2 rounded-full">
+                <span key={item} className="bg-white/5 backdrop-blur border border-white/10 text-white/80 text-xs font-medium px-4 py-2 rounded-full">
                   {item}
                 </span>
               ))}
             </div>
 
             <div className="flex flex-wrap gap-4">
-              <button
-                onClick={() => document.getElementById('all-products')?.scrollIntoView({ behavior: 'smooth' })}
-                className="btn-cyan text-base px-8 py-4 text-[#0a1628] font-black shadow-[0_4px_30px_rgba(0,212,255,0.4)] hover:shadow-[0_8px_40px_rgba(0,212,255,0.6)] transition-all"
-              >
+              <button onClick={() => document.getElementById('all-products')?.scrollIntoView({ behavior: 'smooth' })} className="btn-cyan text-base px-8 py-4 text-[#0a1628] font-black shadow-[0_4px_30px_rgba(0,212,255,0.35)] hover:shadow-[0_8px_40px_rgba(0,212,255,0.55)] transition-all">
                 {t('تصفح المنتجات', 'Browse Products')}
               </button>
-              <button
-                onClick={() => document.getElementById('calculator')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center gap-2 bg-white/10 backdrop-blur border border-white/30 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/20 transition-all"
-              >
+              <button onClick={() => document.getElementById('calculator')?.scrollIntoView({ behavior: 'smooth' })} className="flex items-center gap-2 bg-white/5 backdrop-blur border border-white/20 text-white/90 font-medium px-8 py-4 rounded-xl hover:bg-white/10 transition-all">
                 <Calculator size={18} />
                 {t('احسب قسطك', 'Calculate Now')}
               </button>
@@ -307,96 +212,86 @@ export default function HomePage() {
         </div>
 
         <div className="absolute bottom-8 end-6 hidden lg:block">
-          <div className="calc-glass rounded-2xl p-5 text-white w-56">
-            <div className="text-xs text-white/50 mb-1">{t('مثال — آيفون 15 برو', 'Example — iPhone 15 Pro')}</div>
+          <div className="calc-glass rounded-2xl p-5 text-white w-56 border border-white/10">
+            <div className="text-[10px] text-white/40 mb-1 uppercase tracking-widest">{t('مثال — آيفون 15 برو', 'Example — iPhone 15 Pro')}</div>
             <div className="text-2xl font-black text-[#00d4ff]">{t('3,850 ج.م / شهر', 'EGP 3,850/mo')}</div>
-            <div className="text-xs text-white/60 mt-1">{t('على 12 شهر — بدون فوائد', '12 months — zero interest')}</div>
+            <div className="text-[10px] text-white/40 mt-1">{t('على 12 شهر — بدون فوائد', '12 months — zero interest')}</div>
           </div>
         </div>
 
         {activeBanners.length > 1 && (
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
             {activeBanners.map((_, i) => (
-              <button key={i} onClick={() => setBannerIndex(i)}
-                className={`h-1.5 rounded-full transition-all ${i === bannerIndex ? 'bg-[#00d4ff] w-8' : 'bg-white/30 w-3'}`}
-              />
+              <button key={i} onClick={() => setBannerIndex(i)} className={`h-1.5 rounded-full transition-all ${i === bannerIndex ? 'bg-[#00d4ff] w-8' : 'bg-white/20 w-3'}`} />
             ))}
           </div>
         )}
       </section>
 
-      {/* ══════════ STATS BAR ══════════ */}
-      <section ref={statsRef} className="bg-[#0a1628] py-10 border-y border-[#00d4ff]/10">
+      {/* ══════════ STATS ══════════ */}
+      <section ref={statsRef} className="bg-[#0a1628] py-12 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              {
-                value: count1 >= 1000000 ? '+مليون' : `+${count1.toLocaleString('ar-EG')}`,
-                label: t('عميل سعيد', 'Happy Customer'),
-                color: 'text-[#00d4ff]',
-              },
-              {
-                value: count2 >= 1000 ? `+${Math.floor(count2 / 1000)}ألف` : count2,
-                label: t('منتج متاح', 'Available Products'),
-                color: 'text-[#c9a84c]',
-              },
+              { value: count1 >= 1000000 ? '+1M' : `+${count1.toLocaleString('ar-EG')}`, label: t('عميل سعيد', 'Happy Customers'), color: 'text-[#00d4ff]' },
+              { value: count2 >= 1000 ? `+${(count2 / 1000).toFixed(0)}K` : `+${count2}`, label: t('منتج متاح', 'Available Products'), color: 'text-[#c9a84c]' },
               { value: '27', label: t('محافظة مغطاة', 'Provinces Covered'), color: 'text-[#00d4ff]' },
               { value: '0%', label: t('فوائد', 'Interest Rate'), color: 'text-emerald-400' },
             ].map((s, i) => (
               <div key={i} className="group">
                 <div className={`text-3xl md:text-4xl font-black mb-1 ${s.color}`}>{s.value}</div>
-                <div className="text-white/50 text-sm">{s.label}</div>
+                <div className="text-white/40 text-xs font-medium tracking-wide uppercase">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══════════ CATEGORIES ══════════ */}
-      <section className="py-16 bg-slate-50">
+      {/* ══════════ CATEGORIES — Glass Cards ══════════ */}
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="section-title text-center mb-2">{t('تصفح حسب الفئة', 'Browse by Category')}</h2>
-          <p className="text-slate-500 text-center text-sm mb-10">{t('مئات المنتجات في كل فئة', 'Hundreds of products in each category')}</p>
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-black text-[#0a1628] mb-3">{t('تصفح حسب الفئة', 'Browse by Category')}</h2>
+            <p className="text-slate-400 text-sm max-w-md mx-auto">{t('اكتشف مجموعة واسعة من المنتجات في كل فئة، بأقساط تبدأ من صفر مقدم', 'Discover a wide range of products in every category, with installments starting from zero down payment')}</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
             {PRODUCT_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => navigate(`/products?category=${cat.id}`)}
-                className="card-surface p-5 flex flex-col items-center gap-3 group hover:-translate-y-1"
+                className="group relative p-6 rounded-2xl bg-white border border-slate-100 shadow-[0_2px_12px_rgba(10,22,40,0.04)] hover:shadow-[0_8px_28px_rgba(10,22,40,0.10)] hover:-translate-y-1 transition-all duration-300"
               >
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl group-hover:scale-110 transition-transform`}>
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform shadow-sm`}>
                   {cat.icon}
                 </div>
-                <span className="text-sm font-semibold text-[#0a1628] text-center">{t(cat.nameAr, cat.nameEn)}</span>
+                <span className="text-sm font-bold text-[#0a1628] block">{t(cat.nameAr, cat.nameEn)}</span>
+                <span className="text-[10px] text-slate-400 mt-1 block">{t('تصفح الآن', 'Browse now')}</span>
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══════════ WHY PAYNEX ══════════ */}
-      <section className="py-20 bg-white">
+      {/* ══════════ WHY QASTLY — Minimalist Cards ══════════ */}
+      <section className="py-20 bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <div className="badge-cyan mb-4 inline-block">{t('لماذا باينكس؟', 'Why PayNex?')}</div>
-              <h2 className="text-4xl font-black text-[#0a1628] leading-tight mb-4">
+              <div className="text-[#c9a84c] text-xs font-bold tracking-widest uppercase mb-4">{t('لماذا قسطلي؟', 'Why Qastly?')}</div>
+              <h2 className="text-4xl font-black text-[#0a1628] leading-tight mb-5">
                 {t('التمويل الذكي', 'Smart Financing')}<br />
-                <span className="text-gradient-cyan">{t('للجيل القادم', 'For the Next Generation')}</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0a1628] to-[#00d4ff]">{t('للجيل القادم', 'For the Next Generation')}</span>
               </h2>
-              <p className="text-slate-500 leading-relaxed mb-8">
-                {t(
-                  'باينكس ليست مجرد تقسيط — هي منظومة مالية ذكية',
-                  'PayNex is not just installments — it\'s a smart financial ecosystem'
-                )}
+              <p className="text-slate-400 leading-relaxed mb-10 text-sm max-w-md">
+                {t('قسطلي ليست مجرد تقسيط — هي منظومة مالية ذكية مصممة لتبسيط تجربتك وتحقيق أحلامك بأقل جهد.', 'Qastly is not just installments — it is a smart financial ecosystem designed to simplify your experience and achieve your dreams with minimal effort.')}
               </p>
               <div className="grid grid-cols-2 gap-4">
                 {features.map((f, i) => {
                   const Icon = f.icon;
                   return (
-                    <div key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#00d4ff]/30 transition-colors">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${f.color}`}>
-                        <Icon size={20} />
+                    <div key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-white border border-slate-100 hover:border-[#00d4ff]/20 hover:shadow-[0_4px_16px_rgba(0,212,255,0.06)] transition-all duration-300">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${f.color} shadow-sm`}>
+                        <Icon size={18} />
                       </div>
                       <div>
                         <div className="font-bold text-[#0a1628] text-sm">{t(f.titleAr, f.titleEn)}</div>
@@ -410,15 +305,15 @@ export default function HomePage() {
 
             <div className="space-y-4">
               {steps.map((step, i) => (
-                <div key={i} className="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 hover:border-[#00d4ff]/30 hover:bg-[#00d4ff]/3 transition-all group">
-                  <div className="w-12 h-12 rounded-2xl bg-[#0a1628] text-[#00d4ff] flex items-center justify-center font-black text-lg flex-shrink-0 group-hover:bg-[#00d4ff] group-hover:text-[#0a1628]">
+                <div key={i} className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-slate-100 hover:border-[#00d4ff]/20 transition-all duration-300 group">
+                  <div className="w-12 h-12 rounded-2xl bg-[#0a1628] text-[#00d4ff] flex items-center justify-center font-black text-lg flex-shrink-0 group-hover:bg-[#00d4ff] group-hover:text-[#0a1628] transition-colors duration-300">
                     {step.num}
                   </div>
-                  <div>
-                    <div className="font-bold text-[#0a1628] mb-1">{t(step.titleAr, step.titleEn)}</div>
-                    <div className="text-slate-500 text-sm">{t(step.descAr, step.descEn)}</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-[#0a1628] text-sm mb-0.5">{t(step.titleAr, step.titleEn)}</div>
+                    <div className="text-slate-400 text-xs">{t(step.descAr, step.descEn)}</div>
                   </div>
-                  <CheckCircle size={18} className="text-emerald-400 ms-auto flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <CheckCircle size={18} className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
               ))}
             </div>
@@ -426,51 +321,42 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══════════ ALL PRODUCTS ══════════ */}
-      <section id="all-products" className="py-20 bg-slate-50">
+      {/* ══════════ PRODUCTS ══════════ */}
+      <section id="all-products" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="mb-10">
-            <div className="badge-navy mb-3 inline-block">{t('جميع المنتجات', 'All Products')}</div>
-            <h2 className="section-title">{t('أحدث الإلكترونيات المتاحة', 'Latest Available Electronics')}</h2>
-            <p className="text-slate-500 mt-2">{t(`أكثر من ${totalProductCount > 0 ? totalProductCount.toLocaleString('ar-EG') : products.length} منتج بأقساط ميسرة`, `${totalProductCount > 0 ? totalProductCount.toLocaleString() : products.length} products with easy installments`)}</p>
+          <div className="mb-12">
+            <div className="text-[#c9a84c] text-xs font-bold tracking-widest uppercase mb-3">{t('المتجر', 'Store')}</div>
+            <h2 className="text-3xl md:text-4xl font-black text-[#0a1628] mb-2">{t('أحدث الإلكترونيات المتاحة', 'Latest Available Electronics')}</h2>
+            <p className="text-slate-400 text-sm">{t(`أكثر من ${totalProductCount > 0 ? totalProductCount.toLocaleString('ar-EG') : products.length} منتج بأقساط ميسرة`, `${totalProductCount > 0 ? totalProductCount.toLocaleString() : products.length} products with easy installments`)}</p>
           </div>
 
           {loading && (
             <div className="text-center py-20">
-              <p className="text-2xl font-bold text-slate-400">{t('جاري تحميل المنتجات...', 'Loading products...')}</p>
+              <p className="text-2xl font-bold text-slate-200">{t('جاري تحميل المنتجات...', 'Loading products...')}</p>
             </div>
           )}
 
           {!loading && products.length === 0 && (
             <div className="text-center py-20">
-              <p className="text-2xl font-bold text-slate-400">{t('لا توجد منتجات متاحة', 'No products available')}</p>
+              <p className="text-2xl font-bold text-slate-200">{t('لا توجد منتجات متاحة', 'No products available')}</p>
             </div>
           )}
 
           {!loading && products.length > 0 && (
-            /* Products by Category */
             <div className="space-y-16">
               {PRODUCT_CATEGORIES.map(category => {
                 const categoryProducts = productsByCategory.get(category.id) || [];
                 if (categoryProducts.length === 0) return null;
-
                 return (
                   <div key={category.id}>
-                    {/* Category Header */}
-                    <div className="flex items-center gap-3 mb-8 pb-4 border-b-2 border-[#00d4ff]/20">
-                      <span className="text-4xl">{category.icon}</span>
+                    <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-100">
+                      <span className="text-3xl">{category.icon}</span>
                       <div>
-                        <h3 className="text-2xl font-black text-[#0a1628]">
-                          {t(category.nameAr, category.nameEn)}
-                        </h3>
-                        <p className="text-sm text-slate-500">
-                          {t(`${categoryProducts.length} منتج`, `${categoryProducts.length} products`)}
-                        </p>
+                        <h3 className="text-xl font-black text-[#0a1628]">{t(category.nameAr, category.nameEn)}</h3>
+                        <p className="text-xs text-slate-400">{t(`${categoryProducts.length} منتج`, `${categoryProducts.length} products`)}</p>
                       </div>
                     </div>
-
-                    {/* Products Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                       {categoryProducts.map(product => (
                         <ProductCard key={product.id} product={product} />
                       ))}
@@ -483,24 +369,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══════════ CALCULATOR ══════════ */}
+      {/* ══════════ CALCULATOR — Glass ══════════ */}
       <section id="calculator" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 gradient-paynex" />
-        <div className="absolute inset-0 opacity-5"
-          style={{ backgroundImage: 'linear-gradient(#00d4ff 1px, transparent 1px), linear-gradient(90deg, #00d4ff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#00d4ff]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 gradient-qastly" />
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #00d4ff 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#00d4ff]/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl mx-auto px-4">
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 bg-[#00d4ff]/10 border border-[#00d4ff]/20 text-[#00d4ff] text-sm font-medium px-4 py-2 rounded-full mb-4">
-              <Calculator size={15} />
+            <div className="inline-flex items-center gap-2 bg-[#00d4ff]/10 border border-[#00d4ff]/20 text-[#00d4ff] text-xs font-medium px-4 py-2 rounded-full mb-4">
+              <Calculator size={14} />
               {t('حاسبة التقسيط التفاعلية', 'Interactive Calculator')}
             </div>
             <h2 className="text-4xl font-black text-white mb-3">{t('احسب قسطك الشهري', 'Calculate Your Monthly Payment')}</h2>
-            <p className="text-white/60">{t('نتيجة فورية', 'Instant result')}</p>
+            <p className="text-white/50 text-sm">{t('أدخل السعر والمدة واحصل على النتيجة فوراً', 'Enter price and duration and get instant results')}</p>
           </div>
-
-          <div className="calc-glass rounded-3xl p-6 md:p-8">
+          <div className="calc-glass rounded-3xl p-6 md:p-8 border border-white/10">
             <InstallmentCalculator productPrice={20000} />
           </div>
         </div>
@@ -509,21 +393,20 @@ export default function HomePage() {
       {/* ══════════ TESTIMONIALS ══════════ */}
       <section className="py-16 bg-[#0a1628] overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 mb-10 text-center">
-          <div className="badge-cyan mx-auto mb-3 inline-block">{t('آراء العملاء', 'Customer Reviews')}</div>
-          <h2 className="text-3xl font-bold text-white">{t('مليون+ عميل يثق في باينكس', '1M+ Customers Trust PayNex')}</h2>
+          <div className="text-[#c9a84c] text-xs font-bold tracking-widest uppercase mb-3">{t('آراء العملاء', 'Customer Reviews')}</div>
+          <h2 className="text-3xl font-bold text-white">{t('مليون+ عميل يثق في قسطلي', '1M+ Customers Trust Qastly')}</h2>
         </div>
-
         <div className="mb-4 overflow-hidden">
           <div className="flex gap-4 animate-marquee-rtl" style={{ width: 'max-content' }}>
             {[...TESTIMONIALS, ...TESTIMONIALS].map((r, i) => (
-              <div key={i} className="w-72 flex-shrink-0 calc-glass p-5 rounded-2xl">
+              <div key={i} className="w-72 flex-shrink-0 calc-glass p-5 rounded-2xl border border-white/5">
                 <div className="flex gap-0.5 mb-3">
                   {[1,2,3,4,5].map(s => <Star key={s} size={12} className="fill-[#c9a84c] text-[#c9a84c]" />)}
                 </div>
-                <p className="text-white/75 text-xs leading-relaxed mb-4">"{r.text}"</p>
+                <p className="text-white/60 text-xs leading-relaxed mb-4">"{r.text}"</p>
                 <div>
                   <div className="font-bold text-white text-sm">{r.name}</div>
-                  <div className="text-[#00d4ff] text-xs mt-0.5">{r.province}</div>
+                  <div className="text-[#00d4ff] text-[10px] mt-0.5 uppercase tracking-wide">{r.province}</div>
                 </div>
               </div>
             ))}
@@ -532,49 +415,43 @@ export default function HomePage() {
       </section>
 
       {/* ══════════ BRANDS ══════════ */}
-      <section className="py-10 bg-white border-y border-slate-100 overflow-hidden">
-        <p className="text-center text-slate-400 text-xs font-semibold uppercase tracking-widest mb-6">
+      <section className="py-12 bg-white border-y border-slate-100 overflow-hidden">
+        <p className="text-center text-slate-300 text-[10px] font-bold uppercase tracking-[0.25em] mb-6">
           {t('شركاؤنا من الماركات العالمية', 'Our Global Brand Partners')}
         </p>
         <div className="overflow-hidden">
           <div className="flex gap-6 animate-marquee-rtl" style={{ width: 'max-content' }}>
             {[...BRANDS, ...BRANDS].map((brand, i) => (
               <div key={i} className="flex-shrink-0 flex items-center gap-2.5 px-5 py-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="w-8 h-8 bg-[#0a1628] rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#00d4ff] text-xs font-black">{brand.charAt(0)}</span>
+                <div className="w-7 h-7 bg-[#0a1628] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-[#00d4ff] text-[10px] font-black">{brand.charAt(0)}</span>
                 </div>
-                <span className="text-slate-600 font-semibold text-sm">{brand}</span>
+                <span className="text-slate-500 font-semibold text-xs">{brand}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══════════ CTA SECTION ══════════ */}
+      {/* ══════════ CTA ══════════ */}
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[#c9a84c] via-[#e0c678] to-[#c9a84c]" />
         <div className="relative z-10 max-w-3xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 bg-[#0a1628]/10 text-[#0a1628] text-sm font-semibold px-4 py-2 rounded-full mb-6">
-            <TrendingUp size={15} />
+          <div className="inline-flex items-center gap-2 bg-[#0a1628]/10 text-[#0a1628] text-xs font-bold px-4 py-2 rounded-full mb-6">
+            <TrendingUp size={14} />
             {t('ابدأ رحلتك المالية الذكية', 'Start Your Smart Financial Journey')}
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-[#0a1628] mb-4">
+          <h2 className="text-4xl md:text-5xl font-black text-[#0a1628] mb-4 leading-tight">
             {t('جاهز للبدء؟', 'Ready to Start?')}
           </h2>
-          <p className="text-[#0a1628]/70 text-lg mb-10 max-w-xl mx-auto">
-            {t('سجّل الآن واحصل على منتجك بأقساط شهرية ميسرة', 'Register now and get easy monthly installments')}
+          <p className="text-[#0a1628]/60 text-base mb-10 max-w-md mx-auto font-light">
+            {t('سجّل الآن واحصل على منتجك بأقساط شهرية ميسرة وبدون فوائد خفية', 'Register now and get your product with easy monthly installments and zero hidden interest')}
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <button
-              onClick={() => document.getElementById('all-products')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-[#0a1628] text-white font-bold px-10 py-4 rounded-xl hover:bg-[#0e2044] transition-colors text-lg shadow-xl"
-            >
+            <button onClick={() => document.getElementById('all-products')?.scrollIntoView({ behavior: 'smooth' })} className="bg-[#0a1628] text-white font-bold px-10 py-4 rounded-xl hover:bg-[#0e2044] transition-colors text-base shadow-xl">
               {t('تصفح المنتجات الآن', 'Browse Products Now')}
             </button>
-            <button
-              onClick={() => navigate('/login')}
-              className="border-2 border-[#0a1628] text-[#0a1628] font-bold px-10 py-4 rounded-xl hover:bg-[#0a1628] hover:text-white transition-colors text-lg"
-            >
+            <button onClick={() => navigate('/login')} className="border-2 border-[#0a1628] text-[#0a1628] font-bold px-10 py-4 rounded-xl hover:bg-[#0a1628] hover:text-white transition-colors text-base">
               {t('تسجيل حساب جديد', 'Create Account')}
             </button>
           </div>

@@ -9,7 +9,7 @@
 import type { AuditLog, UserRole } from '@/types';
 import { generateId } from './utils';
 
-const AUDIT_KEY = 'paynix_audit_log';
+const AUDIT_KEY = 'qastly_audit_log';
 const MAX_ENTRIES = 1000; // Keep last 1000 entries
 
 export function getAuditLogs(): AuditLog[] {

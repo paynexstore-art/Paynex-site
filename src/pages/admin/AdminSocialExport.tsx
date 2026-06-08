@@ -137,7 +137,7 @@ export default function AdminSocialExport() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">المنصة</label>
+              <label className="block text-gray-400 text-sm mb-2">وسيلة النشر</label>
               <div className="flex gap-2">
                 {(Object.keys(PLATFORM_CONFIG) as Platform[]).map((p) => {
                   const { icon: Icon, label, color } = PLATFORM_CONFIG[p];

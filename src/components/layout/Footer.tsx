@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube, Twitter } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
-import paynexLogo from '@/assets/paynex-logo.png';
+import qastlyLogo from '@/assets/qastly-logo.png';
 
 export default function Footer() {
   const { t, settings } = useApp();
@@ -14,7 +14,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <img src={paynexLogo} alt="PayNex" className="h-11 w-11 object-contain rounded-xl" />
+              <img src={qastlyLogo} alt="Qastly" className="h-11 w-11 object-contain rounded-xl" />
               <div>
                 <div className="font-black text-2xl text-white tracking-tight">{settings.siteNameEn}</div>
                 <div className="text-[#00d4ff] text-xs font-semibold tracking-widest uppercase mt-0.5">
@@ -24,8 +24,8 @@ export default function Footer() {
             </div>
             <p className="text-slate-400 text-sm leading-relaxed mb-5">
               {t(
-                'باينكس — منظومة التمويل الذكي للجيل القادم. اشتري منتجاتك المفضلة بأقساط شهرية ميسرة بدون فوائد خفية.',
-                "PayNex — Smart financing for the next generation. Buy your favorites with easy monthly installments and no hidden fees."
+                'قسطلي — منظومة التمويل الذكي للجيل القادم. اشتري منتجاتك المفضلة بأقساط شهرية ميسرة بدون فوائد خفية.',
+                "Qastly — Smart financing for the next generation. Buy your favorites with easy monthly installments and no hidden fees."
               )}
             </p>
             <div className="flex gap-3">
@@ -114,9 +114,9 @@ export default function Footer() {
         <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-500 text-xs">{settings.footerTextAr}</p>
           <div className="flex gap-4 text-slate-500 text-xs">
-            <span className="hover:text-[#00d4ff] cursor-pointer transition-colors">{t('سياسة الخصوصية', 'Privacy Policy')}</span>
+            <Link to="/privacy" className="hover:text-[#00d4ff] cursor-pointer transition-colors">{t('سياسة الخصوصية', 'Privacy Policy')}</Link>
             <span className="text-white/20">•</span>
-            <span className="hover:text-[#00d4ff] cursor-pointer transition-colors">{t('الشروط والأحكام', 'Terms & Conditions')}</span>
+            <Link to="/terms" className="hover:text-[#00d4ff] cursor-pointer transition-colors">{t('الشروط والأحكام', 'Terms & Conditions')}</Link>
           </div>
         </div>
       </div>

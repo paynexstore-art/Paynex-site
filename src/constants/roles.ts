@@ -1,5 +1,5 @@
 // ============================================================
-// Role & Permission Constants — PayNex Platform
+// Role & Permission Constants — Qastly Platform
 // ============================================================
 
 export const ADMIN_ROLES = ['admin', 'super_admin'] as const;
@@ -8,7 +8,7 @@ export const ALL_ROLES = [...ADMIN_ROLES, ...SUPERVISOR_ROLES, 'customer'] as co
 
 export const SPECIAL_ADMINS = [
   'adminqastly@gmail.com',
-  'admin@paynex.com',
+  'admin@qastly.com',
 ];
 
 export const ROLE_DESCRIPTIONS: Record<string, string> = {

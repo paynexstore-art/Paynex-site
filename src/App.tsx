@@ -20,6 +20,8 @@ const ProductDetailPage = lazy(() => import('@/pages/ProductDetailPage'));
 const OrderFormPage = lazy(() => import('@/pages/OrderFormPage'));
 const OrderStatusPage = lazy(() => import('@/pages/OrderStatusPage'));
 const ContactPage = lazy(() => import('@/pages/ContactPage'));
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
+const TermsPage = lazy(() => import('@/pages/TermsPage'));
 
 // ─── Auth Pages ───────────────────────────────────────────────────
 const GoogleCallbackPage = lazy(() => import('@/pages/auth/GoogleCallbackPage'));
@@ -62,7 +64,7 @@ function PageLoader() {
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-[#00d4ff]/30 border-t-[#00d4ff] rounded-full animate-spin mx-auto mb-4" />
         <p className="text-[#00d4ff] text-sm font-semibold tracking-widest uppercase">
-          PayNex
+          Qastly
         </p>
       </div>
     </div>
@@ -100,6 +102,8 @@ function AppInner() {
           <Route path="/my-orders" element={<OrderStatusPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
 
           {/* ──────────────────────────────────── */}
           {/* AUTH CALLBACKS                       */}

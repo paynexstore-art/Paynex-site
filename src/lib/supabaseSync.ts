@@ -1,5 +1,5 @@
 // ============================================================
-// Supabase Sync Service — PayNex Platform
+// Supabase Sync Service — Qastly
 // ============================================================
 
 import { supabase } from './supabase';
@@ -26,7 +26,7 @@ export interface AuditLogEntry {
   entityId: string;
   userId: string;
   userName: string;
-  changes: Record<string, unknown>;
+  changes: Record<string, { old?: unknown; new?: unknown }>;
   oldValues: Record<string, unknown>;
   newValues: Record<string, unknown>;
   createdAt: string;
@@ -44,7 +44,7 @@ export interface SyncStatus {
 }
 
 // Local storage prefix
-const STORAGE_PREFIX = 'paynex_';
+const STORAGE_PREFIX = 'qastly_';
 
 /**
  * Save settings with dual storage (localStorage + Supabase)
@@ -66,7 +66,7 @@ export async function saveSettingsWithSync(
       entityId: key,
       userId,
       userName,
-      changes: value as Record<string, unknown>,
+      changes: {},
       oldValues: {},
       newValues: value as Record<string, unknown>,
       createdAt: new Date().toISOString(),

@@ -59,9 +59,9 @@ export async function fetchSiteSettings(): Promise<SiteSettings> {
         installmentMonths: data.installment_months ?? [3, 6, 12],
         maxInstallmentAmount: data.max_installment_amount ?? 50000,
         minInstallmentAmount: data.min_installment_amount ?? 500,
-        siteName: data.site_name ?? 'PayNex',
-        siteNameAr: data.site_name_ar ?? 'باينكس',
-        supportEmail: data.support_email ?? 'support@paynex.com',
+        siteName: data.site_name ?? 'Qastly',
+        siteNameAr: data.site_name_ar ?? 'قسطلي',
+        supportEmail: data.support_email ?? 'support@qastly.com',
         supportPhone: data.support_phone ?? '+20201234567',
         lastSyncDate: data.updated_at ?? new Date().toISOString(),
       };

@@ -489,8 +489,8 @@ export default function OrderFormPage() {
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-yellow-800 text-sm font-medium">
               ⚠️{' '}
               {t(
-                `رسوم استعلام: ${formatCurrency(plan.inquiryFee || 150, 'ar')}`,
-                `Inquiry fee: ${formatCurrency(plan.inquiryFee || 150, 'en')}`
+                `تطبق رسوم استعلام تدفع عند توقيع طلب التقسيط ورفع المستندات (${formatCurrency(plan.inquiryFee || 150, 'ar')})`,
+                `Inquiry fee applies upon signing the installment request and uploading documents (${formatCurrency(plan.inquiryFee || 150, 'en')})`
               )}
             </div>
 
@@ -543,18 +543,18 @@ export default function OrderFormPage() {
             <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  {
-                    field: 'name',
-                    label: t('الاسم الكامل', 'Full Name'),
-                    type: 'text',
-                    placeholder: t('أحمد محمد', 'Ahmed Mohamed'),
-                  },
-                  {
-                    field: 'email',
-                    label: t('البريد الإلكتروني', 'Email'),
-                    type: 'email',
-                    placeholder: 'example@email.com',
-                  },
+              {
+                field: 'name',
+                label: t('الاسم الكامل', 'Full Name'),
+                type: 'text',
+                placeholder: t('محمد أحمد محمد', 'Mohamed Ahmed Mohamed'),
+              },
+              {
+                field: 'email',
+                label: t('البريد الإلكتروني', 'Email'),
+                type: 'email',
+                placeholder: 'mohamed@gmail.com',
+              },
                   {
                     field: 'phone',
                     label: t('رقم الهاتف', 'Phone'),
@@ -689,8 +689,8 @@ export default function OrderFormPage() {
 
               <p className="text-lg text-slate-600 mb-6 leading-relaxed">
                 {t(
-                  'سيقوم أحد مشرفي باينكس بالتواصل معك في أقرب وقت لتأكيد الطلب.',
-                  'One of our Paynex supervisors will contact you soon to confirm your order.'
+                  'سيقوم أحد مشرفي قسطلي بالتواصل معك في أقرب وقت لتأكيد الطلب.',
+                  'One of our Qastly supervisors will contact you soon to confirm your order.'
                 )}
               </p>
 

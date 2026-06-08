@@ -1,5 +1,5 @@
 // ============================================================
-// Application Types — PayNex Platform
+// Application Types — Qastly (قسطلي)
 // ============================================================
 
 export type Lang = 'ar' | 'en';
@@ -148,6 +148,8 @@ export interface Order {
   status: 'pending' | 'under-review' | 'approved' | 'rejected' | 'delivered' | 'admin-review';
   supervisorId?: string;
   documents: OrderDocuments;
+  fieldVisitGps?: GpsCoords;
+  eSignature?: ESignature;
   createdAt: string;
   updatedAt: string;
   rejectedAt?: string;
@@ -227,6 +229,15 @@ export interface Province {
   nameEn: string;
 }
 
+// ——— E-Signature ———
+export interface ESignature {
+  signatureData: string;       // base64 image or SVG path
+  signedAt: string;
+  signedBy: string;            // customer name
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 // ——— Credit Score ———
 export interface CreditFactor {
   name: string;
@@ -239,8 +250,20 @@ export interface CreditFactor {
 export interface CreditScore {
   score: number;     // 0-100
   factors: CreditFactor[];
-  recommendation: 'approve' | 'review' | 'reject';
-  riskLevel: 'low' | 'medium' | 'high';
+  risk: 'low' | 'medium' | 'high';
+  calculatedAt: string;
+}
+
+// ——— WhatsApp Log ———
+export interface WhatsAppLog {
+  id: string;
+  orderId: string;
+  phone: string;
+  template: 'installment_reminder' | 'late_alert' | 'thank_you' | 'admin_approval' | 'doc_request';
+  body: string;
+  status: 'queued' | 'sent' | 'delivered' | 'read' | 'failed';
+  sentAt: string;
+  errorMessage?: string;
 }
 
 // ——— Notification ———

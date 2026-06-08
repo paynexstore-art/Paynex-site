@@ -1,509 +1,550 @@
 /**
- * AdminSEO — PayNex SEO & Code Injection Control Panel
+ * AdminSEO — Qastly SEO & Revenue Optimization Control Panel
  *
- * Allows admin to:
- * - Edit meta tags per page
- * - Inject custom header/footer scripts (GTM, AdSense, Pixel)
- * - View SEO health indicators
- * - Manage robots.txt content
- * - Configure structured data
+ * Allows the admin to:
+ * 1. Edit Meta tags per page (title, description, keywords, alt text)
+ * 2. Inject custom header/footer code (tracking pixels, ads, etc.)
+ * 3. Manage robots.txt and sitemap.xml preview
+ * 4. View SEO health score per page
+ * 5. Configure AdSense & MoneyTag settings
+ * 6. Set up lazy-loading and CLS prevention for ad slots
  */
 
-import { useState, useEffect } from 'react';
-import {
-  Search, Code, Globe, FileText, CheckCircle, XCircle,
-  AlertTriangle, Eye, Save, RefreshCw, Tag, Zap, BarChart3, Shield
-} from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
+import {
+  Search, Globe, Code, FileText, Shield, BarChart3, Map,
+  Save, Check, AlertTriangle, Loader2, Megaphone,
+  DollarSign, Layers, Eye, MousePointer
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PageSEO {
   path: string;
-  labelAr: string;
   titleAr: string;
-  descAr: string;
-  keywords: string;
+  titleEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  keywords: string[];
+  altText: string;
   ogImage: string;
-  schema: string;
-  noIndex: boolean;
+  noindex: boolean;
+  lastModified: string;
+}
+
+interface AdConfig {
+  adsenseClient: string;
+  moneyTagSiteId: string;
+  vignetteEnabled: boolean;
+  popunderEnabled: boolean;
+  antiAdblockEnabled: boolean;
+  frequencyCapMinutes: number;
+  lazyLoadAds: boolean;
+  reservedAdSlots: boolean; // prevent CLS
+  autoRefreshSupervisor: boolean;
 }
 
 const DEFAULT_PAGES: PageSEO[] = [
-  {
-    path: '/',
-    labelAr: 'الصفحة الرئيسية',
-    titleAr: 'PayNex باينكس - حلول التقسيط الذكي | اشتري الآن وادفع بالأقساط',
-    descAr: 'باينكس — حلول التقسيط الذكي في مصر. اشتري موبايلات ولابتوبات وأجهزة منزلية بأقساط شهرية ميسرة بدون فوائد.',
-    keywords: 'باينكس, PayNex, تقسيط, شراء بالتقسيط, تمويل, قسط شهري, تقسيط بدون فوائد',
-    ogImage: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop',
-    schema: 'FinancialService',
-    noIndex: false,
-  },
-  {
-    path: '/products',
-    labelAr: 'صفحة المنتجات',
-    titleAr: 'تصفح المنتجات — PayNex باينكس | موبايلات ولابتوبات بالتقسيط',
-    descAr: 'تصفح مئات المنتجات الإلكترونية — موبايلات، لابتوبات، تليفزيونات، أجهزة منزلية بأقساط ميسرة على باينكس.',
-    keywords: 'موبايلات بالتقسيط, لابتوب بالتقسيط, أجهزة منزلية بالتقسيط, باينكس',
-    ogImage: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&h=630&fit=crop',
-    schema: 'ItemList',
-    noIndex: false,
-  },
-  {
-    path: '/contact',
-    labelAr: 'تواصل معنا',
-    titleAr: 'تواصل مع باينكس — PayNex | خدمة العملاء',
-    descAr: 'تواصل مع فريق باينكس للدعم والاستفسارات. نحن هنا لمساعدتك في رحلة التقسيط.',
-    keywords: 'تواصل باينكس, خدمة عملاء تقسيط',
-    ogImage: '',
-    schema: 'ContactPage',
-    noIndex: false,
-  },
-  {
-    path: '/login',
-    labelAr: 'تسجيل الدخول',
-    titleAr: 'تسجيل الدخول — PayNex باينكس',
-    descAr: 'تسجيل الدخول لحساب باينكس الخاص بك.',
-    keywords: '',
-    ogImage: '',
-    schema: '',
-    noIndex: true, // Don't index login page
-  },
+  { path: '/', titleAr: 'Qastly قسطلي - حلول التقسيط الذكي', titleEn: 'Qastly - Smart Installment Solutions', descriptionAr: 'اشتري موبايلات ولابتوبات وأجهزة منزلية بالتقسيط بدون فوائد. أكثر من 1000 منتج في 27 محافظة.', descriptionEn: 'Buy phones, laptops & home appliances in installments with zero hidden interest. 1000+ products across 27 provinces.', keywords: ['تقسيط', 'قسطلي', 'Qastly', 'موبايلات بالتقسيط', 'أجهزة منزلية', '0 فوائد'], altText: 'Qastly Hero Banner - Smart Installments', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
+  { path: '/products', titleAr: 'تصفح المنتجات — Qastly قسطلي', titleEn: 'Browse Products — Qastly', descriptionAr: 'تصفح أحدث الموبايلات واللابتوبات والأجهزة المنزلية المتاحة بالتقسيط.', descriptionEn: 'Browse latest phones, laptops & home appliances available on installments.', keywords: ['منتجات', 'تقسيط', 'Qastly', 'موبايلات', 'لابتوبات'], altText: 'Qastly Products Catalog', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
+  { path: '/contact', titleAr: 'تواصل مع قسطلي — Qastly | خدمة العملاء', titleEn: 'Contact Qastly | Customer Service', descriptionAr: 'تواصل مع فريق خدمة العملاء في قسطلي للاستفسار والدعم.', descriptionEn: 'Contact Qastly customer support team for inquiries.', keywords: ['تواصل', 'دعم', 'Qastly', 'خدمة عملاء'], altText: 'Qastly Contact', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
+  { path: '/login', titleAr: 'تسجيل الدخول — Qastly قسطلي', titleEn: 'Login — Qastly', descriptionAr: 'سجّل الدخول إلى حسابك في قسطلي لمتابعة طلباتك.', descriptionEn: 'Log in to your Qastly account to track orders.', keywords: ['تسجيل دخول', 'Qastly', 'حسابي'], altText: 'Qastly Login', ogImage: '', noindex: true, lastModified: new Date().toISOString() },
 ];
 
-const SEO_CHECKS = [
-  { id: 'title',     labelAr: 'عنوان الصفحة (Title Tag)', check: (p: PageSEO) => p.titleAr.length >= 30 && p.titleAr.length <= 60 },
-  { id: 'desc',      labelAr: 'الوصف التعريفي (Meta Description)', check: (p: PageSEO) => p.descAr.length >= 100 && p.descAr.length <= 160 },
-  { id: 'keywords',  labelAr: 'الكلمات المفتاحية', check: (p: PageSEO) => p.keywords.length > 0 },
-  { id: 'og',        labelAr: 'صورة الشبكات الاجتماعية (OG Image)', check: (p: PageSEO) => p.ogImage.length > 0 || p.noIndex },
-  { id: 'schema',    labelAr: 'البيانات المنظمة (Schema)', check: (p: PageSEO) => p.schema.length > 0 || p.noIndex },
-];
+const STORAGE_KEY = 'qastly_seo_pages';
+const HEADER_CODE_KEY = 'qastly_custom_header_code';
+const FOOTER_CODE_KEY = 'qastly_custom_footer_code';
+const ROBOTS_KEY = 'qastly_robots_txt';
+const ADS_CONFIG_KEY = 'qastly_ad_config';
 
-const STORAGE_KEY = 'paynex_seo_pages';
-const HEADER_CODE_KEY = 'paynex_custom_header_code';
-const FOOTER_CODE_KEY = 'paynex_custom_footer_code';
-const ROBOTS_KEY = 'paynex_robots_txt';
+function loadPages(): PageSEO[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return DEFAULT_PAGES;
+}
+
+function savePages(pages: PageSEO[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(pages));
+}
+
+function loadAdConfig(): AdConfig {
+  try {
+    const raw = localStorage.getItem(ADS_CONFIG_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return {
+    adsenseClient: 'ca-pub-xxxxxxxxxx',
+    moneyTagSiteId: '',
+    vignetteEnabled: true,
+    popunderEnabled: true,
+    antiAdblockEnabled: true,
+    frequencyCapMinutes: 30,
+    lazyLoadAds: true,
+    reservedAdSlots: true,
+    autoRefreshSupervisor: false,
+  };
+}
+
+function saveAdConfig(config: AdConfig) {
+  localStorage.setItem(ADS_CONFIG_KEY, JSON.stringify(config));
+}
+
+function calcScore(p: PageSEO): number {
+  let s = 0;
+  if (p.titleAr.length > 10 && p.titleEn.length > 10) s += 25;
+  if (p.descriptionAr.length > 50 && p.descriptionEn.length > 50) s += 25;
+  if (p.keywords.length >= 3) s += 20;
+  if (p.altText.trim()) s += 15;
+  if (p.ogImage.trim()) s += 15;
+  return s;
+}
+
+function generateRobots(pages: PageSEO[]): string {
+  const lines = [
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin',
+    'Disallow: /supervisor',
+    'Disallow: /login',
+    'Disallow: /auth/',
+    'Sitemap: https://qastly.com/sitemap.xml',
+    'Host: https://qastly.com',
+  ];
+  pages.forEach(p => {
+    if (p.noindex) {
+      lines.push(`Disallow: ${p.path}`);
+    }
+  });
+  return lines.join('\n');
+}
+
+function generateSitemap(pages: PageSEO[]): string {
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...pages.filter(p => !p.noindex).map(p => `  <url>\n    <loc>https://qastly.com${p.path}</loc>\n    <lastmod>${p.lastModified.split('T')[0]}</lastmod>\n    <priority>${p.path === '/' ? '1.0' : '0.8'}</priority>\n  </url>`),
+    '</urlset>',
+  ];
+  return xml.join('\n');
+}
 
 export default function AdminSEO() {
+  const { isAdmin } = useAuth();
   const { t } = useApp();
-  const [pages, setPages] = useState<PageSEO[]>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') ?? DEFAULT_PAGES; }
-    catch { return DEFAULT_PAGES; }
-  });
-  const [selected, setSelected] = useState<PageSEO>(pages[0]);
-  const [activeTab, setActiveTab] = useState<'pages' | 'code' | 'robots' | 'analytics'>('pages');
+  const [pages, setPages] = useState<PageSEO[]>(loadPages);
+  const [activeTab, setActiveTab] = useState<'seo' | 'code' | 'sitemap' | 'ads' | 'health'>('seo');
+  const [selectedPath, setSelectedPath] = useState(pages[0].path);
   const [headerCode, setHeaderCode] = useState(localStorage.getItem(HEADER_CODE_KEY) ?? '');
   const [footerCode, setFooterCode] = useState(localStorage.getItem(FOOTER_CODE_KEY) ?? '');
-  const [robotsTxt, setRobotsTxt] = useState(localStorage.getItem(ROBOTS_KEY) ?? `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /supervisor\nSitemap: https://paynex.com/sitemap.xml`);
+  const [robotsTxt, setRobotsTxt] = useState(localStorage.getItem(ROBOTS_KEY) ?? generateRobots(pages));
+  const [adConfig, setAdConfig] = useState<AdConfig>(loadAdConfig);
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  function savePages(updated: PageSEO[]) {
-    setPages(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  }
+  const selectedPage = pages.find(p => p.path === selectedPath) || pages[0];
+  const score = calcScore(selectedPage);
+  const avgScore = Math.round(pages.reduce((a, b) => a + calcScore(b), 0) / pages.length);
 
-  function updatePage(field: keyof PageSEO, value: string | boolean) {
-    const updated = pages.map(p => p.path === selected.path ? { ...p, [field]: value } : p);
-    const updatedSelected = { ...selected, [field]: value };
-    setSelected(updatedSelected);
-    savePages(updated);
-  }
+  const handleSave = useCallback(() => {
+    setLoading(true);
+    setTimeout(() => {
+      savePages(pages);
+      localStorage.setItem(HEADER_CODE_KEY, headerCode);
+      localStorage.setItem(FOOTER_CODE_KEY, footerCode);
+      localStorage.setItem(ROBOTS_KEY, robotsTxt);
+      saveAdConfig(adConfig);
+      setLoading(false);
+      setSaved(true);
+      toast.success('تم حفظ الإعدادات بنجاح');
+      setTimeout(() => setSaved(false), 2000);
+    }, 500);
+  }, [pages, headerCode, footerCode, robotsTxt, adConfig]);
 
-  function saveCodeInjection() {
-    localStorage.setItem(HEADER_CODE_KEY, headerCode);
-    localStorage.setItem(FOOTER_CODE_KEY, footerCode);
-    toast.success(t('تم حفظ الأكواد المخصصة', 'Custom codes saved'));
-  }
+  const updatePage = (path: string, patch: Partial<PageSEO>) => {
+    setPages(prev => prev.map(p => p.path === path ? { ...p, ...patch, lastModified: new Date().toISOString() } : p));
+  };
 
-  function saveRobots() {
-    localStorage.setItem(ROBOTS_KEY, robotsTxt);
-    toast.success(t('تم حفظ ملف robots.txt', 'robots.txt saved'));
-  }
-
-  function getSEOScore(page: PageSEO): number {
-    if (page.noIndex) return 100;
-    const passed = SEO_CHECKS.filter(c => c.check(page)).length;
-    return Math.round((passed / SEO_CHECKS.length) * 100);
-  }
-
-  function getScoreColor(score: number) {
-    if (score >= 80) return 'text-emerald-500';
-    if (score >= 50) return 'text-amber-500';
-    return 'text-red-500';
-  }
-
-  const tabs = [
-    { id: 'pages',     icon: FileText,  labelAr: 'وسوم الصفحات' },
-    { id: 'code',      icon: Code,      labelAr: 'الأكواد المخصصة' },
-    { id: 'robots',    icon: Shield,    labelAr: 'Robots & Sitemap' },
-    { id: 'analytics', icon: BarChart3, labelAr: 'Google Analytics' },
-  ] as const;
+  if (!isAdmin) return <div className="min-h-screen flex items-center justify-center bg-[#0a1628] text-white text-xl">🚫 Access Denied</div>;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#0a1628] to-[#0e2044] rounded-2xl p-5 text-white">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-[#00d4ff]/20 rounded-xl flex items-center justify-center">
-            <Search size={20} className="text-[#00d4ff]" />
-          </div>
-          <div>
-            <h2 className="font-black text-lg">{t('وحدة التحكم في SEO', 'SEO Control Panel')}</h2>
-            <p className="text-white/50 text-xs">{t('إدارة وسوم الميتا، الأكواد، وتحسين محركات البحث', 'Manage meta tags, custom code, and search optimization')}</p>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
 
-      {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          return (
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#0a1628] flex items-center justify-center text-[#00d4ff]">
+              <Search size={20} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-[#0a1628]">SEO &amp; Revenue Optimization</h1>
+              <p className="text-slate-500 text-sm">تحكم كامل في الميتا، الإعلانات، والخريطة</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="btn-primary flex items-center gap-2"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
+            {loading ? 'جاري الحفظ...' : saved ? 'تم الحفظ' : 'حفظ الإعدادات'}
+          </button>
+        </div>
+
+        {/* Score cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[
+            { label: 'متوسط SEO Score', value: `${avgScore}%`, color: avgScore >= 80 ? 'text-emerald-600' : avgScore >= 60 ? 'text-amber-600' : 'text-red-600', icon: BarChart3 },
+            { label: 'الصفحات المفهرسة', value: pages.filter(p => !p.noindex).length, color: 'text-[#0a1628]', icon: Globe },
+            { label: 'الصفحات المحجوبة', value: pages.filter(p => p.noindex).length, color: 'text-slate-500', icon: Shield },
+            { label: 'نقاط Ad Config', value: adConfig.lazyLoadAds ? 'Active' : 'Off', color: 'text-[#c9a84c]', icon: Megaphone },
+          ].map((s, i) => (
+            <div key={i} className="stat-card flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+                <s.icon size={18} />
+              </div>
+              <div>
+                <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
+                <div className="text-xs text-slate-500">{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-slate-200">
+          {[
+            { id: 'seo' as const, label: 'SEO & Meta', icon: Search },
+            { id: 'code' as const, label: 'Header & Footer', icon: Code },
+            { id: 'sitemap' as const, label: 'Sitemap & Robots', icon: Map },
+            { id: 'ads' as const, label: 'Ads & Monetization', icon: DollarSign },
+            { id: 'health' as const, label: 'Health Check', icon: AlertTriangle },
+          ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === tab.id ? 'bg-[#0a1628] text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-[#0a1628]'
+              className={`flex items-center gap-2 px-4 py-3 font-semibold border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-[#0a1628] text-[#0a1628]'
+                  : 'border-transparent text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Icon size={15} />
-              {t(tab.labelAr, tab.id)}
+              <tab.icon size={16} />
+              {tab.label}
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
 
-      {/* ── TAB: PAGE META TAGS ── */}
-      {activeTab === 'pages' && (
-        <div className="grid lg:grid-cols-3 gap-5">
-          {/* Pages list */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="font-bold text-[#0a1628] text-sm">{t('الصفحات', 'Pages')} ({pages.length})</h3>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {pages.map(page => {
-                const score = getSEOScore(page);
-                return (
-                  <button
-                    key={page.path}
-                    onClick={() => setSelected(page)}
-                    className={`w-full text-start px-4 py-3 hover:bg-slate-50 transition-colors ${selected.path === page.path ? 'bg-[#0a1628]/5 border-r-2 border-[#00d4ff]' : ''}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm text-[#0a1628]">{page.labelAr}</div>
-                        <div className="text-xs text-slate-400 font-mono">{page.path}</div>
+        {/* SEO Tab */}
+        {activeTab === 'seo' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-4">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <h3 className="font-bold text-[#0a1628] mb-3 flex items-center gap-2">
+                  <Layers size={16} /> الصفحات
+                </h3>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {pages.map(p => (
+                    <button
+                      key={p.path}
+                      onClick={() => setSelectedPath(p.path)}
+                      className={`w-full text-start px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                        selectedPath === p.path
+                          ? 'bg-[#0a1628] text-white'
+                          : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{p.path}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${calcScore(p) >= 80 ? 'bg-emerald-100 text-emerald-700' : calcScore(p) >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                          {calcScore(p)}%
+                        </span>
                       </div>
-                      <div className={`text-sm font-black ${getScoreColor(score)}`}>{score}%</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 space-y-4">
+              <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[#0a1628] text-lg">{selectedPage.path}</h3>
+                  <div className={`text-sm font-bold px-3 py-1 rounded-full ${score >= 80 ? 'bg-emerald-100 text-emerald-700' : score >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                    SEO Score: {score}%
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Title (AR)</label>
+                    <input
+                      className="input-field"
+                      value={selectedPage.titleAr}
+                      onChange={e => updatePage(selectedPage.path, { titleAr: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Title (EN)</label>
+                    <input
+                      className="input-field"
+                      value={selectedPage.titleEn}
+                      onChange={e => updatePage(selectedPage.path, { titleEn: e.target.value })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Description (AR)</label>
+                    <textarea
+                      className="input-field resize-none"
+                      rows={3}
+                      value={selectedPage.descriptionAr}
+                      onChange={e => updatePage(selectedPage.path, { descriptionAr: e.target.value })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Description (EN)</label>
+                    <textarea
+                      className="input-field resize-none"
+                      rows={3}
+                      value={selectedPage.descriptionEn}
+                      onChange={e => updatePage(selectedPage.path, { descriptionEn: e.target.value })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Keywords (comma separated)</label>
+                    <input
+                      className="input-field"
+                      value={selectedPage.keywords.join(', ')}
+                      onChange={e => updatePage(selectedPage.path, { keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Alt Text (Main Image)</label>
+                    <input
+                      className="input-field"
+                      value={selectedPage.altText}
+                      onChange={e => updatePage(selectedPage.path, { altText: e.target.value })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">OG Image URL</label>
+                    <input
+                      className="input-field"
+                      placeholder="https://qastly.com/og-image.jpg"
+                      value={selectedPage.ogImage}
+                      onChange={e => updatePage(selectedPage.path, { ogImage: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 md:col-span-2">
+                    <input
+                      id="noindex"
+                      type="checkbox"
+                      checked={selectedPage.noindex}
+                      onChange={e => updatePage(selectedPage.path, { noindex: e.target.checked })}
+                      className="w-4 h-4 rounded"
+                    />
+                    <label htmlFor="noindex" className="text-sm text-slate-700 font-medium">Noindex (منع الفهرسة)</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Code Tab */}
+        {activeTab === 'code' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <h3 className="font-bold text-[#0a1628] mb-3 flex items-center gap-2">
+                <Code size={16} /> Custom Header Code
+              </h3>
+              <p className="text-xs text-slate-500 mb-2">يُحقن مباشرة بعد &lt;head&gt; (مثال: Google Tag Manager, Meta Pixel, MoneyTag)</p>
+              <textarea
+                className="input-field font-mono text-xs resize-none"
+                rows={12}
+                value={headerCode}
+                onChange={e => setHeaderCode(e.target.value)}
+                placeholder="<!-- Google Tag Manager --><script>...</script>"
+              />
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <h3 className="font-bold text-[#0a1628] mb-3 flex items-center gap-2">
+                <Code size={16} /> Custom Footer Code
+              </h3>
+              <p className="text-xs text-slate-500 mb-2">يُحقن قبل &lt;/body&gt; (مثال: Analytics, Chat Widgets)</p>
+              <textarea
+                className="input-field font-mono text-xs resize-none"
+                rows={12}
+                value={footerCode}
+                onChange={e => setFooterCode(e.target.value)}
+                placeholder="<!-- Global site tag (gtag.js) --><script async>...</script>"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Sitemap Tab */}
+        {activeTab === 'sitemap' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <h3 className="font-bold text-[#0a1628] mb-3 flex items-center gap-2">
+                <Map size={16} /> sitemap.xml (Preview)
+              </h3>
+              <pre className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-mono overflow-auto h-80">
+                {generateSitemap(pages)}
+              </pre>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <h3 className="font-bold text-[#0a1628] mb-3 flex items-center gap-2">
+                <FileText size={16} /> robots.txt (Preview)
+              </h3>
+              <pre className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-mono overflow-auto h-80">
+                {robotsTxt}
+              </pre>
+              <textarea
+                className="input-field font-mono text-xs resize-none mt-4"
+                rows={6}
+                value={robotsTxt}
+                onChange={e => setRobotsTxt(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Ads Tab */}
+        {activeTab === 'ads' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+              <h3 className="font-bold text-[#0a1628] text-lg flex items-center gap-2">
+                <DollarSign size={18} /> AdSense &amp; MoneyTag Config
+              </h3>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">AdSense Client ID</label>
+                <input
+                  className="input-field"
+                  value={adConfig.adsenseClient}
+                  onChange={e => setAdConfig(prev => ({ ...prev, adsenseClient: e.target.value }))}
+                  placeholder="ca-pub-xxxxxxxxxx"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">MoneyTag Site ID</label>
+                <input
+                  className="input-field"
+                  value={adConfig.moneyTagSiteId}
+                  onChange={e => setAdConfig(prev => ({ ...prev, moneyTagSiteId: e.target.value }))}
+                  placeholder="mt-xxxxxxxxxx"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { key: 'vignetteEnabled', label: 'Vignette (Mobile)' },
+                  { key: 'popunderEnabled', label: 'Pop-under' },
+                  { key: 'antiAdblockEnabled', label: 'Anti-Adblock' },
+                  { key: 'lazyLoadAds', label: 'Lazy Loading Ads' },
+                  { key: 'reservedAdSlots', label: 'Reserve Ad Space (CLS)' },
+                  { key: 'autoRefreshSupervisor', label: 'Auto-refresh (Supervisor)' },
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center gap-2">
+                    <input
+                      id={item.key}
+                      type="checkbox"
+                      checked={(adConfig as any)[item.key]}
+                      onChange={e => setAdConfig(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                      className="w-4 h-4 rounded"
+                    />
+                    <label htmlFor={item.key} className="text-sm text-slate-700">{item.label}</label>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Frequency Cap (minutes)</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  value={adConfig.frequencyCapMinutes}
+                  onChange={e => setAdConfig(prev => ({ ...prev, frequencyCapMinutes: Number(e.target.value) }))}
+                  min={5}
+                />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+              <h3 className="font-bold text-[#0a1628] mb-3 flex items-center gap-2">
+                <Eye size={16} /> Ad Slot Strategy
+              </h3>
+              <div className="space-y-3 text-sm text-slate-700">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#0a1628] text-white flex items-center justify-center text-xs font-bold">1</div>
+                  <div>
+                    <div className="font-bold">Hero &amp; Product Feed</div>
+                    <div className="text-xs text-slate-500">In-feed native ads between product cards (Lazy loaded, 300x250)</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#0a1628] text-white flex items-center justify-center text-xs font-bold">2</div>
+                  <div>
+                    <div className="font-bold">Sidebar Sticky (Supervisor)</div>
+                    <div className="text-xs text-slate-500">160x600 or 300x600 sticky banner for high impression CPM</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#0a1628] text-white flex items-center justify-center text-xs font-bold">3</div>
+                  <div>
+                    <div className="font-bold">Order Success (Vignette)</div>
+                    <div className="text-xs text-slate-500">Trigger MoneyTag vignette after successful order submission</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#0a1628] text-white flex items-center justify-center text-xs font-bold">4</div>
+                  <div>
+                    <div className="font-bold">Bottom Sticky (Mobile)</div>
+                    <div className="text-xs text-slate-500">728x90 or 320x50 sticky banner for mobile users</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Health Tab */}
+        {activeTab === 'health' && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6">
+            <h3 className="font-bold text-[#0a1628] mb-4">SEO Health Check</h3>
+            <div className="space-y-3">
+              {pages.map(p => {
+                const s = calcScore(p);
+                return (
+                  <div key={p.path} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${s >= 80 ? 'bg-emerald-100 text-emerald-700' : s >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                        {s}
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-[#0a1628]">{p.path}</div>
+                        <div className="text-xs text-slate-500">{p.titleAr}</div>
+                      </div>
                     </div>
-                  </button>
+                    <div className="flex items-center gap-2">
+                      {p.noindex && <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">Noindex</span>}
+                      {!p.ogImage && <span className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full">Missing OG</span>}
+                      {p.keywords.length < 3 && <span className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-full">Low Keywords</span>}
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </div>
+        )}
 
-          {/* Meta editor */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* SEO Score */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-[#0a1628]">{t('تقييم SEO', 'SEO Score')} — {selected.labelAr}</h3>
-                <div className={`text-2xl font-black ${getScoreColor(getSEOScore(selected))}`}>{getSEOScore(selected)}%</div>
-              </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
-                <div
-                  className={`h-full rounded-full transition-all ${getSEOScore(selected) >= 80 ? 'bg-emerald-500' : getSEOScore(selected) >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
-                  style={{ width: `${getSEOScore(selected)}%` }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {SEO_CHECKS.map(check => {
-                  const pass = check.check(selected);
-                  return (
-                    <div key={check.id} className="flex items-center gap-2 text-xs">
-                      {pass ? <CheckCircle size={13} className="text-emerald-500 flex-shrink-0" /> : <XCircle size={13} className="text-red-400 flex-shrink-0" />}
-                      <span className={pass ? 'text-slate-600' : 'text-red-400'}>{check.labelAr}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Fields */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-bold text-[#0a1628]">{t('تعديل الوسوم', 'Edit Meta Tags')}</h3>
-                <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
-                  <input type="checkbox" checked={selected.noIndex} onChange={e => updatePage('noIndex', e.target.checked)} className="accent-[#0a1628]" />
-                  {t('إخفاء عن محركات البحث (noindex)', 'Hide from search engines (noindex)')}
-                </label>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
-                  {t('عنوان الصفحة (Title Tag)', 'Page Title')}
-                  <span className={`ms-2 ${selected.titleAr.length > 60 ? 'text-red-500' : selected.titleAr.length >= 30 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                    ({selected.titleAr.length}/60)
-                  </span>
-                </label>
-                <input value={selected.titleAr} onChange={e => updatePage('titleAr', e.target.value)}
-                  className="input-field text-sm" placeholder="عنوان الصفحة بالعربية (30-60 حرف)" />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
-                  {t('الوصف التعريفي (Meta Description)', 'Meta Description')}
-                  <span className={`ms-2 ${selected.descAr.length > 160 ? 'text-red-500' : selected.descAr.length >= 100 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                    ({selected.descAr.length}/160)
-                  </span>
-                </label>
-                <textarea value={selected.descAr} onChange={e => updatePage('descAr', e.target.value)}
-                  className="input-field resize-none text-sm" rows={3}
-                  placeholder="وصف الصفحة (100-160 حرف) — يظهر في نتائج البحث" />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">{t('الكلمات المفتاحية', 'Keywords')}</label>
-                <input value={selected.keywords} onChange={e => updatePage('keywords', e.target.value)}
-                  className="input-field text-sm" placeholder="تقسيط, باينكس, شراء بالتقسيط, ..." />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">{t('رابط صورة الشبكات الاجتماعية (OG Image URL)', 'OG Image URL')}</label>
-                <input value={selected.ogImage} onChange={e => updatePage('ogImage', e.target.value)}
-                  className="input-field text-sm" dir="ltr" placeholder="https://..." />
-              </div>
-
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
-                <strong>💡 {t('تلميح SEO:', 'SEO Tip:')}</strong>
-                {' '}{t('احرص على تضمين كلمات مثل "تقسيط، تمويل، قسط، بنك" في المحتوى لجذب إعلانات Google AdSense ذات سعر نقرة مرتفع في مجال التمويل.', 'Include keywords like "installment, finance, credit" in content to attract high-CPC Google AdSense ads in the finance sector.')}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB: CODE INJECTION ── */}
-      {activeTab === 'code' && (
-        <div className="space-y-5">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 text-sm text-amber-800">
-            <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
-            <div>
-              <strong>{t('تنبيه مهم:', 'Important Warning:')}</strong>
-              {' '}{t('الأكواد المُدرجة تعمل فوراً على الموقع. تأكد من صحة الكود قبل الحفظ لتجنب تعطيل الموقع.', 'Injected code runs immediately on the site. Verify code correctness before saving to avoid breaking the site.')}
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-5">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h3 className="font-bold text-[#0a1628] mb-1 flex items-center gap-2">
-                <Code size={16} className="text-[#00d4ff]" />
-                {t('كود رأس الصفحة (Header)', 'Header Code')}
-              </h3>
-              <p className="text-xs text-slate-400 mb-3">{t('Google Tag Manager، Google Analytics، أكواد التتبع', 'Google Tag Manager, Analytics, tracking scripts')}</p>
-              <textarea
-                value={headerCode}
-                onChange={e => setHeaderCode(e.target.value)}
-                className="w-full h-52 px-4 py-3 rounded-xl border border-slate-200 bg-[#060e1d] text-[#00d4ff] font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#00d4ff] resize-none"
-                dir="ltr"
-                placeholder={`<!-- Google Tag Manager -->\n<script>...</script>\n\n<!-- Google Analytics 4 -->\n<script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>`}
-              />
-              <p className="text-xs text-slate-400 mt-2">{t('يُضاف في', 'Injected in')} &lt;head&gt;</p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h3 className="font-bold text-[#0a1628] mb-1 flex items-center gap-2">
-                <Code size={16} className="text-[#c9a84c]" />
-                {t('كود نهاية الصفحة (Footer)', 'Footer Code')}
-              </h3>
-              <p className="text-xs text-slate-400 mb-3">{t('Google AdSense، Facebook Pixel، MoneyTag، كود التحويل', 'Google AdSense, Facebook Pixel, MoneyTag, conversion tracking')}</p>
-              <textarea
-                value={footerCode}
-                onChange={e => setFooterCode(e.target.value)}
-                className="w-full h-52 px-4 py-3 rounded-xl border border-slate-200 bg-[#060e1d] text-[#c9a84c] font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#c9a84c] resize-none"
-                dir="ltr"
-                placeholder={`<!-- Google AdSense -->\n<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXX" crossorigin="anonymous"></script>\n\n<!-- Facebook Pixel -->\n<script>!function(f,b,e,v,n,t,s)...</script>`}
-              />
-              <p className="text-xs text-slate-400 mt-2">{t('يُضاف قبل', 'Injected before')} &lt;/body&gt;</p>
-            </div>
-          </div>
-
-          <button onClick={saveCodeInjection} className="btn-primary flex items-center gap-2">
-            <Save size={16} />
-            {t('حفظ الأكواد المخصصة', 'Save Custom Code')}
-          </button>
-
-          {/* Pre-built snippets */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h3 className="font-bold text-[#0a1628] mb-4">{t('أكواد جاهزة — انسخ والصق', 'Ready Snippets — Copy & Paste')}</h3>
-            <div className="grid md:grid-cols-2 gap-3">
-              {[
-                {
-                  name: 'Google Analytics 4',
-                  location: t('هيدر', 'Header'),
-                  code: `<!-- Google tag (gtag.js) -->\n<script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag('js', new Date());\n  gtag('config', 'GA_MEASUREMENT_ID');\n</script>`,
-                },
-                {
-                  name: 'Google Tag Manager',
-                  location: t('هيدر', 'Header'),
-                  code: `<!-- Google Tag Manager -->\n<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-XXXXXXX');</script>`,
-                },
-                {
-                  name: 'Google AdSense Auto Ads',
-                  location: t('فوتر', 'Footer'),
-                  code: `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>`,
-                },
-                {
-                  name: 'Facebook Pixel',
-                  location: t('هيدر', 'Header'),
-                  code: `<!-- Meta Pixel Code -->\n<script>\n!function(f,b,e,v,n,t,s)\n{if(f.fbq)return;n=f.fbq=function(){n.callMethod?\nn.callMethod.apply(n,arguments):n.queue.push(arguments)};\n/* ... */\n}\nfbq('init', 'YOUR_PIXEL_ID');\nfbq('track', 'PageView');\n</script>`,
-                },
-              ].map((snippet, i) => (
-                <div key={i} className="border border-slate-100 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-sm text-[#0a1628]">{snippet.name}</span>
-                    <span className="text-xs bg-[#00d4ff]/10 text-[#006e85] px-2 py-0.5 rounded-full">{snippet.location}</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(snippet.code);
-                      toast.success(t('تم نسخ الكود', 'Code copied'));
-                    }}
-                    className="text-xs text-[#0a1628] border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    {t('نسخ الكود', 'Copy Code')}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB: ROBOTS & SITEMAP ── */}
-      {activeTab === 'robots' && (
-        <div className="space-y-5">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h3 className="font-bold text-[#0a1628] mb-1 flex items-center gap-2">
-              <Shield size={16} className="text-[#00d4ff]" />
-              {t('ملف robots.txt', 'robots.txt File')}
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">{t('يتحكم في ما تستطيع محركات البحث الوصول إليه — robots.txt الافتراضي يحجب صفحات الإدارة', 'Controls what search engines can access — default blocks admin pages')}</p>
-            <textarea
-              value={robotsTxt}
-              onChange={e => setRobotsTxt(e.target.value)}
-              className="w-full h-48 px-4 py-3 rounded-xl border border-slate-200 bg-[#060e1d] text-green-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#00d4ff] resize-none"
-              dir="ltr"
-            />
-            <button onClick={saveRobots} className="btn-primary mt-3 flex items-center gap-2 text-sm">
-              <Save size={15} />
-              {t('حفظ robots.txt', 'Save robots.txt')}
-            </button>
-          </div>
-
-          {/* Sitemap info */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h3 className="font-bold text-[#0a1628] mb-4 flex items-center gap-2">
-              <Globe size={16} className="text-[#00d4ff]" />
-              {t('خريطة الموقع (Sitemap)', 'Sitemap')}
-            </h3>
-            <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 font-mono mb-4 dir-ltr" dir="ltr">
-              https://paynex.com/sitemap.xml
-            </div>
-            <div className="space-y-2 text-sm text-slate-500">
-              {['/', '/products', '/contact'].map(path => (
-                <div key={path} className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <span dir="ltr" className="font-mono text-xs">{path}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-emerald-500">✓ {t('مفهرس', 'Indexed')}</span>
-                  </div>
-                </div>
-              ))}
-              {['/admin', '/supervisor', '/login'].map(path => (
-                <div key={path} className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <span dir="ltr" className="font-mono text-xs text-slate-400">{path}</span>
-                  <span className="text-xs text-slate-400">✗ {t('محجوب (noindex)', 'Blocked (noindex)')}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB: ANALYTICS GUIDE ── */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-5">
-          <div className="grid md:grid-cols-2 gap-5">
-            {[
-              {
-                title: 'Google Analytics 4',
-                icon: BarChart3,
-                color: 'text-blue-500',
-                bg: 'bg-blue-50',
-                steps: [
-                  t('اذهب إلى analytics.google.com وأنشئ property جديد', 'Go to analytics.google.com and create a new property'),
-                  t('احصل على Measurement ID (يبدأ بـ G-XXXXXXXX)', 'Get Measurement ID (starts with G-XXXXXXXX)'),
-                  t('ضع كود gtag.js في خانة "كود الهيدر" أعلاه', "Paste gtag.js code in 'Header Code' above"),
-                  t('فعّل تتبع التحويلات من إعدادات الأحداث', 'Enable conversion tracking from Events settings'),
-                ],
-              },
-              {
-                title: 'Google AdSense',
-                icon: Zap,
-                color: 'text-amber-500',
-                bg: 'bg-amber-50',
-                steps: [
-                  t('قدّم طلب في adsense.google.com', 'Apply at adsense.google.com'),
-                  t('أضف كود التحقق في "كود الهيدر"', "Add verification code in 'Header Code'"),
-                  t('بعد الموافقة، أضف كود Auto Ads في "كود الفوتر"', "After approval, add Auto Ads code in 'Footer Code'"),
-                  t('الكلمات المفتاحية (تقسيط، تمويل، بنك) تجذب إعلانات CPC عالية', 'Finance keywords attract high-CPC ads'),
-                ],
-              },
-            ].map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <div key={i} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
-                      <Icon size={20} className={item.color} />
-                    </div>
-                    <h3 className="font-bold text-[#0a1628]">{item.title}</h3>
-                  </div>
-                  <ol className="space-y-2">
-                    {item.steps.map((step, j) => (
-                      <li key={j} className="flex items-start gap-2 text-sm text-slate-600">
-                        <span className="w-5 h-5 rounded-full bg-[#0a1628] text-white text-xs flex items-center justify-center flex-shrink-0 font-bold mt-0.5">
-                          {j + 1}
-                        </span>
-                        {step}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Core Web Vitals Tips */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h3 className="font-bold text-[#0a1628] mb-4">{t('نصائح Core Web Vitals للأداء', 'Core Web Vitals Performance Tips')}</h3>
-            <div className="grid md:grid-cols-3 gap-4">
-              {[
-                { metric: 'LCP', name: t('أكبر محتوى مرئي', 'Largest Contentful Paint'), target: '< 2.5s', tip: t('ضغط الصور واستخدام CDN', 'Compress images and use CDN'), color: 'bg-emerald-50 border-emerald-200' },
-                { metric: 'FID', name: t('تأخر الاستجابة', 'First Input Delay'), target: '< 100ms', tip: t('تحسين JavaScript وتقليل الكود غير الضروري', 'Optimize JS and remove unused code'), color: 'bg-blue-50 border-blue-200' },
-                { metric: 'CLS', name: t('ثبات التخطيط', 'Cumulative Layout Shift'), target: '< 0.1', tip: t('تحديد أبعاد الصور والإعلانات مسبقاً', 'Pre-define image and ad dimensions'), color: 'bg-purple-50 border-purple-200' },
-              ].map((v, i) => (
-                <div key={i} className={`border rounded-xl p-4 ${v.color}`}>
-                  <div className="text-xl font-black text-[#0a1628] mb-1">{v.metric}</div>
-                  <div className="text-xs font-semibold text-slate-600 mb-1">{v.name}</div>
-                  <div className="text-xs text-emerald-600 font-bold mb-2">{t('الهدف:', 'Target:')} {v.target}</div>
-                  <div className="text-xs text-slate-500">{v.tip}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { Menu, X, ShoppingBag, LogOut, User, ChevronDown, Zap } from 'lucide-rea
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import NotificationBell from '@/components/features/NotificationBell';
-import paynexLogo from '@/assets/paynex-logo.png';
+import qastlyLogo from '@/assets/qastly-logo.png';
 
 export default function Navbar() {
   const { lang, setLang, t, settings } = useApp();
@@ -33,7 +33,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 flex-shrink-0 group">
             <div className="relative">
-              <img src={paynexLogo} alt="PayNex باينكس" className="h-9 w-9 object-contain rounded-xl" />
+              <img src={qastlyLogo} alt="Qastly قسطلي" className="h-9 w-9 object-contain rounded-xl" />
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#00d4ff] rounded-full border-2 border-[#0a1628]" />
             </div>
             <div>

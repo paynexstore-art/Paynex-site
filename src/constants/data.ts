@@ -1,31 +1,31 @@
 import type { SiteSettings, Province, Product, Order, User, Supervisor, Notification, Analytics } from '@/types';
 
-// ============ SITE SETTINGS — PayNex ============
+// ============ SITE SETTINGS — Qastly (قسطلي) ============
 export const DEFAULT_SETTINGS: SiteSettings = {
   primaryColor: '#0a1628',
   secondaryColor: '#c9a84c',
   accentColor: '#00d4ff',
-  logoUrl: '/src/assets/paynex-logo.png',
-  siteNameAr: 'باينكس',
-  siteNameEn: 'PayNex',
+  logoUrl: '/src/assets/qastly-logo.png',
+  siteNameAr: 'قسطلي',
+  siteNameEn: 'Qastly',
   taglineAr: 'حلول التقسيط الذكي للجيل القادم',
   taglineEn: 'Smart Installment Solutions for the Next Generation',
   contactPhone: '01000000000',
   contactWhatsapp: '201000000000',
-  contactEmail: 'info@paynex.com',
-  facebookUrl: 'https://facebook.com/paynex',
-  instagramUrl: 'https://instagram.com/paynex',
-  twitterUrl: 'https://twitter.com/paynex',
-  tiktokUrl: 'https://tiktok.com/@paynex',
-  youtubeUrl: 'https://youtube.com/@paynex',
+  contactEmail: 'info@qastly.com',
+  facebookUrl: 'https://facebook.com/qastly',
+  instagramUrl: 'https://instagram.com/qastly',
+  twitterUrl: 'https://twitter.com/qastly',
+  tiktokUrl: 'https://tiktok.com/@qastly',
+  youtubeUrl: 'https://youtube.com/@qastly',
   inquiryFee: 150,
   defaultInterestRate: 0,
   defaultAdminFee: 2,
   minDownPaymentPercent: 0,
   maxInstallmentMonths: 36,
   defaultInstallmentMonths: 12,
-  footerTextAr: 'باينكس PayNex — حلول التقسيط الذكي. جميع الحقوق محفوظة 2025',
-  footerTextEn: 'PayNex — Smart Installment Solutions. All rights reserved 2025',
+  footerTextAr: 'قسطلي Qastly — حلول التقسيط الذكي. جميع الحقوق محفوظة 2025',
+  footerTextEn: 'Qastly — Smart Installment Solutions. All rights reserved 2025',
   lastSyncDate: new Date().toISOString(),
   syncJsonUrl: '',
   autoSyncEnabled: false,
@@ -260,12 +260,12 @@ export const MOCK_ORDERS: Order[] = [
 ];
 
 // ============ MOCK SUPERVISORS ============
-// NOTE: Real supervisors are loaded from Supabase database with password 'paynexb'
+// NOTE: Real supervisors are loaded from Supabase database with password '000000'
 export const MOCK_SUPERVISORS: Supervisor[] = [
   {
     id: 'sup-001',
     name: 'محمد حسن',
-    email: 'supervisor@paynex.com',
+    email: 'supervisor.cairo@qastly.com',
     phone: '01098765432',
     role: 'supervisor',
     province: 'cairo',
@@ -290,9 +290,9 @@ export const MOCK_SUPERVISORS: Supervisor[] = [
   },
 ];
 
-// Initialize test users
+// Initialize test users (Qastly credentials)
 export function initTestUsers() {
-  const usersKey = 'paynex_users';
+  const usersKey = 'qastly_users';
   const existing = (() => { try { return JSON.parse(localStorage.getItem(usersKey) ?? '[]'); } catch { return []; } })();
   if (!existing.find((u: unknown) => u.email === 'aa@gmail.com')) {
     const testCustomer = {
@@ -305,7 +305,22 @@ export function initTestUsers() {
       createdAt: new Date().toISOString(),
     };
     localStorage.setItem(usersKey, JSON.stringify([...existing, testCustomer]));
-    localStorage.setItem('paynex_pass_cust-test-001', '000000');
+    localStorage.setItem('qastly_pass_cust-test-001', '000000');
+  }
+  // Supervisor test user
+  if (!existing.find((u: unknown) => (u as User).email === 'supervisor.cairo@qastly.com')) {
+    const testSupervisor = {
+      id: 'sup-test-001',
+      name: 'محمد حسن',
+      email: 'supervisor.cairo@qastly.com',
+      phone: '01098765432',
+      role: 'supervisor',
+      province: 'cairo',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem(usersKey, JSON.stringify([...existing, testSupervisor]));
+    localStorage.setItem('qastly_pass_sup-test-001', '000000');
   }
 }
 

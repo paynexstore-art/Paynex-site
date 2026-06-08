@@ -1,5 +1,5 @@
 // ============================================================
-// Admin User Helper — PayNex Platform
+// Admin User Helper — Qastly Platform
 // ============================================================
 
 import { SPECIAL_ADMINS, ADMIN_ROLES } from '@/constants/roles';

@@ -53,12 +53,12 @@ export default function ProductCard({ product }: Props) {
   }
 
   return (
-    <div 
-      className="product-card group cursor-pointer rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-100 hover:shadow-lg transition-shadow"
+    <div
+      className="group cursor-pointer rounded-[1.25rem] overflow-hidden bg-white border border-slate-100/80 shadow-[0_2px_12px_rgba(10,22,40,0.06)] hover:shadow-[0_8px_30px_rgba(10,22,40,0.12)] hover:-translate-y-1 transition-all duration-300"
       onClick={() => navigate(`/products/${product.id}`)}
     >
       {/* Image */}
-      <div className="relative overflow-hidden aspect-square bg-slate-50">
+      <div className="relative overflow-hidden aspect-square bg-slate-50 rounded-t-[1.25rem]">
         <img
           src={imageUrl}
           alt={name}
@@ -70,12 +70,12 @@ export default function ProductCard({ product }: Props) {
           }}
         />
         {discountPercent > 0 && (
-          <div className="absolute top-3 start-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+          <div className="absolute top-3 start-3 bg-red-500/90 backdrop-blur text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
             -{discountPercent}%
           </div>
         )}
         <div className="absolute top-3 end-3 flex flex-col gap-1">
-          <span className="badge-navy text-[10px] max-w-[80px] truncate" title={categoryDisplay}>
+          <span className="bg-[#0a1628]/80 backdrop-blur text-white text-[10px] font-bold px-2.5 py-1 rounded-full max-w-[80px] truncate" title={categoryDisplay}>
             {categoryDisplay}
           </span>
         </div>

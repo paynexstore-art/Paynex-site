@@ -22,7 +22,7 @@ interface Product {
   installment: InstallmentOptions;
 }
 
-export default function PayNixCatalog() {
+export default function QastlyCatalog() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -57,7 +57,8 @@ export default function PayNixCatalog() {
               currency: baseProduct.currency,
               stock: (i % 15) + 1,
               image: baseProduct.image,
-              description: `منتج جُلب عبر الـ Fake API الخاص بمنصة PayNix ومطابق للمواصفات التمويلية لبى تك.`,
+              description: `منتج جُلب عبر الـ Fake API الخاص بـ Qastly ومطابق للمواصفات التمويلية.`,
+
               installment: {
                 allow: allowInstallment,
                 downPayment: minDownPayment,
@@ -88,7 +89,7 @@ export default function PayNixCatalog() {
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: '50px', fontSize: '20px', direction: 'rtl' }}>جاري استدعاء الـ Fake API لـ PayNix والتحقق من الـ 22,000 منتج...</div>;
+    return <div style={{ textAlign: 'center', padding: '50px', fontSize: '20px', direction: 'rtl' }}>جاري استدعاء الـ Fake API لـ Qastly والتحقق من الـ 22,000 منتج...</div>;
   }
 
   return (

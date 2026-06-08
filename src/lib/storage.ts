@@ -4,10 +4,10 @@ import { generateId, addDays } from './utils';
 import * as supabaseSync from './supabaseDataSync';
 
 const KEY = {
-  settings:    'paynix_settings',
-  products:    'paynix_products',
-  orders:      'paynix_orders',
-  supervisors: 'paynix_supervisors',
+  settings:    'qastly_settings',
+  products:    'qastly_products',
+  orders:      'qastly_orders',
+  supervisors: 'qastly_supervisors',
 };
 
 // ===== SCRAPER / SYNC HISTORY (Export early for AdminDashboard import) =====
@@ -25,7 +25,7 @@ export interface ScraperImportRecord {
   durationMs: number;
 }
 
-const SCRAPER_HISTORY_KEY = 'paynix_scraper_history';
+const SCRAPER_HISTORY_KEY = 'qastly_scraper_history';
 const MAX_HISTORY = 20;
 
 export function getScraperHistory(): ScraperImportRecord[] {
@@ -288,7 +288,7 @@ export async function updateOrder(id: string, updates: Partial<Order>): Promise<
       addNotification({
         userId: o.customerId, type: 'order-update',
         titleAr: 'تم تسليم المنتج وتفعيل الأقساط', titleEn: 'Product Delivered',
-        messageAr: 'تم تسليم منتجك وتفعيل خطة الأقساط. شكراً لثقتك في باينكس.',
+        messageAr: 'تم تسليم منتجك وتفعيل خطة الأقساط. شكراً لثقتك في قسطلي.',
         messageEn: 'Your product has been delivered and installment plan activated.',
         orderId: id,
       });
@@ -493,7 +493,7 @@ export interface SalaryRecord {
 }
 
 function getSalaryStorageKey(supervisorId: string, month: string) {
-  return `paynix_salary_${supervisorId}_${month}`;
+  return `qastly_salary_${supervisorId}_${month}`;
 }
 
 export function getSalaryRecord(supervisorId: string, month: string): SalaryRecord | null {
@@ -605,14 +605,14 @@ export async function approveMonthlySalary(supervisorId: string, adminId: string
 
 // ===== NOTIFICATIONS =====
 export async function getNotifications(userId: string): Promise<import('@/types').Notification[]> {
-  try { return JSON.parse(localStorage.getItem(`paynix_notifications_${userId}`) ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem(`qastly_notifications_${userId}`) ?? '[]'); }
   catch { return []; }
 }
 
 export async function addNotification(notif: Omit<import('@/types').Notification, 'id' | 'createdAt' | 'isRead'>): Promise<void> {
   const notifications = await getNotifications(notif.userId);
   const newNotif = { ...notif, id: generateId(), isRead: false, createdAt: new Date().toISOString() };
-  localStorage.setItem(`paynix_notifications_${notif.userId}`, JSON.stringify([newNotif, ...notifications]));
+  localStorage.setItem(`qastly_notifications_${notif.userId}`, JSON.stringify([newNotif, ...notifications]));
   
   // Also sync to Supabase
   await supabaseSync.saveNotificationToSupabase(notif);
@@ -620,26 +620,26 @@ export async function addNotification(notif: Omit<import('@/types').Notification
 
 export async function markNotificationsRead(userId: string): Promise<void> {
   const n = (await getNotifications(userId)).map(notif => ({ ...notif, isRead: true }));
-  localStorage.setItem(`paynix_notifications_${userId}`, JSON.stringify(n));
+  localStorage.setItem(`qastly_notifications_${userId}`, JSON.stringify(n));
 }
 
 // ===== ATTENDANCE =====
 export function getAttendanceRecords(supervisorId: string): AttendanceRecord[] {
-  try { return JSON.parse(localStorage.getItem(`paynix_attendance_${supervisorId}`) ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem(`qastly_attendance_${supervisorId}`) ?? '[]'); }
   catch { return []; }
 }
 
 export function saveAttendanceRecord(record: Omit<AttendanceRecord, 'id'>): AttendanceRecord {
   const records = getAttendanceRecords(record.supervisorId);
   const newRecord: AttendanceRecord = { ...record, id: generateId() };
-  localStorage.setItem(`paynix_attendance_${record.supervisorId}`, JSON.stringify([newRecord, ...records]));
+  localStorage.setItem(`qastly_attendance_${record.supervisorId}`, JSON.stringify([newRecord, ...records]));
   return newRecord;
 }
 
 export function updateAttendanceRecord(supervisorId: string, date: string, updates: Partial<AttendanceRecord>): void {
   const records = getAttendanceRecords(supervisorId);
   const updated = records.map(r => r.date === date ? { ...r, ...updates } : r);
-  localStorage.setItem(`paynix_attendance_${supervisorId}`, JSON.stringify(updated));
+  localStorage.setItem(`qastly_attendance_${supervisorId}`, JSON.stringify(updated));
 }
 
 // ===== TESTIMONIALS (Admin-managed) =====
@@ -655,13 +655,13 @@ export interface TestimonialItem {
 
 export function getTestimonials(): TestimonialItem[] {
   try {
-    const raw = localStorage.getItem('paynix_testimonials');
+    const raw = localStorage.getItem('qastly_testimonials');
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
 }
 
 export function saveTestimonials(items: TestimonialItem[]): void {
-  localStorage.setItem('paynix_testimonials', JSON.stringify(items));
+  localStorage.setItem('qastly_testimonials', JSON.stringify(items));
 }
 
 export function addTestimonial(item: Omit<TestimonialItem, 'id' | 'createdAt'>): TestimonialItem {
