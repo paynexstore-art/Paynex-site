@@ -56,6 +56,12 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   ],
 };
 
+// ============ TEST CREDENTIALS ============
+export const TEST_CREDENTIALS = {
+  supervisor: { email: 'supervisor.cairo@qastly.com', password: '000000' },
+  customer: { email: 'aa@gmail.com', password: '000000' },
+};
+
 // ============ EGYPTIAN PROVINCES ============
 export const PROVINCES: Province[] = [
   { id: 'cairo', nameAr: 'القاهرة', nameEn: 'Cairo' },
