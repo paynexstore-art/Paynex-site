@@ -33,7 +33,7 @@ export default function PayNixCatalog() {
     // استدعاء الـ Fake API المحلي الذي أنشأناه في مجلد public
     fetch('/products.json')
       .then((res) => res.json())
-      .then((baseProducts: any[]) => {
+      .then((baseProducts: unknown[]) => {
         const expandedProducts: Product[] = [];
         let globalId = 1;
         const itemsPerCategory = 2000; // توليد 2,000 منتج بناءً على الـ API لكل قسم

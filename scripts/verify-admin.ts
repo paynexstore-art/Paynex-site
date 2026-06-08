@@ -114,8 +114,8 @@ async function verifyAdmin() {
 
     console.log('✅ النظام جاهز للعمل الآن!\n');
 
-  } catch (err: any) {
-    console.error('[v0] ❌ خطأ:', err.message);
+  } catch (err: unknown) {
+    console.error('[v0] ❌ خطأ:', err instanceof Error ? err.message : err);
     process.exit(1);
   }
 }

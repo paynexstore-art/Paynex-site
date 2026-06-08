@@ -179,7 +179,7 @@ export default function OrdersManagement() {
         return;
       }
 
-      const enriched = (data || legacyOrders).map((order: any) => ({
+      const enriched = (data || legacyOrders).map((order: unknown) => ({
         ...order,
         customer_email: order.customer?.email,
         customer_address: order.customer?.address,

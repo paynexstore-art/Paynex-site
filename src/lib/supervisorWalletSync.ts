@@ -49,8 +49,8 @@ export interface SyncAuditLog {
   supervisor_id: string;
   supervisor_name: string;
   action: 'created' | 'updated' | 'synced';
-  old_values?: Record<string, any>;
-  new_values?: Record<string, any>;
+  old_values?: Record<string, unknown>;
+  new_values?: Record<string, unknown>;
   sync_timestamp: string;
   created_at: string;
 }
@@ -501,7 +501,7 @@ export async function exportWalletSummaryToCSV(): Promise<string> {
       'Transactions',
     ];
 
-    const rows = (data || []).map((row: any) => [
+    const rows = (data || []).map((row: Record<string, unknown>) => [
       row.id,
       row.name,
       row.email,

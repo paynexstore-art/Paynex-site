@@ -35,7 +35,7 @@ interface Product {
   category_en?: string;
   category_ar?: string;
   is_active?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface Order {
@@ -44,7 +44,7 @@ interface Order {
   customer_phone?: string;
   status?: string;
   total_amount?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface UserProfile {
@@ -53,11 +53,11 @@ interface UserProfile {
   email?: string;
   phone?: string;
   role?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface TableData {
-  [key: string]: any[];
+  [key: string]: unknown[];
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -202,8 +202,8 @@ function EditModal({ isOpen, title, fields, data, onSave, onClose }: EditModalPr
 interface DataTableProps {
   tableName: string;
   columns: { key: string; label: string; type?: string }[];
-  data: any[];
-  onEdit: (row: any) => void;
+  data: unknown[];
+  onEdit: (row: unknown) => void;
   onDelete: (id: string) => void;
   loading: boolean;
 }
@@ -493,7 +493,7 @@ export default function EnhancedAdminDashboard() {
   // ──────────────────────────────────────────────────────────────
   // Handle Edit
   // ──────────────────────────────────────────────────────────────
-  const handleEdit = (row: any, tableName: string) => {
+  const handleEdit = (row: unknown, tableName: string) => {
     setEditingRow(row);
     setSelectedTableName(tableName);
     setIsModalOpen(true);

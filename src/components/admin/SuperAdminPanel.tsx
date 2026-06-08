@@ -109,7 +109,7 @@ export default function SuperAdminPanel() {
 
     setLoading(true);
     try {
-      const updateData: any = {
+      const updateData: unknown = {
         name: editForm.name,
         email: editForm.email,
         role: editForm.role,

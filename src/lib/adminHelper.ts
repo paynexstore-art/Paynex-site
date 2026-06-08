@@ -61,5 +61,5 @@ export function ensureAdminPermissions(userId: string, userName: string, email: 
  * Verify user has admin access before showing admin pages
  */
 export function requiresAdminAccess(email: string, role: string): boolean {
-  return isSpecialAdmin(email) || ADMIN_ROLES.includes(role as any);
+  return isSpecialAdmin(email) || ADMIN_ROLES.includes(role as UserRoleType);
 }

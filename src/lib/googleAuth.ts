@@ -230,7 +230,7 @@ export async function handleGoogleCallback(
 /**
  * Create or update local user from Supabase user
  */
-async function createOrUpdateLocalUser(supaUser: any): Promise<User> {
+async function createOrUpdateLocalUser(supaUser: unknown): Promise<User> {
   const users = getStoredUsers();
   const existingUser = users.find(u => u.googleId === supaUser.id || u.email === supaUser.email);
   

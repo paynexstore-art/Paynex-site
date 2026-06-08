@@ -27,7 +27,7 @@ export interface User {
   province?: string;
   createdAt: string;
   updatedAt?: string;
-  isActive: boolean;
+  isActive?: boolean;
   googleId?: string;
 }
 

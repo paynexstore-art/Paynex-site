@@ -137,7 +137,7 @@ export async function fetchAllProducts(): Promise<Product[]> {
     }
 
     if (data && Array.isArray(data)) {
-      const products: Product[] = data.map((p: any) => ({
+      const products: Product[] = data.map((p: unknown) => ({
         id: p.id,
         name: p.name,
         nameAr: p.name_ar ?? p.name,
@@ -241,7 +241,7 @@ export async function fetchProductsByCategory(category: string): Promise<Product
     }
 
     if (data && Array.isArray(data)) {
-      return data.map((p: any) => ({
+      return data.map((p: unknown) => ({
         id: p.id,
         name: p.name,
         nameAr: p.name_ar ?? p.name,
@@ -294,7 +294,7 @@ export async function fetchAllOrders(): Promise<Order[]> {
     }
 
     if (data && Array.isArray(data)) {
-      const orders: Order[] = data.map((o: any) => ({
+      const orders: Order[] = data.map((o: unknown) => ({
         id: o.id,
         customerId: o.customer_id,
         customerName: o.customer_name,
@@ -405,7 +405,7 @@ export async function fetchOrdersByCustomer(customerId: string): Promise<Order[]
     }
 
     if (data && Array.isArray(data)) {
-      return data.map((o: any) => ({
+      return data.map((o: unknown) => ({
         id: o.id,
         customerId: o.customer_id,
         customerName: o.customer_name,
@@ -458,7 +458,7 @@ export async function fetchOrdersBySupervisor(supervisorId: string): Promise<Ord
     }
 
     if (data && Array.isArray(data)) {
-      return data.map((o: any) => ({
+      return data.map((o: unknown) => ({
         id: o.id,
         customerId: o.customer_id,
         customerName: o.customer_name,
@@ -511,7 +511,7 @@ export async function fetchOrdersByStatus(status: string): Promise<Order[]> {
     }
 
     if (data && Array.isArray(data)) {
-      return data.map((o: any) => ({
+      return data.map((o: unknown) => ({
         id: o.id,
         customerId: o.customer_id,
         customerName: o.customer_name,
@@ -567,7 +567,7 @@ export async function fetchAllSupervisors(): Promise<Supervisor[]> {
     }
 
     if (data && Array.isArray(data)) {
-      const supervisors: Supervisor[] = data.map((s: any) => ({
+      const supervisors: Supervisor[] = data.map((s: unknown) => ({
         id: s.id,
         name: s.name,
         email: s.email,
@@ -780,7 +780,7 @@ export async function fetchUserNotifications(userId: string): Promise<Notificati
     }
 
     if (data && Array.isArray(data)) {
-      return data.map((n: any) => ({
+      return data.map((n: unknown) => ({
         id: n.id,
         userId: n.user_id,
         type: n.type,

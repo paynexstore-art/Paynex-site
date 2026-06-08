@@ -20,7 +20,7 @@ async function setupAdmin() {
       .eq('table_schema', 'public');
 
     if (!tableError && tables) {
-      const adminTableExists = tables.some((t: any) => t.table_name === 'admin_users');
+      const adminTableExists = tables.some((t: Record<string, unknown>) => t.table_name === 'admin_users');
       if (adminTableExists) {
         console.log('[v0] ✅ جدول admin_users موجود');
       } else {
@@ -110,8 +110,8 @@ async function setupAdmin() {
     console.log('   • سجل المراجعة مفعّل\n');
     console.log('✅ النظام جاهز للعمل!\n');
 
-  } catch (err: any) {
-    console.error('[v0] ❌ خطأ:', err.message);
+  } catch (err: unknown) {
+    console.error('[v0] ❌ خطأ:', err instanceof Error ? err.message : err);
   }
 }
 

@@ -8,7 +8,7 @@ import { UserRoleType, Permission, ROLE_PERMISSIONS_MAP, PAGE_ACCESS_CONTROL, Us
  * Check if user has a specific permission
  */
 export function hasPermission(userPermissions: Permission[], permission: Permission): boolean {
-  return userPermissions.includes(permission) || userPermissions.includes('*' as any);
+  return userPermissions.includes(permission) || userPermissions.includes('*' as Permission);
 }
 
 /**

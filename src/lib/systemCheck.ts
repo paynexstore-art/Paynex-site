@@ -24,7 +24,7 @@ export interface SystemCheckResult {
 interface CheckResult {
   status: 'pass' | 'warning' | 'fail';
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 /**

@@ -23,7 +23,7 @@ export default function AdminProducts() {
     try {
       const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
       if (data) {
-        const mapped = data.map((p: any) => ({
+        const mapped = data.map((p: unknown) => ({
           id: p.id,
           nameAr: p.name || '',
           nameEn: p.name || '',

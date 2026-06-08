@@ -54,7 +54,7 @@ export default function ProductsPage() {
 
         if (data && Array.isArray(data) && data.length > 0) {
           // Direct manual mapping to match Product interface exactly
-          const mappedProducts = data.map((item: any) => {
+          const mappedProducts = data.map((item: unknown) => {
             const mapped: Product = {
               id: item.id || '',
               name: item.name_en || item.name_ar || '',
@@ -71,7 +71,7 @@ export default function ProductsPage() {
               brand: item.brand || '',
               // Handle images: could be array or single image_url
               images: Array.isArray(item.images) && item.images.length > 0
-                ? item.images.filter((img: any) => img && String(img).trim())
+                ? item.images.filter((img: unknown) => img && String(img).trim())
                 : item.image_url ? [item.image_url] : [],
               stock: Number(item.stock) || 0,
               isActive: item.is_active === true,

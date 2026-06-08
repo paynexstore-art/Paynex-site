@@ -34,13 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const stored = getCurrentUser();
-      if (stored && stored !== user) {
+      if (stored) {
         setUserState(stored);
       }
     } catch (err) {
       console.error('Error restoring user session:', err);
     }
     setIsInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setUser = useCallback((u: User | null) => {

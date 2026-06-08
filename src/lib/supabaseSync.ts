@@ -13,7 +13,7 @@ export interface SyncSettings {
   installment_months: number;
   max_installment_amount: number;
   admin_commission_percentage: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -26,9 +26,9 @@ export interface AuditLogEntry {
   entityId: string;
   userId: string;
   userName: string;
-  changes: Record<string, any>;
-  oldValues: Record<string, any>;
-  newValues: Record<string, any>;
+  changes: Record<string, unknown>;
+  oldValues: Record<string, unknown>;
+  newValues: Record<string, unknown>;
   createdAt: string;
   ipAddress?: string;
 }
@@ -51,7 +51,7 @@ const STORAGE_PREFIX = 'paynex_';
  */
 export async function saveSettingsWithSync(
   key: string,
-  value: SyncSettings | any,
+  value: unknown,
   userId: string,
   userName: string = 'system'
 ): Promise<{ success: boolean; error?: string }> {
@@ -66,9 +66,9 @@ export async function saveSettingsWithSync(
       entityId: key,
       userId,
       userName,
-      changes: value,
+      changes: value as Record<string, unknown>,
       oldValues: {},
-      newValues: value,
+      newValues: value as Record<string, unknown>,
       createdAt: new Date().toISOString(),
     };
 
@@ -154,8 +154,8 @@ export async function logAuditEntry(
   entityId: string,
   userId: string,
   userName: string,
-  oldValues: Record<string, any> = {},
-  newValues: Record<string, any> = {}
+  oldValues: Record<string, unknown> = {},
+  newValues: Record<string, unknown> = {}
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const auditEntry: Omit<AuditLogEntry, 'id'> = {
@@ -164,12 +164,12 @@ export async function logAuditEntry(
       entityId,
       userId,
       userName,
-      changes: Object.keys(newValues).reduce((acc, key) => {
+      changes: Object.keys(newValues).reduce<Record<string, { old: unknown; new: unknown }>>((acc, key) => {
         if (JSON.stringify(oldValues[key]) !== JSON.stringify(newValues[key])) {
           acc[key] = { old: oldValues[key], new: newValues[key] };
         }
         return acc;
-      }, {} as Record<string, any>),
+      }, {}),
       oldValues,
       newValues,
       createdAt: new Date().toISOString(),
@@ -269,7 +269,7 @@ export function getSyncStatus(): SyncStatus {
 export async function batchSync(
   operations: Array<{
     type: 'settings' | 'audit';
-    payload: any;
+    payload: Record<string, unknown> & { key?: string; value?: unknown; action?: string; entityType?: string; entityId?: string; oldValues?: Record<string, unknown>; newValues?: Record<string, unknown> };
     userId: string;
     userName: string;
   }>
@@ -284,8 +284,8 @@ export async function batchSync(
     try {
       if (op.type === 'settings') {
         const result = await saveSettingsWithSync(
-          op.payload.key,
-          op.payload.value,
+          op.payload.key || '',
+          op.payload.value as Record<string, unknown>,
           op.userId,
           op.userName
         );
@@ -293,9 +293,9 @@ export async function batchSync(
         if (!result.success && result.error) results.errors.push(result.error);
       } else if (op.type === 'audit') {
         const result = await logAuditEntry(
-          op.payload.action,
-          op.payload.entityType,
-          op.payload.entityId,
+          op.payload.action || '',
+          op.payload.entityType || '',
+          op.payload.entityId || '',
           op.userId,
           op.userName,
           op.payload.oldValues,

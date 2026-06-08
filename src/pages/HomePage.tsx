@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import {
-  ChevronLeft, ChevronRight, Shield, Zap, CreditCard, Users, Star,
+  Shield, Zap, CreditCard, Star,
   CheckCircle, TrendingUp, MapPin, Calculator
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
@@ -117,7 +117,7 @@ export default function HomePage() {
         console.log(`📊 Fetched ${data.length} active products from Supabase`);
 
         // Manual mapping from Supabase underscored columns to Product interface
-        const mappedProducts: Product[] = data.map((item: any) => ({
+        const mappedProducts: Product[] = (data as Record<string, unknown>[]).map((item) => ({
           id: item.id || '',
           name: item.name_en || item.name_ar || '',
           nameAr: item.name_ar || item.name_en || '',

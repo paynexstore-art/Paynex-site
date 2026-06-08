@@ -294,7 +294,7 @@ export const MOCK_SUPERVISORS: Supervisor[] = [
 export function initTestUsers() {
   const usersKey = 'paynex_users';
   const existing = (() => { try { return JSON.parse(localStorage.getItem(usersKey) ?? '[]'); } catch { return []; } })();
-  if (!existing.find((u: any) => u.email === 'aa@gmail.com')) {
+  if (!existing.find((u: unknown) => u.email === 'aa@gmail.com')) {
     const testCustomer = {
       id: 'cust-test-001',
       name: 'أحمد محمد',

@@ -1,8 +1,8 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { runSystemCheck, logSystemCheckResults } from './lib/systemCheck'
+import { StrictMode } from 'react'
 
 // Run system check on startup
 const systemCheck = runSystemCheck()
@@ -13,7 +13,7 @@ if (systemCheck.overall === 'error') {
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  <StrictMode>
     <App />
-  </React.StrictMode>,
+  </StrictMode>,
 )
