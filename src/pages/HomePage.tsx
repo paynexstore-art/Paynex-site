@@ -168,12 +168,13 @@ export default function HomePage() {
   }, []);
 
   // Banner rotation
+  const activeBannerCount = (settings?.banners ?? []).filter(b => b?.isActive).length || 1;
   useEffect(() => {
     const interval = setInterval(() => {
-      setBannerIndex(i => (i + 1) % Math.max(settings.banners.filter(b => b.isActive).length, 1));
+      setBannerIndex(i => (i + 1) % activeBannerCount);
     }, 5000);
     return () => clearInterval(interval);
-  }, [settings.banners]);
+  }, [activeBannerCount]);
 
   // Animate counters
   useEffect(() => {
@@ -200,7 +201,7 @@ export default function HomePage() {
     requestAnimationFrame(step);
   }
 
-  const activeBanners = settings.banners.filter(b => b.isActive);
+  const activeBanners = (settings?.banners ?? []).filter(b => b?.isActive);
   const currentBanner = activeBanners[bannerIndex] ?? activeBanners[0];
 
   const features = [

@@ -2,6 +2,9 @@ node_modules/
 dist/
 .vercel/
 .env
+.env.local
+.env.*.local
+*.local
 paynex-site@1.0.0
 vite
 .next/

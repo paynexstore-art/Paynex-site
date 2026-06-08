@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { SiteSettings } from '@/types';
-import { getSiteSettings, saveSiteSettings } from '@/lib/storage';
+import { getSiteSettingsSync, saveSiteSettings } from '@/lib/storage';
 
 type Lang = 'ar' | 'en';
 
@@ -20,7 +20,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     return (localStorage.getItem('paynex_lang') as Lang) ?? 'ar';
   });
-  const [settings, setSettings] = useState<SiteSettings>(getSiteSettings);
+  const [settings, setSettings] = useState<SiteSettings>(getSiteSettingsSync);
 
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
   const isRTL = lang === 'ar';
