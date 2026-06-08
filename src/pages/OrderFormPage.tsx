@@ -489,8 +489,8 @@ export default function OrderFormPage() {
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-yellow-800 text-sm font-medium">
               ⚠️{' '}
               {t(
-                `رسوم استعلام: ${formatCurrency(plan.inquiryFee || 150, 'ar')}`,
-                `Inquiry fee: ${formatCurrency(plan.inquiryFee || 150, 'en')}`
+                'تطبق رسوم استعلام تدفع عند توقيع طلب التقسيط ورفع المستندات',
+                'Inquiry fee applies upon signing the installment agreement and document submission'
               )}
             </div>
 

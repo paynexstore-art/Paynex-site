@@ -25,6 +25,8 @@ const NAV_ITEMS = [
   { path: '/admin/testimonials',        icon: Star,            labelAr: 'آراء العملاء',       labelEn: 'Testimonials' },
   { path: '/admin/audit-log',           icon: Shield,          labelAr: 'سجل المراجعة',       labelEn: 'Audit Log' },
   { path: '/admin/marketing',           icon: Megaphone,       labelAr: 'التسويق',            labelEn: 'Marketing' },
+  { path: '/admin/ai-marketing',        icon: Megaphone,       labelAr: 'AI توليد محتوى',     labelEn: 'AI Marketing' },
+  { path: '/admin/social-export',      icon: Megaphone,       labelAr: 'تصدير سوشيال',      labelEn: 'Social Export' },
   { path: '/admin/settings',            icon: Settings,        labelAr: 'الإعدادات',          labelEn: 'Settings' },
 ];
 
@@ -81,7 +83,7 @@ export default function AdminLayout() {
         fixed inset-y-0 right-0 z-50 w-64 bg-[#0a1628] flex flex-col
         transform transition-transform duration-300
         ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
-        lg:translate-x-0 lg:static lg:inset-auto
+        lg:sticky lg:translate-x-0 lg:top-0 lg:h-[100vh] lg:shrink-0 lg:right-0
       `}>
         {/* Logo */}
         <div className="p-5 border-b border-white/10">

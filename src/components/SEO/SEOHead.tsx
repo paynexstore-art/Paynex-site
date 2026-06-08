@@ -19,7 +19,7 @@ export function SEOHead({
   type = 'website',
   author
 }: SEOHeadProps) {
-  const siteTitle = 'PayNex - منصة الدفع الرقمية';
+  const siteTitle = 'PayNex - حلول التقسيط الذكي';
   const fullTitle = `${title} | ${siteTitle}`;
   const canonicalUrl = url;
 
