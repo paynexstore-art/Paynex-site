@@ -28,7 +28,7 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" className="text-white hover:text-[#C9A84C]">EN</Button>
           {user ? (
-            <Link href={user.role === 'super_admin' ? '/secure-dashboard' : user.role === 'supervisor' ? '/supervisor' : '/orders'}>
+            <Link href={user.role === 'super_admin' || user.role === 'admin' ? '/secure-dashboard' : user.role === 'supervisor' ? '/supervisor' : '/orders/new'}>
               <Button className="bg-[#C9A84C] hover:bg-[#b09340] text-[#0A1628] font-bold">حسابي</Button>
             </Link>
           ) : (

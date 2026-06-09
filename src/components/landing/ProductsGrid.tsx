@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { calculateInstallment } from "@/lib/pricing";
+import { getProductImageUrl } from "@/lib/image";
 import Link from "next/link";
 
 export default function ProductsGrid() {
@@ -58,7 +59,7 @@ export default function ProductsGrid() {
               >
                 <Link href={`/orders/new?productId=${product.id}`} className="block">
                   <img 
-                  src={product.images?.[0] || product.image || 'https://placehold.co/300x300/eee/999?text=No+Image'} 
+                  src={getProductImageUrl(product.images?.[0] || product.image)} 
                   alt={product.name_ar || product.nameEn}
                   className="w-full h-48 object-contain mb-4 rounded-lg cursor-pointer"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/300x300/eee/999?text=No+Image'; }}

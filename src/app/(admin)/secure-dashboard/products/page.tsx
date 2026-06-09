@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { getProductImageUrl } from "@/lib/image";
 import { Plus, Edit, Trash } from "lucide-react";
 
 export default function AdminProductsPage() {
@@ -39,7 +40,7 @@ export default function AdminProductsPage() {
               <TableRow key={product.id}>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-3">
-                    <img src={product.images?.[0]} className="w-10 h-10 object-contain" />
+                    <img src={getProductImageUrl(product.images?.[0])} className="w-10 h-10 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/40x40/eee/999?text=No"; }} />
                     {product.name_ar}
                   </div>
                 </TableCell>

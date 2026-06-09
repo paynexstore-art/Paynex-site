@@ -19,7 +19,7 @@ export async function middleware(req: NextRequest) {
       .select('role')
       .eq('id', session.user.id)
       .single()
-    if (user?.role !== 'super_admin') {
+    if (user?.role !== 'super_admin' && user?.role !== 'admin') {
       return NextResponse.redirect(new URL('/', req.url))
     }
   }
