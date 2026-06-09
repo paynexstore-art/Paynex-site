@@ -138,7 +138,7 @@ export default function ProductsPage() {
                       key={product.id}
                       id={product.id}
                       name={product.name_ar}
-                      image={getProductImageUrl(product.images?.[0], product.category)}
+                      image={product.images?.[0] || ''}
                       originalPrice={product.original_price}
                       displayPrice={price}
                       installmentText={`قسط من ${Math.round(price / 12)} جنيه/شهر`}

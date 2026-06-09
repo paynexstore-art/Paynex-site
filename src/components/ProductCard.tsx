@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShoppingCart } from 'lucide-react';
+import { getProductImageUrl } from '@/lib/image';
 
 interface ProductCardProps {
   id: string;
@@ -25,6 +26,12 @@ export default function ProductCard({
 }: ProductCardProps) {
   const discount = Math.round(((originalPrice - displayPrice) / originalPrice) * 100);
 
+  // Resolve image: if the prop is already a full URL from DB, use it directly (each product has its own)
+  // Otherwise, use the helper which handles paths or provides category-specific beautiful fallback
+  const resolvedImage = (image && (image.startsWith('http://') || image.startsWith('https://'))) 
+    ? image 
+    : getProductImageUrl(image, category);
+
   return (
     <Link 
       href={`/orders/new?productId=${id}`} 
@@ -34,7 +41,7 @@ export default function ProductCard({
         {/* Product Image */}
         <div className="aspect-[4/3] bg-gray-50 overflow-hidden">
           <img 
-            src={image} 
+            src={resolvedImage} 
             alt={name} 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
             onError={(e) => {
