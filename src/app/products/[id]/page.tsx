@@ -61,10 +61,20 @@ export default function ProductDetailPage() {
           <div>
             <div className="bg-white rounded-3xl overflow-hidden border aspect-square flex items-center justify-center p-6">
               <img 
-                src={images[selectedImage]} 
-                alt={product.name_ar} 
-                className="max-h-[420px] object-contain" 
-                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&h=600&fit=crop"; }}
+              src={images[selectedImage]} 
+              alt={product.name_ar} 
+              className="max-h-[420px] object-contain" 
+              onError={(e) => { 
+                const target = e.currentTarget as HTMLImageElement;
+                const cat = (product.category || '').toLowerCase();
+                let fb = "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&h=600&fit=crop";
+                if (cat.includes('phone') || cat.includes('موبايل')) fb = 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=600&fit=crop';
+                else if (cat.includes('laptop') || cat.includes('لابتوب')) fb = 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&h=600&fit=crop';
+                else if (cat.includes('tv') || cat.includes('تلفزيون')) fb = 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=600&h=600&fit=crop';
+                else if (cat.includes('wash') || cat.includes('غسالة') || cat.includes('appliance')) fb = 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=600&h=600&fit=crop';
+                else if (cat.includes('game') || cat.includes('gaming')) fb = 'https://images.unsplash.com/photo-1607853202273-797f1c22a38e?w=600&h=600&fit=crop';
+                target.src = fb;
+              }}
               />
             </div>
 

@@ -39,7 +39,15 @@ export default function ProductCard({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
             onError={(e) => {
               const target = e.currentTarget as HTMLImageElement;
-              target.src = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&h=600&fit=crop&auto=format';
+              // Use category-aware fallback if available, otherwise a nice default
+              const cat = (category || '').toLowerCase();
+              let fallback = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&h=600&fit=crop&auto=format';
+              if (cat.includes('phone') || cat.includes('موبايل')) fallback = 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=600&fit=crop&auto=format';
+              else if (cat.includes('laptop') || cat.includes('لابتوب')) fallback = 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&h=600&fit=crop&auto=format';
+              else if (cat.includes('tv') || cat.includes('تلفزيون')) fallback = 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=600&h=600&fit=crop&auto=format';
+              else if (cat.includes('wash') || cat.includes('غسالة') || cat.includes('appliance')) fallback = 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=600&h=600&fit=crop&auto=format';
+              else if (cat.includes('game') || cat.includes('gaming')) fallback = 'https://images.unsplash.com/photo-1607853202273-797f1c22a38e?w=600&h=600&fit=crop&auto=format';
+              target.src = fallback;
             }}
           />
         </div>
