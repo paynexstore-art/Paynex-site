@@ -1,141 +1,61 @@
-/**
- * Internal Credit Scoring Engine — PayNex
- *
- * Generates a 0–100 risk score to assist admin decision-making.
- * Score is advisory only — final decision is always made by the Super Admin.
- */
-
-import type { CreditScore, CreditFactor, Order } from '@/types';
-
-interface ScoringInput {
-  job: string;
-  income?: number;
-  nationalIdAge?: number;   // Age derived from national ID (first digit = decade)
-  hasUtilityBill: boolean;
-  hasIncomeProof: boolean;
-  previousOrders?: number;  // Number of previous completed orders
-  previousDefaults?: number;
-  province: string;
-  productPrice: number;
-  installmentMonths: number;
+// src/lib/creditScore.ts
+export interface CreditScoreInput {
+  monthlyIncome?: number
+  jobType?: 'government' | 'private' | 'business' | 'unemployed'
+  previousOrders?: number
+  previousDefaults?: number
+  requestedAmount: number
+  supervisorNotes?: string
 }
 
-const JOB_SCORE: Record<string, number> = {
-  'موظف حكومي': 25,
-  'مدرس': 22,
-  'طبيب': 25,
-  'مهندس': 22,
-  'محاسب': 20,
-  'ضابط': 25,
-  'عسكري': 24,
-  'محامي': 20,
-  'صيدلاني': 22,
-  'ممرض': 18,
-  'موظف بنك': 22,
-};
+export interface CreditScoreResult {
+  score: number
+  riskLevel: 'low' | 'medium' | 'high'
+  recommendation: string
+  factors: string[]
+}
 
-function jobScore(job: string): number {
-  for (const [key, val] of Object.entries(JOB_SCORE)) {
-    if (job.includes(key)) return val;
+export function calculateCreditScore(data: CreditScoreInput): CreditScoreResult {
+  let score = 50
+  const factors: string[] = []
+
+  if (data.monthlyIncome) {
+    if (data.monthlyIncome > 8000) { score += 25; factors.push('دخل مرتفع +25') }
+    else if (data.monthlyIncome > 5000) { score += 15; factors.push('دخل متوسط مرتفع +15') }
+    else if (data.monthlyIncome > 3000) { score += 5; factors.push('دخل متوسط +5') }
+    else { score -= 10; factors.push('دخل منخفض -10') }
   }
-  if (job.length > 3) return 12; // Some job listed
-  return 5;
-}
 
-/**
- * Build credit score from order data.
- */
-export function calculateCreditScore(order: Order): CreditScore {
-  const factors: CreditFactor[] = [];
+  if (data.jobType === 'government') { score += 20; factors.push('وظيفة حكومية +20') }
+  else if (data.jobType === 'private') { score += 10; factors.push('وظيفة خاصة +10') }
+  else if (data.jobType === 'business') { score += 15; factors.push('أعمال حرة +15') }
+  else { score -= 15; factors.push('بدون وظيفة -15') }
 
-  // 1. Employment (max 25)
-  const empScore = jobScore(order.customerJob);
-  factors.push({
-    name: 'Employment',
-    nameAr: 'طبيعة العمل',
-    weight: 25,
-    value: empScore,
-    note: order.customerJob,
-  });
+  if (data.previousOrders && data.previousOrders > 0) {
+    score += Math.min(data.previousOrders * 5, 15)
+    factors.push(`تاريخ مشتريات +${Math.min(data.previousOrders * 5, 15)}`)
+  }
 
-  // 2. Documents completeness (max 20)
-  const docs = order.documents;
-  let docScore = 0;
-  if (docs.nationalIdFront && docs.nationalIdBack) docScore += 10;
-  if (docs.utilityBill) docScore += 5;
-  if (docs.incomeProof) docScore += 5;
-  factors.push({
-    name: 'Documents',
-    nameAr: 'اكتمال المستندات',
-    weight: 20,
-    value: docScore,
-  });
+  if (data.previousDefaults && data.previousDefaults > 0) {
+    score -= data.previousDefaults * 20
+    factors.push(`تأخر سابق -${data.previousDefaults * 20}`)
+  }
 
-  // 3. Installment ratio (max 20) — lower ratio = lower risk
-  const monthlyBurden = order.installmentPlan.monthlyPayment;
-  // Assume reasonable income floor is 3000 EGP
-  const estimatedIncome = 4000;
-  const ratio = monthlyBurden / estimatedIncome;
-  const ratioScore = ratio < 0.2 ? 20 : ratio < 0.3 ? 16 : ratio < 0.4 ? 12 : ratio < 0.5 ? 8 : 4;
-  factors.push({
-    name: 'Installment Burden',
-    nameAr: 'نسبة القسط للدخل',
-    weight: 20,
-    value: ratioScore,
-    note: `${Math.round(ratio * 100)}% من الدخل التقديري`,
-  });
+  if (data.monthlyIncome && data.monthlyIncome > 0) {
+    const ratio = data.requestedAmount / (data.monthlyIncome * 12)
+    if (ratio > 0.7) { score -= 20; factors.push('طلب مرتفع مقارنة بالدخل -20') }
+    else if (ratio > 0.5) { score -= 10; factors.push('طلب متوسط مقارنة بالدخل -10') }
+  }
 
-  // 4. Address quality (max 15) — detailed address = lower risk
-  const addrScore = order.customerAddress.length > 30 ? 15 : order.customerAddress.length > 15 ? 10 : 5;
-  factors.push({
-    name: 'Address Detail',
-    nameAr: 'تفصيل العنوان',
-    weight: 15,
-    value: addrScore,
-  });
-
-  // 5. Contact info (max 10)
-  const contactScore = (order.customerEmail ? 5 : 0) + (order.customerPhone ? 5 : 0);
-  factors.push({
-    name: 'Contact Info',
-    nameAr: 'بيانات التواصل',
-    weight: 10,
-    value: contactScore,
-  });
-
-  // 6. GPS field visit (max 10)
-  const gpsScore = order.fieldVisitGps ? 10 : 0;
-  factors.push({
-    name: 'Field Visit GPS',
-    nameAr: 'توثيق الزيارة الميدانية',
-    weight: 10,
-    value: gpsScore,
-  });
-
-  const total = factors.reduce((s, f) => s + f.value, 0);
-  const risk: CreditScore['risk'] = total >= 70 ? 'low' : total >= 45 ? 'medium' : 'high';
+  score = Math.max(0, Math.min(100, score))
 
   return {
-    score: Math.min(100, total),
-    risk,
+    score,
+    riskLevel: score >= 70 ? 'low' : score >= 40 ? 'medium' : 'high',
+    recommendation:
+      score >= 70 ? 'يُنصح بالموافقة - مخاطر منخفضة'
+      : score >= 40 ? 'يحتاج مراجعة إضافية - مخاطر متوسطة'
+      : 'خطر مرتفع - يُنصح بالرفض أو ضمانات إضافية',
     factors,
-    calculatedAt: new Date().toISOString(),
-  };
-}
-
-export function getCreditRiskLabel(risk: CreditScore['risk'], lang: 'ar' | 'en' = 'ar') {
-  const map = {
-    low:    { ar: 'مخاطرة منخفضة', en: 'Low Risk' },
-    medium: { ar: 'مخاطرة متوسطة', en: 'Medium Risk' },
-    high:   { ar: 'مخاطرة مرتفعة', en: 'High Risk' },
-  };
-  return map[risk][lang];
-}
-
-export function getCreditRiskColor(risk: CreditScore['risk']) {
-  return {
-    low:    'text-green-700 bg-green-100 border-green-200',
-    medium: 'text-yellow-700 bg-yellow-100 border-yellow-200',
-    high:   'text-red-700 bg-red-100 border-red-200',
-  }[risk];
+  }
 }

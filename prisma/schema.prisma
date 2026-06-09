@@ -1,0 +1,336 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email           String    @unique
+  phone           String?   @unique
+  passwordHash    String    @map("password_hash")
+  fullName        String    @map("full_name")
+  role            String
+  avatarUrl       String?   @map("avatar_url")
+  nationalId      String?   @map("national_id")
+  governorate     String?
+  address         String?
+  jobTitle        String?   @map("job_title")
+  isActive        Boolean   @default(true) @map("is_active")
+  isLocked        Boolean   @default(false) @map("is_locked")
+  lockReason      String?   @map("lock_reason")
+  googleId        String?   @map("google_id")
+  lastLogin       DateTime? @map("last_login")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+
+  supervisor      Supervisor?
+  orders          Order[]       @relation("CustomerOrders")
+  confirmedInquiry Order[]      @relation("InquiryConfirmedBy")
+  finalDecisionOrders Order[]   @relation("FinalDecisionBy")
+  documents       Document[]
+  walletTransactions SupervisorWallet[] @relation("PerformedBy")
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  financialConfigs FinancialConfig[]
+  siteSettings    SiteSetting[]
+  approvedPayrolls MonthlyPayroll[] @relation("ApprovedBy")
+
+  @@map("users")
+}
+
+model Supervisor {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                String    @unique @map("user_id") @db.Uuid
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedGovernorate   String    @map("assigned_governorate")
+  governorateCoordinates Json?     @map("governorate_coordinates")
+  baseSalary            Decimal   @default(0) @map("base_salary") @db.Decimal(10, 2)
+  currentMonthBonus     Decimal   @default(0) @map("current_month_bonus") @db.Decimal(10, 2)
+  currentMonthPenalties Decimal   @default(0) @map("current_month_penalties") @db.Decimal(10, 2)
+  currentMonthOrders    Int       @default(0) @map("current_month_orders")
+  totalWalletBalance    Decimal   @default(0) @map("total_wallet_balance") @db.Decimal(10, 2)
+  totalDebt             Decimal   @default(0) @map("total_debt") @db.Decimal(10, 2)
+  openingBalance        Decimal   @default(0) @map("opening_balance") @db.Decimal(10, 2)
+  workStartTime         String?   @default("09:00:00") @map("work_start_time")
+  workEndTime           String?   @default("17:00:00") @map("work_end_time")
+  workDays              Json?     @default("[\"sat\",\"sun\",\"mon\",\"tue\",\"wed\"]") @map("work_days")
+  targetOrdersMonthly   Int       @default(1500) @map("target_orders_monthly")
+  targetBonus           Decimal   @default(3000) @map("target_bonus") @db.Decimal(10, 2)
+  isCheckedIn           Boolean   @default(false) @map("is_checked_in")
+  lastCheckinAt         DateTime? @map("last_checkin_at")
+  lastCheckoutAt        DateTime? @map("last_checkout_at")
+  lastCheckinLocation   Json?     @map("last_checkin_location")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  orders                Order[]
+  walletHistory         SupervisorWallet[]
+  attendance            Attendance[]
+  payrolls              MonthlyPayroll[]
+  rewards               Reward[]
+
+  @@map("supervisors")
+}
+
+model Product {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nameAr          String    @map("name_ar")
+  nameEn          String?   @map("name_en")
+  descriptionAr   String?   @map("description_ar")
+  descriptionEn   String?   @map("description_en")
+  originalPrice   Decimal   @map("original_price") @db.Decimal(10, 2)
+  displayPrice    Decimal?  @map("display_price") @db.Decimal(10, 2)
+  category        String?
+  brand           String?
+  images          Json?     @default("[]")
+  specs           Json?     @default("{}")
+  stockStatus     String?   @default("available") @map("stock_status")
+  isActive        Boolean   @default(true) @map("is_active")
+  isFeatured      Boolean   @default(false) @map("is_featured")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+
+  orders          Order[]
+
+  @@map("products")
+}
+
+model FinancialConfig {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  configKey     String    @unique @map("config_key")
+  configValue   Decimal   @map("config_value") @db.Decimal(10, 4)
+  configLabel   String?   @map("config_label")
+  updatedBy     String?   @map("updated_by") @db.Uuid
+  user          User?     @relation(fields: [updatedBy], references: [id])
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+
+  @@map("financial_config")
+}
+
+model Order {
+  id                        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderNumber               String    @unique @map("order_number")
+  customerId                String?   @map("customer_id") @db.Uuid
+  customer                  User?     @relation("CustomerOrders", fields: [customerId], references: [id])
+  productId                 String?   @map("product_id") @db.Uuid
+  product                   Product?  @relation(fields: [productId], references: [id])
+  supervisorId              String?   @map("supervisor_id") @db.Uuid
+  supervisor                Supervisor? @relation(fields: [supervisorId], references: [id])
+  customerName              String?   @map("customer_name")
+  customerPhone             String?   @map("customer_phone")
+  customerNationalId        String?   @map("customer_national_id")
+  customerGovernorate       String?   @map("customer_governorate")
+  customerAddress           String?   @map("customer_address")
+  customerJob               String?   @map("customer_job")
+  customerLocation          Json?     @map("customer_location")
+  status                    String?   @default("pending")
+  rejectionCooldownUntil    DateTime? @map("rejection_cooldown_until")
+  productPrice              Decimal?  @map("product_price") @db.Decimal(10, 2)
+  downPayment               Decimal?  @default(0) @map("down_payment") @db.Decimal(10, 2)
+  months                    Int?      @default(12)
+  interestRate              Decimal?  @map("interest_rate") @db.Decimal(5, 4)
+  adminFee                  Decimal?  @map("admin_fee") @db.Decimal(10, 2)
+  inquiryFee                Decimal?  @map("inquiry_fee") @db.Decimal(10, 2)
+  monthlyInstallment        Decimal?  @map("monthly_installment") @db.Decimal(10, 2)
+  totalAmount               Decimal?  @map("total_amount") @db.Decimal(10, 2)
+  creditScore               Int?      @map("credit_score")
+  inquiryFeePaid            Boolean?  @default(false) @map("inquiry_fee_paid")
+  inquiryFeePaidAt          DateTime? @map("inquiry_fee_paid_at")
+  inquiryFeeConfirmedBy     String?   @map("inquiry_fee_confirmed_by") @db.Uuid
+  inquiryConfirmer          User?     @relation("InquiryConfirmedBy", fields: [inquiryFeeConfirmedBy], references: [id])
+  contractPdfUrl            String?   @map("contract_pdf_url")
+  eSignatureUrl             String?   @map("e_signature_url")
+  signedAt                  DateTime? @map("signed_at")
+  adminOverrideNotes        String?   @map("admin_override_notes")
+  finalDecisionBy           String?   @map("final_decision_by") @db.Uuid
+  decisionMaker             User?     @relation("FinalDecisionBy", fields: [finalDecisionBy], references: [id])
+  submittedAt               DateTime? @default(now()) @map("submitted_at")
+  reviewedAt                DateTime? @map("reviewed_at")
+  approvedAt                DateTime? @map("approved_at")
+  deliveredAt               DateTime? @map("delivered_at")
+  rejectedAt                DateTime? @map("rejected_at")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @default(now()) @map("updated_at")
+
+  documents                 Document[]
+  walletTransactions        SupervisorWallet[]
+  notifications             Notification[]
+
+  @@map("orders")
+}
+
+model Document {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId             String?   @map("order_id") @db.Uuid
+  order               Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploadedBy          String?   @map("uploaded_by") @db.Uuid
+  user                User?     @relation(fields: [uploadedBy], references: [id])
+  documentType        String    @map("document_type")
+  originalUrl         String    @map("original_url")
+  processedUrl        String?   @map("processed_url")
+  fileSize            Int?      @map("file_size")
+  gpsLocation         Json?     @map("gps_location")
+  gpsTimestamp        DateTime? @map("gps_timestamp")
+  isLocationVerified  Boolean?  @default(false) @map("is_location_verified")
+  distanceFromCustomer Int?     @map("distance_from_customer")
+  watermarkApplied    Boolean?  @default(false) @map("watermark_applied")
+  isMockLocation      Boolean?  @default(false) @map("is_mock_location")
+  uploadDeviceInfo    Json?     @map("upload_device_info")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@map("documents")
+}
+
+model SupervisorWallet {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  supervisorId    String?   @map("supervisor_id") @db.Uuid
+  supervisor      Supervisor? @relation(fields: [supervisorId], references: [id])
+  transactionType String    @map("transaction_type")
+  amount          Decimal   @db.Decimal(10, 2)
+  balanceAfter    Decimal?  @map("balance_after") @db.Decimal(10, 2)
+  orderId         String?   @map("order_id") @db.Uuid
+  order           Order?    @relation(fields: [orderId], references: [id])
+  description     String?
+  performedBy     String?   @map("performed_by") @db.Uuid
+  performer       User?     @relation("PerformedBy", fields: [performedBy], references: [id])
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("supervisor_wallet")
+}
+
+model Attendance {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  supervisorId        String?   @map("supervisor_id") @db.Uuid
+  supervisor          Supervisor? @relation(fields: [supervisorId], references: [id])
+  date                DateTime  @db.Date
+  checkInTime         DateTime? @map("check_in_time")
+  checkOutTime        DateTime? @map("check_out_time")
+  checkInLocation     Json?     @map("check_in_location")
+  checkOutLocation    Json?     @map("check_out_location")
+  checkInPhotoUrl     String?   @map("check_in_photo_url")
+  faceVerified        Boolean?  @default(false) @map("face_verified")
+  isWithinGovernorate Boolean?  @default(false) @map("is_within_governorate")
+  workingHours        Decimal?  @map("working_hours") @db.Decimal(4, 2)
+  status              String?   @default("present")
+  notes               String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@map("attendance")
+}
+
+model AuditLog {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String?   @map("user_id") @db.Uuid
+  user        User?     @relation(fields: [userId], references: [id])
+  userRole    String?   @map("user_role")
+  action      String
+  entityType  String?   @map("entity_type")
+  entityId    String?   @map("entity_id") @db.Uuid
+  oldValue    Json?     @map("old_value")
+  newValue    Json?     @map("new_value")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  recipientId    String?   @map("recipient_id") @db.Uuid
+  recipient      User?     @relation(fields: [recipientId], references: [id])
+  type           String?
+  title          String?
+  body           String?
+  isRead         Boolean?  @default(false) @map("is_read")
+  relatedOrderId String?   @map("related_order_id") @db.Uuid
+  order          Order?    @relation(fields: [relatedOrderId], references: [id])
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model SiteSetting {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  settingKey   String    @unique @map("setting_key")
+  settingValue String?   @map("setting_value")
+  settingType  String?   @map("setting_type")
+  label        String?
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  user         User?     @relation(fields: [updatedBy], references: [id])
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+
+  @@map("site_settings")
+}
+
+model MonthlyPayroll {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  supervisorId    String?   @map("supervisor_id") @db.Uuid
+  supervisor      Supervisor? @relation(fields: [supervisorId], references: [id])
+  month           Int
+  year            Int
+  baseSalary      Decimal?  @map("base_salary") @db.Decimal(10, 2)
+  bonus           Decimal?  @default(0) @db.Decimal(10, 2)
+  targetBonus     Decimal?  @default(0) @map("target_bonus") @db.Decimal(10, 2)
+  penalties       Decimal?  @default(0) @db.Decimal(10, 2)
+  openingDebt     Decimal?  @default(0) @map("opening_debt") @db.Decimal(10, 2)
+  totalCollected  Decimal?  @default(0) @map("total_collected") @db.Decimal(10, 2)
+  netSalary       Decimal?  @map("net_salary") @db.Decimal(10, 2)
+  remainingDebt   Decimal?  @default(0) @map("remaining_debt") @db.Decimal(10, 2)
+  isApproved      Boolean?  @default(false) @map("is_approved")
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  approver        User?     @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  approvedAt      DateTime? @map("approved_at")
+  archivedData    Json?     @map("archived_data")
+
+  @@unique([supervisorId, month, year])
+  @@map("monthly_payroll")
+}
+
+model Reward {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  supervisorId    String?   @map("supervisor_id") @db.Uuid
+  supervisor      Supervisor? @relation(fields: [supervisorId], references: [id])
+  month           Int?
+  year            Int?
+  ordersAchieved  Int?      @default(0) @map("orders_achieved")
+  targetOrders    Int?      @default(1500) @map("target_orders")
+  bonusAmount     Decimal?  @default(3000) @map("bonus_amount") @db.Decimal(10, 2)
+  isAchieved      Boolean?  @default(false) @map("is_achieved")
+  awardedAt       DateTime? @map("awarded_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("rewards")
+}
+
+model Testimonial {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  customerName  String?   @map("customer_name")
+  content       String
+  rating        Int?
+  avatarUrl     String?   @map("avatar_url")
+  isActive      Boolean?  @default(true) @map("is_active")
+  sortOrder     Int?      @default(0) @map("sort_order")
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("testimonials")
+}
+
+model Brand {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String?
+  logoUrl     String?   @map("logo_url")
+  websiteUrl  String?   @map("website_url")
+  isActive    Boolean?  @default(true) @map("is_active")
+  sortOrder   Int?      @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("brands")
+}
