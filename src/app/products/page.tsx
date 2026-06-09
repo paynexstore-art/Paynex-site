@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
-import { Search, Filter } from "lucide-react";
+import { getProductImageUrl } from "@/lib/image";
+import { Search } from "lucide-react";
 
 interface Product {
   id: string;
@@ -137,7 +138,7 @@ export default function ProductsPage() {
                       key={product.id}
                       id={product.id}
                       name={product.name_ar}
-                      image={product.images?.[0] || ''}
+                      image={getProductImageUrl(product.images?.[0], product.category)}
                       originalPrice={product.original_price}
                       displayPrice={price}
                       installmentText={`قسط من ${Math.round(price / 12)} جنيه/شهر`}
