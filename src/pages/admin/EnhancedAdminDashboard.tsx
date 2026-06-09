@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { Supervisor } from '@/types';
 import {
   ShoppingBag, Users, TrendingUp, DollarSign, Clock, CheckCircle,
   RefreshCw, AlertTriangle, Lock, Star, Activity, Package,
@@ -285,9 +286,9 @@ export default function EnhancedAdminDashboard() {
   const navigate = useNavigate();
 
   // Legacy data
-  const [orders, setOrders] = useState(getOrders());
-  const [supervisors, setSupervisors] = useState(getSupervisors());
-  const [products] = useState(getProducts());
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [lastSync, setLastSync] = useState<ScraperImportRecord | null>(null);
 
   // CRUD System state
@@ -313,9 +314,23 @@ export default function EnhancedAdminDashboard() {
   const [selectedTableName, setSelectedTableName] = useState<string>('');
 
   useEffect(() => {
-    checkAndAutoLockSupervisors();
-    setSupervisors(getSupervisors());
-    setLastSync(getLastScraperImport());
+    let cancelled = false;
+    async function loadLegacyData() {
+      await checkAndAutoLockSupervisors();
+      const [ords, sups, prods] = await Promise.all([
+        getOrders(),
+        getSupervisors(),
+        getProducts(),
+      ]);
+      if (!cancelled) {
+        setOrders(ords);
+        setSupervisors(sups);
+        setProducts(prods);
+        setLastSync(getLastScraperImport());
+      }
+    }
+    loadLegacyData();
+    return () => { cancelled = true; };
   }, []);
 
   // ──────────────────────────────────────────────────────────────
@@ -625,7 +640,7 @@ export default function EnhancedAdminDashboard() {
     adminReview: orders.filter(o => o.status === 'admin-review').length,
     approved: orders.filter(o => ['approved', 'delivered'].includes(o.status)).length,
     rejected: orders.filter(o => o.status === 'rejected').length,
-    revenue: orders.filter(o => ['approved', 'delivered'].includes(o.status)).reduce((s, o) => s + o.installmentPlan.totalAmount, 0),
+    revenue: orders.filter(o => ['approved', 'delivered'].includes(o.status)).reduce((s, o) => s + (o.total_amount ?? 0), 0),
     lockedSupervisors: supervisors.filter(s => s.isLocked).length,
     pendingDebt: supervisors.reduce((s, sup) => s + (sup.pendingDebt ?? 0), 0),
   };
