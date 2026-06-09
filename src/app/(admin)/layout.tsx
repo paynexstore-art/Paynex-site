@@ -1,7 +1,9 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { LayoutDashboard, ShoppingCart, Users, Package, Settings, BarChart3, Shield, Wallet, History, CreditCard } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LayoutDashboard, ShoppingCart, Users, Package, Settings, BarChart3, Shield, Wallet, History, LogOut } from "lucide-react";
+import { getCurrentUser, clearCurrentUser } from "@/lib/auth";
 
 const menuItems = [
   { label: "الرئيسية", icon: <LayoutDashboard size={20} />, href: "/secure-dashboard" },
@@ -16,43 +18,91 @@ const menuItems = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Support both Supabase and custom local auth
+    const currentUser = getCurrentUser();
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
+      setUser(currentUser);
+    } else {
+      // If no valid admin, redirect to login
+      router.push('/login');
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    clearCurrentUser();
+    // Also clear cookie if set
+    document.cookie = 'paynex_custom_auth=; path=/; max-age=0';
+    router.push('/login');
+  };
+
+  if (!user) {
+    return <div className="flex items-center justify-center min-h-screen">جاري التحميل...</div>;
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50 font-cairo">
-      {/* Fixed Sidebar on the Right */}
-      <aside className="w-64 bg-[#0A1628] text-white h-screen fixed right-0 top-0 overflow-y-auto z-50">
-        <div className="p-6 border-b border-gray-800">
-          <h1 className="text-xl font-bold text-[#C9A84C]">لوحة تحكم Paynix</h1>
+      {/* Modern Sidebar - matching new UI style */}
+      <aside className="w-64 bg-[#0A1628] text-white h-screen fixed right-0 top-0 overflow-y-auto z-50 shadow-2xl">
+        <div className="p-6 border-b border-gray-800 flex items-center gap-3">
+          <div className="w-9 h-9 bg-[#C9A84C] rounded-2xl flex items-center justify-center">
+            <span className="text-[#0A1628] font-bold text-xl">P</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-[#C9A84C]">Paynix</h1>
+            <p className="text-[10px] text-white/60 -mt-1">لوحة التحكم</p>
+          </div>
         </div>
-        <nav className="mt-6">
+
+        <div className="p-4 text-xs text-white/50 border-b border-gray-800">
+          مرحباً، {user.name || 'المدير العام'}
+        </div>
+
+        <nav className="mt-2">
           {menuItems.map((item) => (
             <Link 
               key={item.label} 
               href={item.href}
-              className="flex items-center gap-4 px-6 py-4 hover:bg-white/10 transition-colors border-r-4 border-transparent hover:border-[#C9A84C]"
+              className="flex items-center gap-3 px-6 py-[13px] text-sm hover:bg-white/5 transition-colors border-r-4 border-transparent hover:border-[#C9A84C] active:bg-white/10"
             >
-              {item.icon}
-              <span className="font-bold">{item.label}</span>
+              <span className="text-[#C9A84C]">{item.icon}</span>
+              <span className="font-medium">{item.label}</span>
             </Link>
           ))}
         </nav>
+
+        <div className="absolute bottom-0 w-64 p-6 border-t border-gray-800">
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-sm text-white/70 hover:text-white w-full"
+          >
+            <LogOut size={16} /> تسجيل الخروج
+          </button>
+        </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <main className="flex-grow mr-64 p-8">
         <header className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl font-bold text-[#0A1628]">مرحباً، المدير العام</h2>
-          <div className="flex gap-4">
-            <Button variant="outline">تنبيهات</Button>
-            <Button variant="ghost">خروج</Button>
+          <div>
+            <h2 className="text-2xl font-bold text-[#0A1628]">لوحة تحكم Paynix</h2>
+            <p className="text-sm text-gray-500">إدارة المنصة والتقسيط</p>
+          </div>
+          <div className="flex gap-3">
+            <button className="px-4 py-2 text-sm border rounded-2xl hover:bg-gray-100">تنبيهات</button>
+            <button 
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm bg-[#0A1628] text-white rounded-2xl flex items-center gap-2 hover:bg-black"
+            >
+              <LogOut size={16} /> خروج
+            </button>
           </div>
         </header>
         {children}
       </main>
     </div>
   );
-}
-
-// Dummy Button for the example
-function Button({ children, variant }: any) {
-  return <button className={`px-4 py-2 rounded ${variant === 'outline' ? 'border' : ''}`}>{children}</button>;
 }

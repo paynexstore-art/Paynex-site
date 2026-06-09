@@ -3,9 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { getProductImageUrl } from "@/lib/image";
-import { calculateInstallment } from "@/lib/pricing";
+import ProductCard from "@/components/ProductCard";
+import { Search, Filter } from "lucide-react";
 
 interface Product {
   id: string;
@@ -21,21 +20,34 @@ interface Product {
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
 
-  const fetchProducts = async (currentPage: number) => {
+  const categories = ["موبايلات", "لابتوبات", "أجهزة منزلية", "إلكترونيات", "ألعاب"];
+
+  const fetchProducts = async (currentPage: number, search = "", category = "") => {
     setLoading(true);
     const from = (currentPage - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from("products")
       .select("*", { count: "exact" })
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .range(from, to);
+
+    if (search) {
+      query = query.ilike("name_ar", `%${search}%`);
+    }
+    if (category) {
+      query = query.eq("category", category);
+    }
+
+    const { data, error, count } = await query;
 
     if (!error && data) {
       setProducts(data as Product[]);
@@ -45,98 +57,123 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    fetchProducts(page);
-  }, [page]);
+    fetchProducts(page, searchTerm, selectedCategory);
+  }, [page, searchTerm, selectedCategory]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-[#0A1628]">جميع المنتجات</h1>
-        <p className="text-gray-500">{totalCount} منتج متاح</p>
+    <div className="min-h-screen bg-[#F8F9FC]">
+      {/* Modern Header matching new design */}
+      <div className="bg-white border-b sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-[#0A1628]">Paynix</span>
+            </Link>
+
+            <div className="flex-1 max-w-xl">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="ابحث عن منتجات..."
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                  className="w-full bg-gray-100 border border-gray-200 pl-10 pr-4 py-3 rounded-3xl text-sm focus:outline-none focus:border-[#C9A84C]"
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              </div>
+            </div>
+
+            <Link href="/login" className="text-sm font-medium text-[#0A1628] hover:text-[#C9A84C]">حسابي</Link>
+          </div>
+        </div>
+
+        {/* Category filter bar */}
+        <div className="border-t bg-white">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-2 overflow-x-auto text-sm">
+            <button 
+              onClick={() => { setSelectedCategory(""); setPage(1); }}
+              className={`px-4 py-1.5 rounded-2xl whitespace-nowrap ${!selectedCategory ? 'bg-[#0A1628] text-white' : 'bg-gray-100'}`}
+            >
+              الكل
+            </button>
+            {categories.map(cat => (
+              <button 
+                key={cat}
+                onClick={() => { setSelectedCategory(cat); setPage(1); }}
+                className={`px-4 py-1.5 rounded-2xl whitespace-nowrap ${selectedCategory === cat ? 'bg-[#0A1628] text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-80 bg-gray-100 animate-pulse rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((product) => {
-              const price = Number(product.display_price || product.original_price);
-              const pricing = calculateInstallment({
-                productPrice: price,
-                months: 12,
-                interestRate: 0.25,
-                adminFee: 150,
-                inquiryFee: 100,
-              });
-
-              const imageUrl = getProductImageUrl(product.images?.[0]);
-
-              return (
-                <Link
-                  href={`/products/${product.id}`}
-                  key={product.id}
-                  className="bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 p-5 border border-gray-100/60 group overflow-hidden hover:-translate-y-1"
-                >
-                  <img
-                    src={imageUrl}
-                    alt={product.name_ar}
-                    className="w-full h-48 object-cover mb-4 rounded-xl border border-gray-100/50 group-hover:scale-[1.03] transition-transform duration-300"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = "https://placehold.co/400x400/eee/999?text=No+Image";
-                    }}
-                  />
-                  <h3 className="font-bold text-[#0A1628] mb-2 line-clamp-2">{product.name_ar}</h3>
-                  <div className="flex justify-between items-center mb-3">
-                    <div>
-                      <span className="text-sm text-gray-500 line-through">{product.original_price} ج.م</span>
-                      <div className="text-lg font-bold text-[#C9A84C]">{price} ج.م</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-gray-500">قسط من</span>
-                      <div className="font-bold text-[#10B981]">{pricing.monthlyInstallment} ج.م/شهر</div>
-                    </div>
-                  </div>
-                  <Button className="w-full bg-[#0A1628] hover:bg-[#1a2744] text-white group-hover:bg-[#C9A84C] group-hover:text-[#0A1628]">
-                    عرض التفاصيل واشترِ بالتقسيط
-                  </Button>
-                </Link>
-              );
-            })}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">جميع المنتجات</h1>
+            <p className="text-gray-500">{totalCount} منتج متاح للتقسيط</p>
           </div>
+          <div className="text-sm text-gray-500">صفحة {page} من {totalPages || 1}</div>
+        </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-10">
-              <Button
-                variant="outline"
-                disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
-              >
-                السابق
-              </Button>
-              <span className="px-4 py-2">صفحة {page} من {totalPages}</span>
-              <Button
-                variant="outline"
-                disabled={page === totalPages}
-                onClick={() => setPage(p => p + 1)}
-              >
-                التالي
-              </Button>
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="h-80 bg-white rounded-3xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {products.length > 0 ? (
+                products.map((product) => {
+                  const price = Number(product.display_price || product.original_price);
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      id={product.id}
+                      name={product.name_ar}
+                      image={product.images?.[0] || ''}
+                      originalPrice={product.original_price}
+                      displayPrice={price}
+                      installmentText={`قسط من ${Math.round(price / 12)} جنيه/شهر`}
+                      category={product.category}
+                    />
+                  );
+                })
+              ) : (
+                <div className="col-span-full text-center py-12 text-gray-500">
+                  لا توجد منتجات مطابقة لبحثك.
+                </div>
+              )}
             </div>
-          )}
-        </>
-      )}
 
-      {products.length === 0 && !loading && (
-        <div className="text-center py-12 text-gray-500">لا توجد منتجات متاحة حالياً.</div>
-      )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-10">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-6 py-2 rounded-2xl border disabled:opacity-50"
+                >
+                  السابق
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-6 py-2 rounded-2xl border disabled:opacity-50"
+                >
+                  التالي
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

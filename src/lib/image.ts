@@ -15,29 +15,27 @@ const CATEGORY_FALLBACKS: Record<string, string> = {
 };
 
 export function getProductImageUrl(image: string | null | undefined, category?: string, fallback?: string): string {
-  if (image) {
-    // If already a full URL, return it
+  if (image && typeof image === 'string') {
+    // If already a full URL (http or https), use it directly (most real DB images are like this)
     if (image.startsWith('http://') || image.startsWith('https://')) {
       return image;
     }
 
-    // If it's a Supabase storage path (common pattern)
-    if (image.includes('/') || image.includes('.')) {
-      const bucket = 'products'; // Adjust if your bucket is different (e.g. 'public' or 'images')
-      return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${image.replace(/^\//, '')}`;
-    }
-
-    // Filename only - try Supabase
-    return `${SUPABASE_URL}/storage/v1/object/public/products/${image}`;
+    // If it's a relative path or filename, try Supabase storage with common buckets
+    const cleanPath = image.replace(/^\//, '');
+    const bucketsToTry = ['products', 'public', 'images', 'product-images'];
+    
+    // Return the first likely URL; browser will handle if 404 via onError in <img>
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucketsToTry[0]}/${cleanPath}`;
   }
 
-  // Smart fallback based on category for modern look
+  // Smart fallback based on category for modern look (used when no image or broken)
   const cat = (category || '').toLowerCase();
   if (cat.includes('phone') || cat.includes('موبايل')) return CATEGORY_FALLBACKS.phones;
   if (cat.includes('laptop') || cat.includes('لابتوب')) return CATEGORY_FALLBACKS.laptops;
-  if (cat.includes('tv') || cat.includes('تلفزيون')) return CATEGORY_FALLBACKS.tvs;
-  if (cat.includes('wash') || cat.includes('غسالة') || cat.includes('appliance')) return CATEGORY_FALLBACKS.appliances;
-  if (cat.includes('game') || cat.includes('بلاي')) return CATEGORY_FALLBACKS.gaming;
+  if (cat.includes('tv') || cat.includes('تلفزيون') || cat.includes('شاشة')) return CATEGORY_FALLBACKS.tvs;
+  if (cat.includes('wash') || cat.includes('غسالة') || cat.includes('appliance') || cat.includes('منزلي')) return CATEGORY_FALLBACKS.appliances;
+  if (cat.includes('game') || cat.includes('بلاي') || cat.includes('gaming')) return CATEGORY_FALLBACKS.gaming;
 
   return fallback || CATEGORY_FALLBACKS.default;
 }

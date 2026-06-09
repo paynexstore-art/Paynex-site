@@ -77,7 +77,7 @@ export default function LoginPage() {
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 required 
-                placeholder="admin@paynix.com"
+                placeholder="adminpaynex@gmail.com"
               />
             </div>
             <div>
