@@ -3,39 +3,31 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { MapPin, Camera, CheckCircle2 } from "lucide-react";
-import { verifyLocation } from "@/lib/geofencing";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function SupervisorCheckIn() {
   const [step, setStep] = useState(1);
-  const [location, setLocation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const handleGPSVerify = () => {
     setLoading(true);
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      navigator.geolocation.getCurrentPosition(() => {
         setLoading(false);
         setStep(2);
       });
     } else {
-      alert("GPS غير مدعوم في هذا المتصفح");
+      alert("GPS غير مدعوم");
       setLoading(false);
     }
   };
 
   const handleFaceVerify = () => {
     setLoading(true);
-    // Simulate face verification delay
     setTimeout(() => {
       setLoading(false);
       setStep(3);
     }, 2000);
-  };
-
-  const handleCheckIn = () => {
-    alert("تم تسجيل الحضور بنجاح!");
-    // Update DB status
   };
 
   return (
@@ -53,9 +45,9 @@ export default function SupervisorCheckIn() {
 
           <AnimatePresence mode="wait">
             {step === 1 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-6">
+              <motion.div key="step1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-6">
                 <MapPin size={64} className="mx-auto text-[#00D4FF]" />
-                <p>يجب التحقق من موقعك الجغرافي داخل نطاق المحافظة المكلف بها.</p>
+                <p>يجب التحقق من موقعك الجغرافي داخل نطاق المحافظة.</p>
                 <Button onClick={handleGPSVerify} disabled={loading} className="w-full bg-[#C9A84C] text-[#0A1628] font-bold">
                   {loading ? "جاري التحديد..." : "تحقق من الموقع"}
                 </Button>
@@ -63,9 +55,9 @@ export default function SupervisorCheckIn() {
             )}
 
             {step === 2 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-6">
+              <motion.div key="step2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-6">
                 <Camera size={64} className="mx-auto text-[#00D4FF]" />
-                <p>يرجى التقاط صورة واضحة لوجهك للتحقق البيومتري.</p>
+                <p>يرجى التقاط صورة واضحة لوجهك.</p>
                 <div className="w-48 h-48 bg-black rounded-lg mx-auto border-2 border-dashed border-gray-600"></div>
                 <Button onClick={handleFaceVerify} disabled={loading} className="w-full bg-[#C9A84C] text-[#0A1628] font-bold">
                   {loading ? "جاري التحقق..." : "التقط الصورة"}
@@ -74,16 +66,10 @@ export default function SupervisorCheckIn() {
             )}
 
             {step === 3 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-6">
+              <motion.div key="step3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-6">
                 <CheckCircle2 size={64} className="mx-auto text-[#10B981]" />
                 <p className="text-xl font-bold">كل شيء جاهز!</p>
-                <div className="text-sm text-gray-400">
-                  الموقع: تم التحقق ✅<br />
-                  الوجه: تم التحقق ✅
-                </div>
-                <Button onClick={handleCheckIn} className="w-full bg-[#10B981] hover:bg-[#0da070] text-white font-bold">
-                  بدء العمل
-                </Button>
+                <Button className="w-full bg-[#10B981] hover:bg-[#0da070] text-white font-bold">بدء العمل</Button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -92,5 +78,3 @@ export default function SupervisorCheckIn() {
     </div>
   );
 }
-
-import { motion, AnimatePresence } from "framer-motion";
