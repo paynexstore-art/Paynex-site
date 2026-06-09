@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
@@ -23,16 +23,25 @@ const orderSchema = z.object({
   months: z.number().min(3).max(36),
 });
 
-export default function OrderFormPage() {
+type OrderFormData = z.infer<typeof orderSchema>;
+
+function OrderFormContent() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const productId = searchParams.get("productId");
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
+      fullName: "",
+      email: "",
+      phone: "",
+      nationalId: "",
+      governorate: "",
+      address: "",
+      job: "",
       downPayment: 0,
       months: 12,
     }
@@ -41,7 +50,7 @@ export default function OrderFormPage() {
   const nextStep = () => setStep(s => s + 1);
   const prevStep = () => setStep(s => s - 1);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: OrderFormData) => {
     setLoading(true);
     try {
       // 1. Create Order in Supabase
@@ -155,5 +164,14 @@ export default function OrderFormPage() {
         </AnimatePresence>
       </form>
     </div>
+  );
+}
+
+
+export default function OrderFormPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-12 max-w-2xl">جاري التحميل...</div>}>
+      <OrderFormContent />
+    </Suspense>
   );
 }

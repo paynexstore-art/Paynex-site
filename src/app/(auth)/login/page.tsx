@@ -72,7 +72,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex justify-center flex-col gap-2">
           <Link href="/register" className="text-sm text-[#C9A84C] hover:underline">ليس لديك حساب؟ سجل الآن</Link>
-          <Link href="/forgot-password" text-sm text-gray-500 hover:underline>نسيت كلمة المرور؟</Link>
+          <Link href="/forgot-password" className="text-sm text-gray-500 hover:underline">نسيت كلمة المرور؟</Link>
         </CardFooter>
       </Card>
     </div>

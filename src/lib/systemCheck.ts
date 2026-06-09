@@ -179,7 +179,7 @@ function checkGoogleOAuth(): CheckResult {
       return {
         status: 'warning',
         message:
-          'Google OAuth not configured (optional - set VITE_GOOGLE_CLIENT_ID in .env for OAuth login)',
+          'Google OAuth not configured (optional - set NEXT_PUBLIC_GOOGLE_CLIENT_ID in .env for OAuth login)',
       };
     }
   } catch (error) {

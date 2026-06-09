@@ -17,7 +17,7 @@ interface MoneyTagConfig {
 }
 
 const MT_CONFIG: MoneyTagConfig = {
-  siteId: import.meta.env.VITE_MONEYTAG_SITE_ID || '',
+  siteId: process.env.NEXT_PUBLIC_MONEYTAG_SITE_ID || '',
   vignetteEnabled: true,
   popunderEnabled: true,
   antiAdblockEnabled: true,

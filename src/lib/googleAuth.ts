@@ -4,11 +4,9 @@ import { getStoredUsers, saveUsers, setCurrentUser } from './auth';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Supabase client for Google OAuth
-// Support both Vite (VITE_) and Next.js (NEXT_PUBLIC_) env vars
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 
-                    import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 
-                        import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Next.js public environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 let supabase: SupabaseClient | null = null;
 if (supabaseUrl && supabaseAnonKey) {

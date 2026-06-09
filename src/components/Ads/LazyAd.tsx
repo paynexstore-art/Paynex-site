@@ -89,7 +89,7 @@ export function LazyAd({
         <ins
           className="adsbygoogle"
           style={{ display: 'block', width: '100%', height }}
-          data-ad-client={import.meta.env.VITE_ADSENSE_CLIENT || 'ca-pub-xxxxxxxxxx'}
+          data-ad-client={process.env.NEXT_PUBLIC_ADSENSE_CLIENT || 'ca-pub-xxxxxxxxxx'}
           data-ad-slot={slotId}
           data-ad-format={format}
           data-full-width-responsive="true"

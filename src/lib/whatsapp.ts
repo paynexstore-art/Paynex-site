@@ -7,8 +7,8 @@
 
 import type { WhatsAppLog } from '@/types';
 
-const API_BASE = import.meta.env.VITE_WHATSAPP_API_URL || '';
-const API_KEY = import.meta.env.VITE_WHATSAPP_API_KEY || '';
+const API_BASE = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || '';
+const API_KEY = process.env.NEXT_PUBLIC_WHATSAPP_API_KEY || '';
 
 export interface WhatsAppMessage {
   to: string;          // E.164 format e.g. +2010xxxx

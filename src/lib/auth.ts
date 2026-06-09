@@ -5,8 +5,8 @@ import { logLogin } from './auditLog';
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase client - created locally, no external imports
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const AUTH_KEY   = 'paynex_auth_user';

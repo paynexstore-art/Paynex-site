@@ -1,14 +1,14 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Validate environment variables with detailed error handling
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ CRITICAL: Missing Supabase credentials!');
   console.error('   Required env vars:');
-  console.error('   - VITE_SUPABASE_URL:', supabaseUrl ? '✅' : '❌');
-  console.error('   - VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅' : '❌');
+  console.error('   - NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? '✅' : '❌');
+  console.error('   - NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅' : '❌');
   
   if (typeof window !== 'undefined') {
     console.warn('⚠️ Supabase client will not work. Check .env file.');
