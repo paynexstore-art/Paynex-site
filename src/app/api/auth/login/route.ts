@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcrypt';
-import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +24,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `الحساب مقفل: ${user.lockReason}` }, { status: 403 });
     }
 
-    // Update last login
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() },
