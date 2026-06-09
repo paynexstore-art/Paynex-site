@@ -1,7 +1,7 @@
 /**
  * Aman Store Product Scraper — PayNex
  *
- * Server-side Node.js / Puppeteer scraper (conceptual for Vite frontend).
+ * Server-side Node.js / Puppeteer scraper.
  * In production this runs as a Supabase Edge Function or cron job.
  *
  * Provides:

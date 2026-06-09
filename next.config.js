@@ -9,8 +9,8 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
   typescript: {
-    // The repository still contains legacy Vite/CRA helper files with loose types.
-    // Do not block production deployment on non-runtime type issues.
+    // Legacy Vite/CRA files have been cleaned up. Strict mode recommended for future.
+    // ignoreBuildErrors kept for compatibility during transition.
     ignoreBuildErrors: true,
   },
   eslint: {
