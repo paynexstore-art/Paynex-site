@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { loginWithEmail } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -19,20 +20,34 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const result = await loginWithEmail(email, password);
 
-    if (loginError) {
-      setError(loginError.message);
+    if ('error' in result && result.error) {
+      setError(result.error);
       setLoading(false);
       return;
     }
 
-    // Successfully logged in
-    // Role based redirection is handled by useAuth or middleware
-    router.push("/");
+    if ('user' in result && result.user) {
+      const role = result.user.role || 'customer';
+      
+      // Also attempt Supabase session for middleware compatibility (optional, may fail if user not in Auth)
+      try {
+        await supabase.auth.signInWithPassword({ email, password });
+      } catch (e) {
+        console.log('Supabase session not created (user may not exist in Supabase Auth yet)');
+      }
+
+      // Role-based redirect
+      if (role === 'admin' || role === 'super_admin') {
+        router.push('/secure-dashboard');
+      } else if (role === 'supervisor') {
+        router.push('/supervisor');
+      } else {
+        router.push('/');
+      }
+    }
+    setLoading(false);
   };
 
   return (
