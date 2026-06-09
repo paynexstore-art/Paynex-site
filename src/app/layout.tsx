@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/shared/Navbar";
-import Footer from "@/components/landing/Footer";
 import PWAInstallBanner from "@/components/shared/PWAInstallBanner";
+import ConditionalLayout from "@/components/ConditionalLayout";
 
 const cairo = Cairo({ subsets: ["arabic"] });
 
@@ -21,12 +20,10 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body className={cairo.className}>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-          <PWAInstallBanner />
-        </div>
+        <ConditionalLayout>
+          {children}
+        </ConditionalLayout>
+        <PWAInstallBanner />
       </body>
     </html>
   );
