@@ -45,7 +45,8 @@ export default function LoginPage() {
     if (result.user) {
       setUser(result.user);
       toast.success(t('تم تسجيل الدخول بنجاح', 'Logged in successfully'));
-      redirectAfterLogin(result.user.role);
+      // Defer navigation slightly so React state update in AuthContext is flushed
+      setTimeout(() => redirectAfterLogin(result.user!.role), 50);
     } else {
       toast.error(result.error ?? t('بيانات غير صحيحة', 'Invalid credentials'));
     }

@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
 import NotificationBell from '@/components/features/NotificationBell';
+import { getCurrentUser } from '@/lib/auth';
 import { canAccessPage } from '@/lib/rbac';
 import { isSpecialAdmin } from '@/lib/adminHelper';
 import qastlyLogo from '@/assets/qastly-logo.png';
@@ -29,15 +30,19 @@ const NAV_ITEMS = [
 ];
 
 export default function AdminLayout() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user: ctxUser, logout, isAdmin } = useAuth();
   const { t } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAccessDenied, setShowAccessDenied] = useState(false);
 
+  // Race-condition fix: fall back to localStorage if React state hasn't synced yet
+  const user = ctxUser ?? getCurrentUser();
+  const effectiveIsAdmin = user?.role === 'admin';
+
   useEffect(() => {
-    if (!user || !isAdmin) {
+    if (!user || !effectiveIsAdmin) {
       navigate('/login');
     } else {
       // Check if user is special admin or has proper admin role
@@ -47,9 +52,9 @@ export default function AdminLayout() {
         setTimeout(() => navigate('/'), 3000);
       }
     }
-  }, [user, isAdmin, navigate]);
+  }, [user, effectiveIsAdmin, navigate]);
 
-  if (!user || !isAdmin) return null;
+  if (!user || !effectiveIsAdmin) return null;
 
   // Show access denied message
   if (showAccessDenied) {
