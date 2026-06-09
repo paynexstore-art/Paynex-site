@@ -55,16 +55,19 @@ export default function ProductsGrid() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 border border-gray-100 group"
+                className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-5 border border-gray-100/50 group overflow-hidden hover:-translate-y-0.5"
               >
                 <Link href={`/orders/new?productId=${product.id}`} className="block">
                   <img 
                   src={getProductImageUrl(product.images?.[0] || product.image)} 
                   alt={product.name_ar || product.nameEn}
-                  className="w-full h-48 object-contain mb-4 rounded-lg cursor-pointer"
+                  className="w-full h-48 object-cover mb-4 rounded-xl border border-gray-100/50 group-hover:scale-[1.02] transition-transform duration-300 cursor-pointer"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/300x300/eee/999?text=No+Image'; }}
                 />
-                <h3 className="font-bold text-[#0A1628] mb-2 line-clamp-2">{product.name_ar}</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-[#0A1628] text-lg line-clamp-2">{product.name_ar}</h3>
+                  {product.category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#C9A84C]/10 text-[#C9A84C] font-medium">{product.category}</span>}
+                </div>
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <span className="text-sm text-gray-500 line-through">{product.original_price} ج.م</span>

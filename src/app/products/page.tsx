@@ -82,12 +82,12 @@ export default function ProductsPage() {
                 <Link
                   href={`/products/${product.id}`}
                   key={product.id}
-                  className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all p-4 border border-gray-100 group"
+                  className="bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 p-5 border border-gray-100/60 group overflow-hidden hover:-translate-y-1"
                 >
                   <img
                     src={imageUrl}
                     alt={product.name_ar}
-                    className="w-full h-48 object-contain mb-4 rounded-lg group-hover:scale-105 transition-transform"
+                    className="w-full h-48 object-cover mb-4 rounded-xl border border-gray-100/50 group-hover:scale-[1.03] transition-transform duration-300"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = "https://placehold.co/400x400/eee/999?text=No+Image";
                     }}

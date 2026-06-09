@@ -20,7 +20,11 @@ export async function middleware(req: NextRequest) {
       .eq('id', session.user.id)
       .single()
     if (user?.role !== 'super_admin' && user?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', req.url))
+      // Fallback: allow if custom auth cookie is set (from login page)
+      const customAuth = req.cookies.get('paynex_custom_auth')?.value;
+      if (!customAuth) {
+        return NextResponse.redirect(new URL('/', req.url))
+      }
     }
   }
 
@@ -35,7 +39,10 @@ export async function middleware(req: NextRequest) {
       .eq('id', session.user.id)
       .single()
     if (user?.role !== 'supervisor') {
-      return NextResponse.redirect(new URL('/', req.url))
+      const customAuth = req.cookies.get('paynex_custom_auth')?.value;
+      if (!customAuth) {
+        return NextResponse.redirect(new URL('/', req.url))
+      }
     }
     if (user?.is_locked) {
       // Allow access to locked page specifically if needed, or redirect

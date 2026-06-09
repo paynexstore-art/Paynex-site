@@ -31,21 +31,32 @@ export default function LoginPage() {
     if ('user' in result && result.user) {
       const role = result.user.role || 'customer';
       
-      // Also attempt Supabase session for middleware compatibility (optional, may fail if user not in Auth)
+      // Set cookie for custom auth fallback (middleware can read it)
+      document.cookie = `paynex_custom_auth=1; path=/; max-age=86400; SameSite=Lax`;
+
+      // Attempt Supabase sign in for full session (required for middleware protected dashboards)
+      let didSupabaseLogin = false;
       try {
-        await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!error) didSupabaseLogin = true;
       } catch (e) {
-        console.log('Supabase session not created (user may not exist in Supabase Auth yet)');
+        console.warn('Supabase Auth signIn failed. Make sure this user exists in Supabase Authentication with the exact same email/password.');
       }
 
-      // Role-based redirect
-      if (role === 'admin' || role === 'super_admin') {
-        router.push('/secure-dashboard');
-      } else if (role === 'supervisor') {
-        router.push('/supervisor');
+      setLoading(false);
+
+      // Force redirect to control panel (dashboard)
+      const target = (role === 'admin' || role === 'super_admin') 
+        ? '/secure-dashboard' 
+        : (role === 'supervisor' ? '/supervisor' : '/');
+
+      if (didSupabaseLogin) {
+        router.push(target);
       } else {
-        router.push('/');
+        // Fallback redirect (works with custom auth)
+        window.location.href = target;
       }
+      return;
     }
     setLoading(false);
   };
