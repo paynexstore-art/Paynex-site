@@ -206,7 +206,7 @@ export default function AdminOrders() {
                     <td className="px-4 py-3 text-sm font-mono text-[#0f2460]">{order.id}</td>
                     <td className="px-4 py-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#0f2460]">{order.customer_name || 'عميل قسطلي'}</p>
+                        <p className="text-sm font-semibold text-[#0f2460]">{order.customer_name || 'عميل باينكس'}</p>
                         <p className="text-xs text-slate-500">{order.customer_phone}</p>
                       </div>
                     </td>

@@ -1,31 +1,31 @@
 import type { SiteSettings, Province, Product, Order, User, Supervisor, Notification, Analytics } from '@/types';
 
-// ============ SITE SETTINGS — Qastly (قسطلي) ============
+// ============ SITE SETTINGS — PayNex (باينكس) ============
 export const DEFAULT_SETTINGS: SiteSettings = {
   primaryColor: '#0a1628',
   secondaryColor: '#c9a84c',
   accentColor: '#00d4ff',
-  logoUrl: '/src/assets/qastly-logo.png',
-  siteNameAr: 'قسطلي',
-  siteNameEn: 'Qastly',
+  logoUrl: '/src/assets/paynex-logo.png',
+  siteNameAr: 'باينكس',
+  siteNameEn: 'PayNex',
   taglineAr: 'حلول التقسيط الذكي للجيل القادم',
   taglineEn: 'Smart Installment Solutions for the Next Generation',
   contactPhone: '01000000000',
   contactWhatsapp: '201000000000',
-  contactEmail: 'info@qastly.com',
-  facebookUrl: 'https://facebook.com/qastly',
-  instagramUrl: 'https://instagram.com/qastly',
-  twitterUrl: 'https://twitter.com/qastly',
-  tiktokUrl: 'https://tiktok.com/@qastly',
-  youtubeUrl: 'https://youtube.com/@qastly',
+  contactEmail: 'info@paynex.com',
+  facebookUrl: 'https://facebook.com/paynex',
+  instagramUrl: 'https://instagram.com/paynex',
+  twitterUrl: 'https://twitter.com/paynex',
+  tiktokUrl: 'https://tiktok.com/@paynex',
+  youtubeUrl: 'https://youtube.com/@paynex',
   inquiryFee: 150,
   defaultInterestRate: 0,
   defaultAdminFee: 2,
   minDownPaymentPercent: 0,
   maxInstallmentMonths: 36,
   defaultInstallmentMonths: 12,
-  footerTextAr: 'قسطلي Qastly — حلول التقسيط الذكي. جميع الحقوق محفوظة 2025',
-  footerTextEn: 'Qastly — Smart Installment Solutions. All rights reserved 2025',
+  footerTextAr: 'باينكس PayNex — حلول التقسيط الذكي. جميع الحقوق محفوظة 2025',
+  footerTextEn: 'PayNex — Smart Installment Solutions. All rights reserved 2025',
   lastSyncDate: new Date().toISOString(),
   syncJsonUrl: '',
   autoSyncEnabled: false,
@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
 
 // ============ TEST CREDENTIALS ============
 export const TEST_CREDENTIALS = {
-  supervisor: { email: 'supervisor.cairo@qastly.com', password: '000000' },
+  supervisor: { email: 'supervisor.cairo@paynex.com', password: '000000' },
   customer: { email: 'aa@gmail.com', password: '000000' },
 };
 
@@ -271,7 +271,7 @@ export const MOCK_SUPERVISORS: Supervisor[] = [
   {
     id: 'sup-001',
     name: 'محمد حسن',
-    email: 'supervisor.cairo@qastly.com',
+    email: 'supervisor.cairo@paynex.com',
     phone: '01098765432',
     role: 'supervisor',
     province: 'cairo',
@@ -296,11 +296,11 @@ export const MOCK_SUPERVISORS: Supervisor[] = [
   },
 ];
 
-// Initialize test users (Qastly credentials)
+// Initialize test users (PayNex credentials)
 export function initTestUsers() {
-  const usersKey = 'qastly_users';
+  const usersKey = 'paynex_users';
   const existing = (() => { try { return JSON.parse(localStorage.getItem(usersKey) ?? '[]'); } catch { return []; } })();
-  if (!existing.find((u: unknown) => u.email === 'aa@gmail.com')) {
+  if (!existing.find((u: User) => u.email === 'aa@gmail.com')) {
     const testCustomer = {
       id: 'cust-test-001',
       name: 'أحمد محمد',
@@ -311,14 +311,14 @@ export function initTestUsers() {
       createdAt: new Date().toISOString(),
     };
     localStorage.setItem(usersKey, JSON.stringify([...existing, testCustomer]));
-    localStorage.setItem('qastly_pass_cust-test-001', '000000');
+    localStorage.setItem('paynex_pass_cust-test-001', '000000');
   }
   // Supervisor test user
-  if (!existing.find((u: unknown) => (u as User).email === 'supervisor.cairo@qastly.com')) {
+  if (!existing.find((u: User) => u.email === 'supervisor.cairo@paynex.com')) {
     const testSupervisor = {
       id: 'sup-test-001',
       name: 'محمد حسن',
-      email: 'supervisor.cairo@qastly.com',
+      email: 'supervisor.cairo@paynex.com',
       phone: '01098765432',
       role: 'supervisor',
       province: 'cairo',
@@ -326,18 +326,18 @@ export function initTestUsers() {
       createdAt: new Date().toISOString(),
     };
     localStorage.setItem(usersKey, JSON.stringify([...existing, testSupervisor]));
-    localStorage.setItem('qastly_pass_sup-test-001', '000000');
+    localStorage.setItem('paynex_pass_sup-test-001', '000000');
   }
 }
 
 // ============ ADMIN CREDENTIALS ============
 export const ADMIN_CREDENTIALS = {
-  email: 'adminqastly@gmail.com',
+  email: 'adminpaynex@gmail.com',
   password: 'Mm.273199',
   user: {
     id: 'admin-001',
     name: 'المدير العام',
-    email: 'adminqastly@gmail.com',
+    email: 'adminpaynex@gmail.com',
     role: 'admin' as const,
     isActive: true,
     createdAt: new Date().toISOString(),

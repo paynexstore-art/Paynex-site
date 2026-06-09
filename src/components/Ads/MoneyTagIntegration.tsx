@@ -1,5 +1,5 @@
 /**
- * MoneyTag Integration — Qastly
+ * MoneyTag Integration — PayNex
  *
  * Anti-adblock + Vignette + Pop-under strategy for maximum revenue.
  * Loads MoneyTag scripts lazily after user interaction milestones
@@ -24,7 +24,7 @@ const MT_CONFIG: MoneyTagConfig = {
   frequencyCapMinutes: 30,
 };
 
-const STORAGE_KEY = 'qastly_mt_last_shown';
+const STORAGE_KEY = 'paynex_mt_last_shown';
 
 function canShowAd(): boolean {
   const last = Number(localStorage.getItem(STORAGE_KEY) || '0');

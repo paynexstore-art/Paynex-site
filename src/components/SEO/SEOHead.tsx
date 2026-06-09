@@ -25,7 +25,7 @@ export function SEOHead({
   modifiedAt,
   breadcrumbs,
 }: SEOHeadProps) {
-  const siteTitle = 'Qastly قسطلي - حلول التقسيط الذكي';
+  const siteTitle = 'PayNex باينكس - حلول التقسيط الذكي';
   const fullTitle = `${title} | ${siteTitle}`;
   const canonicalUrl = url;
   const defaultImage = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&h=630&fit=crop&auto=format';
@@ -35,7 +35,7 @@ export function SEOHead({
   const autoKeywords = keywords.length > 0
     ? keywords
     : [
-        'تقسيط', 'Qastly', 'قسطلي', 'تمويل', 'قسط شهري', 'شراء بالتقسيط',
+        'تقسيط', 'PayNex', 'باينكس', 'تمويل', 'قسط شهري', 'شراء بالتقسيط',
         'موبايلات بالتقسيط', 'أجهزة منزلية بالتقسيط', 'بدون فوائد', '0 مقدم',
       ];
 
@@ -43,14 +43,14 @@ export function SEOHead({
   const organizationSchema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'Qastly قسطلي',
-    alternateName: 'Qastly Installments',
-    url: 'https://qastly.com',
-    logo: 'https://qastly.com/src/assets/qastly-logo.png',
+    name: 'PayNex باينكس',
+    alternateName: 'PayNex Installments',
+    url: 'https://paynex.com',
+    logo: 'https://paynex.com/src/assets/paynex-logo.png',
     sameAs: [
-      'https://facebook.com/qastly',
-      'https://instagram.com/qastly',
-      'https://twitter.com/qastly',
+      'https://facebook.com/paynex',
+      'https://instagram.com/paynex',
+      'https://twitter.com/paynex',
     ],
     contactPoint: {
       '@type': 'ContactPoint',
@@ -65,13 +65,13 @@ export function SEOHead({
   const websiteSchema = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Qastly قسطلي',
-    url: 'https://qastly.com',
+    name: 'PayNex باينكس',
+    url: 'https://paynex.com',
     potentialAction: {
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: 'https://qastly.com/products?search={search_term_string}',
+        urlTemplate: 'https://paynex.com/products?search={search_term_string}',
       },
       'query-input': 'required name=search_term_string',
     },
@@ -100,7 +100,7 @@ export function SEOHead({
     ...(author && { author: { '@type': 'Person', name: author } }),
     ...(publishedAt && { datePublished: publishedAt }),
     ...(modifiedAt && { dateModified: modifiedAt }),
-    ...(type === 'product' && { brand: { '@type': 'Brand', name: 'Qastly' } }),
+    ...(type === 'product' && { brand: { '@type': 'Brand', name: 'PayNex' } }),
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': canonicalUrl,
@@ -174,13 +174,13 @@ export function ProductSEOHead({ product, url }: {
   url: string;
 }) {
   const title = product.nameAr || product.nameEn;
-  const description = product.descriptionAr || product.descriptionEn || `اشتري ${product.nameAr} بالتقسيط بدون فوائد مع قسطلي — ${product.categoryAr || 'إلكترونيات'}`;
+  const description = product.descriptionAr || product.descriptionEn || `اشتري ${product.nameAr} بالتقسيط بدون فوائد مع باينكس — ${product.categoryAr || 'إلكترونيات'}`;
   const keywords = [
     product.nameAr,
     product.nameEn,
     product.brand,
     product.categoryAr,
-    'تقسيط', 'قسط شهري', 'Qastly', 'بدون فوائد',
+    'تقسيط', 'قسط شهري', 'PayNex', 'بدون فوائد',
   ].filter(Boolean) as string[];
 
   return (
@@ -192,8 +192,8 @@ export function ProductSEOHead({ product, url }: {
       url={url}
       type="product"
       breadcrumbs={[
-        { name: 'الرئيسية', url: 'https://qastly.com/' },
-        { name: product.categoryAr || 'المنتجات', url: 'https://qastly.com/products' },
+        { name: 'الرئيسية', url: 'https://paynex.com/' },
+        { name: product.categoryAr || 'المنتجات', url: 'https://paynex.com/products' },
         { name: product.nameAr || 'تفاصيل المنتج', url: url },
       ]}
     />

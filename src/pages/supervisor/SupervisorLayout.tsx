@@ -51,9 +51,9 @@ export default function SupervisorLayout() {
       >
         <div className="p-5 border-b border-white/10 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <img src={logoImg} alt="قسطلي" className="w-9 h-9 object-contain" />
+            <img src={logoImg} alt="باينكس" className="w-9 h-9 object-contain" />
             <div>
-              <div className="text-white font-bold">قسطلي</div>
+              <div className="text-white font-bold">باينكس</div>
               <div className="text-[#d4a339] text-xs">{t('لوحة المشرف', 'Supervisor Panel')}</div>
             </div>
           </Link>

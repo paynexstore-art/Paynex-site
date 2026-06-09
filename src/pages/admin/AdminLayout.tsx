@@ -12,7 +12,7 @@ import NotificationBell from '@/components/features/NotificationBell';
 import { getCurrentUser } from '@/lib/auth';
 import { canAccessPage } from '@/lib/rbac';
 import { isSpecialAdmin } from '@/lib/adminHelper';
-import qastlyLogo from '@/assets/qastly-logo.png';
+import paynexLogo from '@/assets/paynex-logo.png';
 
 const NAV_ITEMS = [
   { path: '/admin',                     icon: LayoutDashboard, labelAr: 'الرئيسية',          labelEn: 'Dashboard',          exact: true },
@@ -91,9 +91,9 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="p-5 border-b border-white/10">
           <Link to="/" className="flex items-center gap-3">
-            <img src={qastlyLogo} alt="Qastly" className="w-9 h-9 object-contain rounded-xl" />
+            <img src={paynexLogo} alt="PayNex" className="w-9 h-9 object-contain rounded-xl" />
             <div>
-              <div className="text-white font-black text-lg">Qastly</div>
+              <div className="text-white font-black text-lg">PayNex</div>
               <div className="text-[#00d4ff] text-[10px] font-semibold tracking-widest uppercase">{t('لوحة المدير العام', 'Super Admin')}</div>
             </div>
           </Link>

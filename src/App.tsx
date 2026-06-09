@@ -64,7 +64,7 @@ function PageLoader() {
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-[#00d4ff]/30 border-t-[#00d4ff] rounded-full animate-spin mx-auto mb-4" />
         <p className="text-[#00d4ff] text-sm font-semibold tracking-widest uppercase">
-          Qastly
+          PayNex
         </p>
       </div>
     </div>

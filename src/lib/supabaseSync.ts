@@ -1,5 +1,5 @@
 // ============================================================
-// Supabase Sync Service — Qastly
+// Supabase Sync Service — PayNex
 // ============================================================
 
 import { supabase } from './supabase';
@@ -44,7 +44,7 @@ export interface SyncStatus {
 }
 
 // Local storage prefix
-const STORAGE_PREFIX = 'qastly_';
+const STORAGE_PREFIX = 'paynex_';
 
 /**
  * Save settings with dual storage (localStorage + Supabase)

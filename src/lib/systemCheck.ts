@@ -107,7 +107,7 @@ function checkLocalStorage(): CheckResult {
 function checkAuthSystem(): CheckResult {
   try {
     const currentUser = getCurrentUser();
-    const AUTH_KEY = 'qastly_auth_user';
+    const AUTH_KEY = 'paynex_auth_user';
     const hasAuthData = localStorage.getItem(AUTH_KEY) !== null;
 
     // Check consistency

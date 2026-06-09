@@ -13,7 +13,7 @@ import PWAInstallBanner from '@/components/features/PWAInstallBanner';
 import { useApp } from '@/contexts/AppContext';
 import { PRODUCT_CATEGORIES } from '@/constants/categories';
 import type { Product } from '@/types';
-import qastlyHero from '@/assets/qastly-hero.jpg';
+import paynexHero from '@/assets/paynex-hero.jpg';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -21,24 +21,24 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const TESTIMONIALS = [
   { name: 'أحمد محمد', province: 'القاهرة', text: 'خدمة رائعة! حصلت على موبايلي بقسط شهري بسيط وبدون أي مشاكل. تجربة ممتازة.' },
-  { name: 'سارة علي', province: 'الجيزة', text: 'المشرف كان محترماً جداً وإجراءات سريعة. قسطلي غيرت فكرتي عن التقسيط تماماً.' },
+  { name: 'سارة علي', province: 'الجيزة', text: 'المشرف كان محترماً جداً وإجراءات سريعة. باينكس غيرت فكرتي عن التقسيط تماماً.' },
   { name: 'محمود حسن', province: 'الإسكندرية', text: 'أفضل خدمة تقسيط في مصر. أسعار مناسبة وخدمة عملاء استثنائية.' },
-  { name: 'فاطمة إبراهيم', province: 'الشرقية', text: 'كنت محتاجة لابتوب للشغل وقسطلي حلت مشكلتي في أسرع وقت ممكن.' },
+  { name: 'فاطمة إبراهيم', province: 'الشرقية', text: 'كنت محتاجة لابتوب للشغل وباينكس حلت مشكلتي في أسرع وقت ممكن.' },
   { name: 'عمر خالد', province: 'الإسماعيلية', text: 'اشتريت تليفزيون كبير وقسطته على 24 شهر، الدفعة الشهرية خفيفة جداً على الميزانية.' },
-  { name: 'منى سعيد', province: 'المنيا', text: 'تعامل راقي من المشرف وسرعة في إتمام الطلب. نصحت كل أصحابي بقسطلي.' },
+  { name: 'منى سعيد', province: 'المنيا', text: 'تعامل راقي من المشرف وسرعة في إتمام الطلب. نصحت كل أصحابي بباينكس.' },
   { name: 'كريم رمضان', province: 'أسيوط', text: 'بدون فوائد حقيقي! حصلت على PS5 بسهولة تامة. الكلام ده صحيح فعلاً.' },
   { name: 'هدى عبد الله', province: 'قنا', text: 'خدمة عملاء ممتازة والمشرف رد في أقل من ساعة على جميع استفساراتي.' },
   { name: 'أيمن طه', province: 'سوهاج', text: 'الموقع سهل جداً وواضح. قدمت الطلب واتقبل في نفس اليوم تقريباً.' },
-  { name: 'نهاد مصطفى', province: 'بني سويف', text: 'اشتريت غسالة جديدة لبيتي بدون أي ضغط مالي. شكراً قسطلي على الخدمة الرائعة.' },
-  { name: 'محمد عبدالعزيز', province: 'القاهرة', text: 'تجربة ممتازة وموثوقة. قسطلي فعلاً حلت لي مشكلة التقسيط البنكي المعقد.' },
-  { name: 'ليلى سامي', province: 'الجيزة', text: 'الموافقة سريعة والمشرف محترم. أنصح أي حد يفكر يقسط من قسطلي.' },
+  { name: 'نهاد مصطفى', province: 'بني سويف', text: 'اشتريت غسالة جديدة لبيتي بدون أي ضغط مالي. شكراً باينكس على الخدمة الرائعة.' },
+  { name: 'محمد عبدالعزيز', province: 'القاهرة', text: 'تجربة ممتازة وموثوقة. باينكس فعلاً حلت لي مشكلة التقسيط البنكي المعقد.' },
+  { name: 'ليلى سامي', province: 'الجيزة', text: 'الموافقة سريعة والمشرف محترم. أنصح أي حد يفكر يقسط من باينكس.' },
   { name: 'خالد محمود', province: 'الإسكندرية', text: 'سعر المنتج نفس السوق والقسط مناسب. ما فيش زيادة خفية ولا رسوم غير متوقعة.' },
-  { name: 'نورهان أحمد', province: 'الدقهلية', text: 'أول مرة أقسط online وكانت تجربة رائعة. شكراً لفريق قسطلي على التواصل المستمر.' },
+  { name: 'نورهان أحمد', province: 'الدقهلية', text: 'أول مرة أقسط online وكانت تجربة رائعة. شكراً لفريق باينكس على التواصل المستمر.' },
   { name: 'عبدالرحمن علي', province: 'القليوبية', text: 'التوصيل سريع والمشرف جاب كل المستندات المطلوبة. 10/10 للخدمة.' },
-  { name: 'سامية فؤاد', province: 'الفيوم', text: 'قسطت تليفزيون لمطبخي. القسط الشهري أقل من فاتورة النت! شكراً قسطلي.' },
-  { name: 'مصطفى إبراهيم', province: 'كفر الشيخ', text: 'التعامل شفاف والمشرف واضح في كل خطوة. قسطلي اسمها على مسمى.' },
+  { name: 'سامية فؤاد', province: 'الفيوم', text: 'قسطت تليفزيون لمطبخي. القسط الشهري أقل من فاتورة النت! شكراً باينكس.' },
+  { name: 'مصطفى إبراهيم', province: 'كفر الشيخ', text: 'التعامل شفاف والمشرف واضح في كل خطوة. باينكس اسمها على مسمى.' },
   { name: 'ريم حسام', province: 'دمياط', text: 'المنتج وصلني سليم ومغلف بعناية. تجربة تقسيط ناجحة بكل المقاييس.' },
-  { name: 'ياسر محسن', province: 'بور سعيد', text: 'الحاسبة التفاعلية ساعدتني أختار أفضل خطة. قسطلي فعلاً ذكية.' },
+  { name: 'ياسر محسن', province: 'بور سعيد', text: 'الحاسبة التفاعلية ساعدتني أختار أفضل خطة. باينكس فعلاً ذكية.' },
   { name: 'هاجر سيد', province: 'السويس', text: 'خدمة ما بعد البيع ممتازة. لما واجهت مشكلة في الجهاز، ردوا عليّ فوراً.' },
 ];
 
@@ -164,7 +164,7 @@ export default function HomePage() {
       {/* ══════════ HERO ══════════ */}
       <section className="relative min-h-[92vh] overflow-hidden flex items-center">
         <div className="absolute inset-0">
-          <img src={currentBanner?.imageUrl ?? qastlyHero} alt="Qastly قسطلي" className="w-full h-full object-cover object-center" />
+          <img src={currentBanner?.imageUrl ?? paynexHero} alt="PayNex باينكس" className="w-full h-full object-cover object-center" />
           <div className="absolute inset-0 bg-[#0a1628]/80 backdrop-blur-[2px]" />
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #00d4ff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
         </div>
@@ -272,18 +272,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══════════ WHY QASTLY — Minimalist Cards ══════════ */}
+      {/* ══════════ WHY PAYNEX — Minimalist Cards ══════════ */}
       <section className="py-20 bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <div className="text-[#c9a84c] text-xs font-bold tracking-widest uppercase mb-4">{t('لماذا قسطلي؟', 'Why Qastly?')}</div>
+              <div className="text-[#c9a84c] text-xs font-bold tracking-widest uppercase mb-4">{t('لماذا باينكس؟', 'Why PayNex?')}</div>
               <h2 className="text-4xl font-black text-[#0a1628] leading-tight mb-5">
                 {t('التمويل الذكي', 'Smart Financing')}<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0a1628] to-[#00d4ff]">{t('للجيل القادم', 'For the Next Generation')}</span>
               </h2>
               <p className="text-slate-400 leading-relaxed mb-10 text-sm max-w-md">
-                {t('قسطلي ليست مجرد تقسيط — هي منظومة مالية ذكية مصممة لتبسيط تجربتك وتحقيق أحلامك بأقل جهد.', 'Qastly is not just installments — it is a smart financial ecosystem designed to simplify your experience and achieve your dreams with minimal effort.')}
+                {t('باينكس ليست مجرد تقسيط — هي منظومة مالية ذكية مصممة لتبسيط تجربتك وتحقيق أحلامك بأقل جهد.', 'PayNex is not just installments — it is a smart financial ecosystem designed to simplify your experience and achieve your dreams with minimal effort.')}
               </p>
               <div className="grid grid-cols-2 gap-4">
                 {features.map((f, i) => {
@@ -371,7 +371,7 @@ export default function HomePage() {
 
       {/* ══════════ CALCULATOR — Glass ══════════ */}
       <section id="calculator" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 gradient-qastly" />
+        <div className="absolute inset-0 gradient-paynex" />
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #00d4ff 1px, transparent 0)', backgroundSize: '32px 32px' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#00d4ff]/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -394,7 +394,7 @@ export default function HomePage() {
       <section className="py-16 bg-[#0a1628] overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 mb-10 text-center">
           <div className="text-[#c9a84c] text-xs font-bold tracking-widest uppercase mb-3">{t('آراء العملاء', 'Customer Reviews')}</div>
-          <h2 className="text-3xl font-bold text-white">{t('مليون+ عميل يثق في قسطلي', '1M+ Customers Trust Qastly')}</h2>
+          <h2 className="text-3xl font-bold text-white">{t('مليون+ عميل يثق في باينكس', '1M+ Customers Trust PayNex')}</h2>
         </div>
         <div className="mb-4 overflow-hidden">
           <div className="flex gap-4 animate-marquee-rtl" style={{ width: 'max-content' }}>

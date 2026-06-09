@@ -1,5 +1,5 @@
 /**
- * AdminSEO — Qastly SEO & Revenue Optimization Control Panel
+ * AdminSEO — PayNex SEO & Revenue Optimization Control Panel
  *
  * Allows the admin to:
  * 1. Edit Meta tags per page (title, description, keywords, alt text)
@@ -46,17 +46,17 @@ interface AdConfig {
 }
 
 const DEFAULT_PAGES: PageSEO[] = [
-  { path: '/', titleAr: 'Qastly قسطلي - حلول التقسيط الذكي', titleEn: 'Qastly - Smart Installment Solutions', descriptionAr: 'اشتري موبايلات ولابتوبات وأجهزة منزلية بالتقسيط بدون فوائد. أكثر من 1000 منتج في 27 محافظة.', descriptionEn: 'Buy phones, laptops & home appliances in installments with zero hidden interest. 1000+ products across 27 provinces.', keywords: ['تقسيط', 'قسطلي', 'Qastly', 'موبايلات بالتقسيط', 'أجهزة منزلية', '0 فوائد'], altText: 'Qastly Hero Banner - Smart Installments', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
-  { path: '/products', titleAr: 'تصفح المنتجات — Qastly قسطلي', titleEn: 'Browse Products — Qastly', descriptionAr: 'تصفح أحدث الموبايلات واللابتوبات والأجهزة المنزلية المتاحة بالتقسيط.', descriptionEn: 'Browse latest phones, laptops & home appliances available on installments.', keywords: ['منتجات', 'تقسيط', 'Qastly', 'موبايلات', 'لابتوبات'], altText: 'Qastly Products Catalog', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
-  { path: '/contact', titleAr: 'تواصل مع قسطلي — Qastly | خدمة العملاء', titleEn: 'Contact Qastly | Customer Service', descriptionAr: 'تواصل مع فريق خدمة العملاء في قسطلي للاستفسار والدعم.', descriptionEn: 'Contact Qastly customer support team for inquiries.', keywords: ['تواصل', 'دعم', 'Qastly', 'خدمة عملاء'], altText: 'Qastly Contact', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
-  { path: '/login', titleAr: 'تسجيل الدخول — Qastly قسطلي', titleEn: 'Login — Qastly', descriptionAr: 'سجّل الدخول إلى حسابك في قسطلي لمتابعة طلباتك.', descriptionEn: 'Log in to your Qastly account to track orders.', keywords: ['تسجيل دخول', 'Qastly', 'حسابي'], altText: 'Qastly Login', ogImage: '', noindex: true, lastModified: new Date().toISOString() },
+  { path: '/', titleAr: 'PayNex باينكس - حلول التقسيط الذكي', titleEn: 'PayNex - Smart Installment Solutions', descriptionAr: 'اشتري موبايلات ولابتوبات وأجهزة منزلية بالتقسيط بدون فوائد. أكثر من 1000 منتج في 27 محافظة.', descriptionEn: 'Buy phones, laptops & home appliances in installments with zero hidden interest. 1000+ products across 27 provinces.', keywords: ['تقسيط', 'باينكس', 'PayNex', 'موبايلات بالتقسيط', 'أجهزة منزلية', '0 فوائد'], altText: 'PayNex Hero Banner - Smart Installments', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
+  { path: '/products', titleAr: 'تصفح المنتجات — PayNex باينكس', titleEn: 'Browse Products — PayNex', descriptionAr: 'تصفح أحدث الموبايلات واللابتوبات والأجهزة المنزلية المتاحة بالتقسيط.', descriptionEn: 'Browse latest phones, laptops & home appliances available on installments.', keywords: ['منتجات', 'تقسيط', 'PayNex', 'موبايلات', 'لابتوبات'], altText: 'PayNex Products Catalog', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
+  { path: '/contact', titleAr: 'تواصل مع باينكس — PayNex | خدمة العملاء', titleEn: 'Contact PayNex | Customer Service', descriptionAr: 'تواصل مع فريق خدمة العملاء في باينكس للاستفسار والدعم.', descriptionEn: 'Contact PayNex customer support team for inquiries.', keywords: ['تواصل', 'دعم', 'PayNex', 'خدمة عملاء'], altText: 'PayNex Contact', ogImage: '', noindex: false, lastModified: new Date().toISOString() },
+  { path: '/login', titleAr: 'تسجيل الدخول — PayNex باينكس', titleEn: 'Login — PayNex', descriptionAr: 'سجّل الدخول إلى حسابك في باينكس لمتابعة طلباتك.', descriptionEn: 'Log in to your PayNex account to track orders.', keywords: ['تسجيل دخول', 'PayNex', 'حسابي'], altText: 'PayNex Login', ogImage: '', noindex: true, lastModified: new Date().toISOString() },
 ];
 
-const STORAGE_KEY = 'qastly_seo_pages';
-const HEADER_CODE_KEY = 'qastly_custom_header_code';
-const FOOTER_CODE_KEY = 'qastly_custom_footer_code';
-const ROBOTS_KEY = 'qastly_robots_txt';
-const ADS_CONFIG_KEY = 'qastly_ad_config';
+const STORAGE_KEY = 'paynex_seo_pages';
+const HEADER_CODE_KEY = 'paynex_custom_header_code';
+const FOOTER_CODE_KEY = 'paynex_custom_footer_code';
+const ROBOTS_KEY = 'paynex_robots_txt';
+const ADS_CONFIG_KEY = 'paynex_ad_config';
 
 function loadPages(): PageSEO[] {
   try {
@@ -110,8 +110,8 @@ function generateRobots(pages: PageSEO[]): string {
     'Disallow: /supervisor',
     'Disallow: /login',
     'Disallow: /auth/',
-    'Sitemap: https://qastly.com/sitemap.xml',
-    'Host: https://qastly.com',
+    'Sitemap: https://paynex.com/sitemap.xml',
+    'Host: https://paynex.com',
   ];
   pages.forEach(p => {
     if (p.noindex) {
@@ -125,7 +125,7 @@ function generateSitemap(pages: PageSEO[]): string {
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...pages.filter(p => !p.noindex).map(p => `  <url>\n    <loc>https://qastly.com${p.path}</loc>\n    <lastmod>${p.lastModified.split('T')[0]}</lastmod>\n    <priority>${p.path === '/' ? '1.0' : '0.8'}</priority>\n  </url>`),
+    ...pages.filter(p => !p.noindex).map(p => `  <url>\n    <loc>https://paynex.com${p.path}</loc>\n    <lastmod>${p.lastModified.split('T')[0]}</lastmod>\n    <priority>${p.path === '/' ? '1.0' : '0.8'}</priority>\n  </url>`),
     '</urlset>',
   ];
   return xml.join('\n');
@@ -333,7 +333,7 @@ export default function AdminSEO() {
                     <label className="text-xs font-bold text-slate-600 mb-1 block">OG Image URL</label>
                     <input
                       className="input-field"
-                      placeholder="https://qastly.com/og-image.jpg"
+                      placeholder="https://paynex.com/og-image.jpg"
                       value={selectedPage.ogImage}
                       onChange={e => updatePage(selectedPage.path, { ogImage: e.target.value })}
                     />

@@ -58,7 +58,7 @@ export default function AdminAIMarketing() {
           ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 40);
           ctx.fillStyle = '#c9a84c';
           ctx.font = '48px Arial';
-          ctx.fillText('Qastly - قسطلي', canvas.width / 2, canvas.height / 2 + 60);
+          ctx.fillText('PayNex - باينكس', canvas.width / 2, canvas.height / 2 + 60);
           ctx.strokeStyle = '#c9a84c';
           ctx.lineWidth = 20;
           ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
@@ -84,7 +84,7 @@ export default function AdminAIMarketing() {
   const downloadAsset = (asset: GeneratedAsset) => {
     if (!asset.imageUrl) return;
     const link = document.createElement('a');
-    link.download = `qastly-${asset.type}-${asset.id}.png`;
+    link.download = `paynex-${asset.type}-${asset.id}.png`;
     link.href = asset.imageUrl;
     link.click();
     toast.success('تم التحميل');

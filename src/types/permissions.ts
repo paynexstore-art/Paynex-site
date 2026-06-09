@@ -1,5 +1,5 @@
 // ============================================================
-// Permission Types and Constants — Qastly Platform
+// Permission Types and Constants — PayNex Platform
 // ============================================================
 
 export type Permission = 

@@ -11,7 +11,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-white" dir="rtl">
       <SEOHead
         title={t('سياسة الخصوصية', 'Privacy Policy')}
-        description={t('سياسة الخصوصية لـ Qastly - كيف نحمي بياناتك', 'Qastly privacy policy - how we protect your data')}
+        description={t('سياسة الخصوصية لـ PayNex - كيف نحمي بياناتك', 'PayNex privacy policy - how we protect your data')}
       />
       <Navbar />
 
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
             </div>
             <div className="flex items-center gap-2">
               <Mail size={16} className="text-[#00d4ff]" />
-              <span>privacy@qastly.com</span>
+              <span>privacy@paynex.com</span>
             </div>
           </div>
         </div>

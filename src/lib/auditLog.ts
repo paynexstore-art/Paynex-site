@@ -1,5 +1,5 @@
 /**
- * Audit Log System — Qastly
+ * Audit Log System — PayNex
  *
  * Append-only log stored in localStorage.
  * Records every significant action (login, status change, setting update, etc.)
@@ -9,7 +9,7 @@
 import type { AuditLog, UserRole } from '@/types';
 import { generateId } from './utils';
 
-const AUDIT_KEY = 'qastly_audit_log';
+const AUDIT_KEY = 'paynex_audit_log';
 const MAX_ENTRIES = 1000; // Keep last 1000 entries
 
 export function getAuditLogs(): AuditLog[] {

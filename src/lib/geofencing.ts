@@ -1,5 +1,5 @@
 /**
- * Geofencing & GPS Utilities — Qastly
+ * Geofencing & GPS Utilities — PayNex
  *
  * Uses browser's Geolocation API + Haversine formula for distance.
  * Mock-location detection is done server-side in production (here: heuristic checks).

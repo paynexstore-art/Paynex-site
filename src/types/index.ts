@@ -1,5 +1,5 @@
 // ============================================================
-// Application Types — Qastly (قسطلي)
+// Application Types — PayNex (باينكس)
 // ============================================================
 
 export type Lang = 'ar' | 'en';
@@ -207,6 +207,8 @@ export interface SiteSettings {
   tiktokUrl: string;
   youtubeUrl: string;
   inquiryFee: number;
+  consultationFee?: number;
+  deliveryFee?: number;
   defaultInterestRate: number;
   defaultAdminFee: number;
   minDownPaymentPercent: number;
@@ -220,6 +222,13 @@ export interface SiteSettings {
   autoSyncIntervalHours: number;
   banners: Banner[];
   syncErrorMessage?: string;
+  // Supabase legacy fields (backward compatibility)
+  installmentMonths?: number[];
+  maxInstallmentAmount?: number;
+  minInstallmentAmount?: number;
+  siteName?: string;
+  supportEmail?: string;
+  supportPhone?: string;
 }
 
 // ——— Province ———
@@ -264,6 +273,20 @@ export interface WhatsAppLog {
   status: 'queued' | 'sent' | 'delivered' | 'read' | 'failed';
   sentAt: string;
   errorMessage?: string;
+}
+
+// ——— Audit Log ———
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: UserRole;
+  action: string;
+  entity: 'auth' | 'order' | 'wallet' | 'settings' | 'product' | 'user';
+  entityId?: string;
+  before?: string;
+  after?: string;
+  timestamp: string;
 }
 
 // ——— Notification ———

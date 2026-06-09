@@ -14,7 +14,10 @@ export default function NotificationBell() {
 
   useEffect(() => {
     if (!user) return;
-    const load = () => setNotifications(getNotifications(user.id));
+    const load = async () => {
+      const notifs = await getNotifications(user.id);
+      setNotifications(notifs);
+    };
     load();
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
@@ -26,7 +29,10 @@ export default function NotificationBell() {
     setOpen(!open);
     if (!open && user) {
       markNotificationsRead(user.id);
-      setTimeout(() => setNotifications(getNotifications(user.id)), 300);
+      setTimeout(async () => {
+        const notifs = await getNotifications(user.id);
+        setNotifications(notifs);
+      }, 300);
     }
   }
 

@@ -231,16 +231,17 @@ export async function handleGoogleCallback(
  * Create or update local user from Supabase user
  */
 async function createOrUpdateLocalUser(supaUser: unknown): Promise<User> {
+  const s = supaUser as { id: string; email?: string; user_metadata?: Record<string, string> };
   const users = getStoredUsers();
-  const existingUser = users.find(u => u.googleId === supaUser.id || u.email === supaUser.email);
+  const existingUser = users.find(u => u.googleId === s.id || u.email === s.email);
   
   if (existingUser) {
     const updatedUser: User = {
       ...existingUser,
-      name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || existingUser.name,
-      email: supaUser.email || existingUser.email,
-      avatar: supaUser.user_metadata?.avatar_url || supaUser.user_metadata?.picture || existingUser.avatar,
-      googleId: supaUser.id,
+      name: s.user_metadata?.full_name || s.user_metadata?.name || existingUser.name,
+      email: s.email || existingUser.email,
+      avatar: s.user_metadata?.avatar_url || s.user_metadata?.picture || existingUser.avatar,
+      googleId: s.id,
       updatedAt: new Date().toISOString(),
     };
     
@@ -250,13 +251,13 @@ async function createOrUpdateLocalUser(supaUser: unknown): Promise<User> {
   }
 
   const newUser: User = {
-    id: `google-${supaUser.id}`,
-    name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || 'Google User',
-    email: supaUser.email || '',
+    id: `google-${s.id}`,
+    name: s.user_metadata?.full_name || s.user_metadata?.name || 'Google User',
+    email: s.email || '',
     role: 'customer',
     isActive: true,
-    googleId: supaUser.id,
-    avatar: supaUser.user_metadata?.avatar_url || supaUser.user_metadata?.picture,
+    googleId: s.id,
+    avatar: s.user_metadata?.avatar_url || s.user_metadata?.picture,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

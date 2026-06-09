@@ -1,5 +1,5 @@
 /**
- * Financial Engine — Qastly Installment Calculator
+ * Financial Engine — PayNex Installment Calculator
  *
  * Formula (per spec):
  *   Monthly = [((productPrice + adminFeeAmt) * (1 + interestRate)) + inquiryFee] / months
@@ -11,7 +11,7 @@
  */
 
 import type { InstallmentPlan } from '@/types';
-import { getSiteSettings } from './storage';
+import { getSiteSettingsSync } from './storage';
 
 export interface InstallmentCalculatorInput {
   productPrice: number;
@@ -26,7 +26,7 @@ export interface InstallmentCalculatorInput {
  * Core installment calculation — clean & commented per spec.
  */
 export function calculateInstallment(input: InstallmentCalculatorInput): InstallmentPlan {
-  const settings = getSiteSettings();
+  const settings = getSiteSettingsSync();
 
   // --- Resolve configuration (allow per-order admin overrides) ---
   const interestRatePct = input.interestRateOverride ?? settings.defaultInterestRate ?? 0;
@@ -47,7 +47,7 @@ export function calculateInstallment(input: InstallmentCalculatorInput): Install
   // --- Interest rate as decimal ---
   const interestDecimal = interestRatePct / 100;
 
-  // --- Apply Qastly formula ---
+  // --- Apply PayNex formula ---
   // Step 1: (principal + adminFee) * (1 + interestRate)
   const withInterest = (principal + adminFeeAmount) * (1 + interestDecimal);
 
@@ -80,7 +80,7 @@ export function calculateInstallment(input: InstallmentCalculatorInput): Install
  * Available month options up to admin-configured max.
  */
 export function getAvailableMonths(): number[] {
-  const settings = getSiteSettings();
+  const settings = getSiteSettingsSync();
   const max = settings.maxInstallmentMonths ?? 36;
   const options: number[] = [];
   for (let m = 3; m <= max; m += 3) {

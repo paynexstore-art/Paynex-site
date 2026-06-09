@@ -105,7 +105,7 @@ export default function OrderStatusPage() {
           <div className="flex items-center gap-3">
             <CheckCircle size={20} className="text-teal-500 flex-shrink-0" />
             <p className="font-semibold text-teal-800">
-              {t('تم التسليم وتفعيل خطة الأقساط — شكراً لثقتك في قسطلي', 'Delivered! Installment plan is now active — Thank you for choosing Qastly')}
+              {t('تم التسليم وتفعيل خطة الأقساط — شكراً لثقتك في باينكس', 'Delivered! Installment plan is now active — Thank you for choosing PayNex')}
             </p>
           </div>
         </div>

@@ -54,16 +54,45 @@ export async function fetchSiteSettings(): Promise<SiteSettings> {
 
     if (data) {
       const settings: SiteSettings = {
+        primaryColor: data.primary_color ?? '#0a1628',
+        secondaryColor: data.secondary_color ?? '#c9a84c',
+        accentColor: data.accent_color ?? '#00d4ff',
+        logoUrl: data.logo_url ?? '/src/assets/paynex-logo.png',
+        siteNameAr: data.site_name_ar ?? 'باينكس',
+        siteNameEn: data.site_name_en ?? 'PayNex',
+        taglineAr: data.tagline_ar ?? 'حلول التقسيط الذكي للجيل القادم',
+        taglineEn: data.tagline_en ?? 'Smart Installment Solutions for the Next Generation',
+        contactPhone: data.contact_phone ?? '01000000000',
+        contactWhatsapp: data.contact_whatsapp ?? '201000000000',
+        contactEmail: data.contact_email ?? 'info@paynex.com',
+        facebookUrl: data.facebook_url ?? 'https://facebook.com/paynex',
+        instagramUrl: data.instagram_url ?? 'https://instagram.com/paynex',
+        twitterUrl: data.twitter_url ?? 'https://twitter.com/paynex',
+        tiktokUrl: data.tiktok_url ?? 'https://tiktok.com/@paynex',
+        youtubeUrl: data.youtube_url ?? 'https://youtube.com/@paynex',
+        inquiryFee: data.inquiry_fee ?? 150,
         consultationFee: data.consultation_fee ?? 200,
         deliveryFee: data.delivery_fee ?? 50,
+        defaultInterestRate: data.default_interest_rate ?? 0,
+        defaultAdminFee: data.default_admin_fee ?? 2,
+        minDownPaymentPercent: data.min_down_payment_percent ?? 0,
+        maxInstallmentMonths: data.max_installment_months ?? 36,
+        defaultInstallmentMonths: data.default_installment_months ?? 12,
+        footerTextAr: data.footer_text_ar ?? 'باينكس PayNex — حلول التقسيط الذكي. جميع الحقوق محفوظة 2025',
+        footerTextEn: data.footer_text_en ?? 'PayNex — Smart Installment Solutions. All rights reserved 2025',
+        lastSyncDate: data.updated_at ?? new Date().toISOString(),
+        syncJsonUrl: data.sync_json_url ?? '',
+        autoSyncEnabled: data.auto_sync_enabled ?? false,
+        autoSyncIntervalHours: data.auto_sync_interval_hours ?? 24,
+        banners: data.banners ?? [],
+        syncErrorMessage: data.sync_error_message,
+        // Supabase legacy fields
         installmentMonths: data.installment_months ?? [3, 6, 12],
         maxInstallmentAmount: data.max_installment_amount ?? 50000,
         minInstallmentAmount: data.min_installment_amount ?? 500,
-        siteName: data.site_name ?? 'Qastly',
-        siteNameAr: data.site_name_ar ?? 'قسطلي',
-        supportEmail: data.support_email ?? 'support@qastly.com',
+        siteName: data.site_name ?? 'PayNex',
+        supportEmail: data.support_email ?? 'support@paynex.com',
         supportPhone: data.support_phone ?? '+20201234567',
-        lastSyncDate: data.updated_at ?? new Date().toISOString(),
       };
 
       // Update local cache
@@ -137,30 +166,33 @@ export async function fetchAllProducts(): Promise<Product[]> {
     }
 
     if (data && Array.isArray(data)) {
-      const products: Product[] = data.map((p: unknown) => ({
-        id: p.id,
-        name: p.name,
-        nameAr: p.name_ar ?? p.name,
-        nameEn: p.name_en ?? p.name,
-        description: p.description ?? '',
-        descriptionAr: p.description_ar ?? '',
-        descriptionEn: p.description_en ?? '',
-        price: p.price,
-        originalPrice: p.original_price,
-        images: p.images ?? [],
-        category: p.category ?? '',
-        categoryAr: p.category_ar ?? '',
-        brand: p.brand ?? '',
-        source: p.source ?? 'manual',
-        sourceId: p.source_id,
-        sourceUrl: p.source_url ?? '',
-        isActive: p.is_active ?? true,
-        stock: p.stock ?? 0,
-        specs: p.specs ?? {},
-        lastSyncedAt: p.last_synced_at ?? new Date().toISOString(),
-        createdAt: p.created_at ?? new Date().toISOString(),
-        adminPriceOverride: p.admin_price_override,
-      }));
+      const products: Product[] = data.map((p: unknown) => {
+        const raw = p as Record<string, unknown>;
+        return {
+          id: String(raw.id ?? ''),
+          name: String(raw.name ?? ''),
+          nameAr: String(raw.name_ar ?? raw.name ?? ''),
+          nameEn: String(raw.name_en ?? raw.name ?? ''),
+          description: String(raw.description ?? ''),
+          descriptionAr: String(raw.description_ar ?? ''),
+          descriptionEn: String(raw.description_en ?? ''),
+          price: Number(raw.price ?? 0),
+          originalPrice: raw.original_price ? Number(raw.original_price) : undefined,
+          images: Array.isArray(raw.images) ? raw.images as string[] : [],
+          category: String(raw.category ?? ''),
+          categoryAr: String(raw.category_ar ?? ''),
+          brand: String(raw.brand ?? ''),
+          source: (raw.source as 'aman' | 'btech' | 'manual') ?? 'manual',
+          sourceId: raw.source_id ? String(raw.source_id) : undefined,
+          sourceUrl: raw.source_url ? String(raw.source_url) : undefined,
+          isActive: Boolean(raw.is_active ?? true),
+          stock: Number(raw.stock ?? 0),
+          specs: (raw.specs as Record<string, string>) ?? {},
+          lastSyncedAt: String(raw.last_synced_at ?? new Date().toISOString()),
+          createdAt: String(raw.created_at ?? new Date().toISOString()),
+          adminPriceOverride: raw.admin_price_override ? Number(raw.admin_price_override) : undefined,
+        };
+      });
 
       // Update local cache
       saveLocalProducts(products);

@@ -4,10 +4,10 @@ import { generateId, addDays } from './utils';
 import * as supabaseSync from './supabaseDataSync';
 
 const KEY = {
-  settings:    'qastly_settings',
-  products:    'qastly_products',
-  orders:      'qastly_orders',
-  supervisors: 'qastly_supervisors',
+  settings:    'paynex_settings',
+  products:    'paynex_products',
+  orders:      'paynex_orders',
+  supervisors: 'paynex_supervisors',
 };
 
 // ===== SCRAPER / SYNC HISTORY (Export early for AdminDashboard import) =====
@@ -25,7 +25,7 @@ export interface ScraperImportRecord {
   durationMs: number;
 }
 
-const SCRAPER_HISTORY_KEY = 'qastly_scraper_history';
+const SCRAPER_HISTORY_KEY = 'paynex_scraper_history';
 const MAX_HISTORY = 20;
 
 export function getScraperHistory(): ScraperImportRecord[] {
@@ -100,13 +100,17 @@ export function importScrapedProducts(
         const newProd: Product = {
           id: generateId(),
           name: (raw.name as string) ?? 'Unknown',
-          nameAr: (raw.nameAr as string) ?? 'غير معروف',
+          nameAr: (raw.nameAr as string) ?? (raw.name as string) ?? 'غير معروف',
+          nameEn: (raw.nameEn as string) ?? (raw.name as string) ?? 'Unknown',
           description: (raw.description as string) ?? '',
-          descriptionAr: (raw.descriptionAr as string) ?? '',
+          descriptionAr: (raw.descriptionAr as string) ?? (raw.description as string) ?? '',
+          descriptionEn: (raw.descriptionEn as string) ?? (raw.description as string) ?? '',
           price,
           category: (raw.category as string) ?? '',
-          categoryAr: (raw.categoryAr as string) ?? '',
-          image: (raw.image as string) ?? '',
+          categoryAr: (raw.categoryAr as string) ?? (raw.category as string) ?? '',
+          images: raw.image ? [(raw.image as string)] : [],
+          brand: (raw.brand as string) ?? '',
+          isActive: true,
           stock: parseInt(String(raw.stock ?? '0'), 10) || 0,
           sourceId,
           source: source as 'btech' | 'manual',
@@ -288,7 +292,7 @@ export async function updateOrder(id: string, updates: Partial<Order>): Promise<
       addNotification({
         userId: o.customerId, type: 'order-update',
         titleAr: 'تم تسليم المنتج وتفعيل الأقساط', titleEn: 'Product Delivered',
-        messageAr: 'تم تسليم منتجك وتفعيل خطة الأقساط. شكراً لثقتك في قسطلي.',
+        messageAr: 'تم تسليم منتجك وتفعيل خطة الأقساط. شكراً لثقتك في باينكس.',
         messageEn: 'Your product has been delivered and installment plan activated.',
         orderId: id,
       });
@@ -493,7 +497,7 @@ export interface SalaryRecord {
 }
 
 function getSalaryStorageKey(supervisorId: string, month: string) {
-  return `qastly_salary_${supervisorId}_${month}`;
+  return `paynex_salary_${supervisorId}_${month}`;
 }
 
 export function getSalaryRecord(supervisorId: string, month: string): SalaryRecord | null {
@@ -605,41 +609,41 @@ export async function approveMonthlySalary(supervisorId: string, adminId: string
 
 // ===== NOTIFICATIONS =====
 export async function getNotifications(userId: string): Promise<import('@/types').Notification[]> {
-  try { return JSON.parse(localStorage.getItem(`qastly_notifications_${userId}`) ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem(`paynex_notifications_${userId}`) ?? '[]'); }
   catch { return []; }
 }
 
-export async function addNotification(notif: Omit<import('@/types').Notification, 'id' | 'createdAt' | 'isRead'>): Promise<void> {
+export async function addNotification(notif: Omit<import('@/types').Notification, 'id' | 'createdAt' | 'isRead'> & { isRead?: boolean }): Promise<void> {
   const notifications = await getNotifications(notif.userId);
-  const newNotif = { ...notif, id: generateId(), isRead: false, createdAt: new Date().toISOString() };
-  localStorage.setItem(`qastly_notifications_${notif.userId}`, JSON.stringify([newNotif, ...notifications]));
+  const newNotif: import('@/types').Notification = { ...notif, id: generateId(), isRead: notif.isRead ?? false, createdAt: new Date().toISOString() };
+  localStorage.setItem(`paynex_notifications_${notif.userId}`, JSON.stringify([newNotif, ...notifications]));
   
   // Also sync to Supabase
-  await supabaseSync.saveNotificationToSupabase(notif);
+  await supabaseSync.saveNotificationToSupabase(notif as Omit<import('@/types').Notification, 'id' | 'createdAt'>);
 }
 
 export async function markNotificationsRead(userId: string): Promise<void> {
   const n = (await getNotifications(userId)).map(notif => ({ ...notif, isRead: true }));
-  localStorage.setItem(`qastly_notifications_${userId}`, JSON.stringify(n));
+  localStorage.setItem(`paynex_notifications_${userId}`, JSON.stringify(n));
 }
 
 // ===== ATTENDANCE =====
 export function getAttendanceRecords(supervisorId: string): AttendanceRecord[] {
-  try { return JSON.parse(localStorage.getItem(`qastly_attendance_${supervisorId}`) ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem(`paynex_attendance_${supervisorId}`) ?? '[]'); }
   catch { return []; }
 }
 
 export function saveAttendanceRecord(record: Omit<AttendanceRecord, 'id'>): AttendanceRecord {
   const records = getAttendanceRecords(record.supervisorId);
   const newRecord: AttendanceRecord = { ...record, id: generateId() };
-  localStorage.setItem(`qastly_attendance_${record.supervisorId}`, JSON.stringify([newRecord, ...records]));
+  localStorage.setItem(`paynex_attendance_${record.supervisorId}`, JSON.stringify([newRecord, ...records]));
   return newRecord;
 }
 
 export function updateAttendanceRecord(supervisorId: string, date: string, updates: Partial<AttendanceRecord>): void {
   const records = getAttendanceRecords(supervisorId);
   const updated = records.map(r => r.date === date ? { ...r, ...updates } : r);
-  localStorage.setItem(`qastly_attendance_${supervisorId}`, JSON.stringify(updated));
+  localStorage.setItem(`paynex_attendance_${supervisorId}`, JSON.stringify(updated));
 }
 
 // ===== TESTIMONIALS (Admin-managed) =====
@@ -655,13 +659,13 @@ export interface TestimonialItem {
 
 export function getTestimonials(): TestimonialItem[] {
   try {
-    const raw = localStorage.getItem('qastly_testimonials');
+    const raw = localStorage.getItem('paynex_testimonials');
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
 }
 
 export function saveTestimonials(items: TestimonialItem[]): void {
-  localStorage.setItem('qastly_testimonials', JSON.stringify(items));
+  localStorage.setItem('paynex_testimonials', JSON.stringify(items));
 }
 
 export function addTestimonial(item: Omit<TestimonialItem, 'id' | 'createdAt'>): TestimonialItem {

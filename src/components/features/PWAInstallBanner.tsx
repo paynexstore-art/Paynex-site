@@ -14,7 +14,7 @@ export default function PWAInstallBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const dismissed = localStorage.getItem('qastly_pwa_dismissed');
+    const dismissed = localStorage.getItem('paynex_pwa_dismissed');
     if (dismissed) return;
 
     const handler = (e: Event) => {
@@ -60,7 +60,7 @@ export default function PWAInstallBanner() {
   function handleDismiss() {
     setShowBanner(false);
     setDismissed(true);
-    localStorage.setItem('qastly_pwa_dismissed', '1');
+    localStorage.setItem('paynex_pwa_dismissed', '1');
   }
 
   if (!showBanner || dismissed) return null;
@@ -72,7 +72,7 @@ export default function PWAInstallBanner() {
           <Smartphone size={20} />
         </div>
         <div>
-          <p className="font-semibold text-sm">{t('حمّل تطبيق قسطلي', 'Download Qastly App')}</p>
+          <p className="font-semibold text-sm">{t('حمّل تطبيق باينكس', 'Download PayNex App')}</p>
           <p className="text-white/70 text-xs">
             {t('ثبّت التطبيق على هاتفك للوصول السريع', 'Install on your phone for quick access')}
           </p>

@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
 
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
+
 interface AdSlotProps {
   slotId: string;
   format?: 'vertical' | 'horizontal' | 'square' | 'responsive';
@@ -13,8 +19,8 @@ export function AdSlot({ slotId, format = 'responsive', className = '' }: AdSlot
     script.async = true;
     script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxx';
     script.onload = () => {
-      if (window.adsbygoogle) {
-        window.adsbygoogle.push({});
+      if (typeof window !== 'undefined' && window.adsbygoogle) {
+        (window.adsbygoogle as unknown[]).push({});
       }
     };
     document.head.appendChild(script);
@@ -39,6 +45,12 @@ export function AdSlot({ slotId, format = 'responsive', className = '' }: AdSlot
     }
   };
 
+  const adClient = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GOOGLE_AD_CLIENT
+    ? process.env.NEXT_PUBLIC_GOOGLE_AD_CLIENT
+    : (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_AD_CLIENT)
+      ? import.meta.env.VITE_GOOGLE_AD_CLIENT
+      : 'ca-pub-xxxxxxxxxxxxxxxx';
+
   return (
     <div className={`flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 ${getAdDimensions()} ${className}`}>
       <ins
@@ -50,7 +62,7 @@ export function AdSlot({ slotId, format = 'responsive', className = '' }: AdSlot
             height: 'auto'
           })
         }}
-        data-ad-client={import.meta.env.VITE_GOOGLE_AD_CLIENT || 'ca-pub-xxxxxxxxxxxxxxxx'}
+        data-ad-client={adClient}
         data-ad-slot={slotId}
         data-ad-format={format === 'responsive' ? 'auto' : 'fixed'}
         data-full-width-responsive={format === 'responsive' ? 'true' : 'false'}

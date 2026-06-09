@@ -1,5 +1,5 @@
 /**
- * WhatsApp API Integration — Qastly
+ * WhatsApp API Integration — PayNex
  *
  * Placeholder for WhatsApp Business API (Meta / Twilio / 360dialog).
  * Provides auto-reminders, late alerts, and thank-you messages.
@@ -19,16 +19,16 @@ export interface WhatsAppMessage {
 
 const TEMPLATES: Record<WhatsAppLog['template'], { ar: string; en: string }> = {
   installment_reminder: {
-    ar: 'تذكير: قسطك الشهري بقيمة {{1}} ج.م مستحق بتاريخ {{2}}. رقم الطلب: {{3}}. شكراً لاستخدامك قسطلي.',
-    en: 'Reminder: your monthly installment of {{1}} EGP is due on {{2}}. Order #{{3}}. Thank you for choosing Qastly.',
+    ar: 'تذكير: قسطك الشهري بقيمة {{1}} ج.م مستحق بتاريخ {{2}}. رقم الطلب: {{3}}. شكراً لاستخدامك باينكس.',
+    en: 'Reminder: your monthly installment of {{1}} EGP is due on {{2}}. Order #{{3}}. Thank you for choosing PayNex.',
   },
   late_alert: {
     ar: 'تنبيه: تأخر سداد قسطك الشهري {{1}} ج.م لطلب {{2}}. يرجى السداد فوراً لتجنب الإجراءات القانونية.',
     en: 'Alert: overdue monthly installment {{1}} EGP for order {{2}}. Please settle immediately to avoid legal action.',
   },
   thank_you: {
-    ar: 'شكراً لثقتك في قسطلي! تم تسليم طلبك {{1}} بنجاح. نتمنى لك تجربة ممتازة.',
-    en: 'Thank you for trusting Qastly! Your order {{1}} has been delivered successfully. Enjoy!',
+    ar: 'شكراً لثقتك في باينكس! تم تسليم طلبك {{1}} بنجاح. نتمنى لك تجربة ممتازة.',
+    en: 'Thank you for trusting PayNex! Your order {{1}} has been delivered successfully. Enjoy!',
   },
   admin_approval: {
     ar: 'تمت الموافقة على طلبك {{1}} من قبل الإدارة. سيقوم المشرف بالتواصل لتحديد موعد التوصيل.',
@@ -94,7 +94,7 @@ function renderTemplate(template: string, params: string[]): string {
 }
 
 function storeLog(log: WhatsAppLog): void {
-  const key = 'qastly_whatsapp_logs';
+  const key = 'paynex_whatsapp_logs';
   const existing = (() => {
     try { return JSON.parse(localStorage.getItem(key) || '[]') as WhatsAppLog[]; } catch { return []; }
   })();
@@ -103,7 +103,7 @@ function storeLog(log: WhatsAppLog): void {
 }
 
 export function getWhatsAppLogs(): WhatsAppLog[] {
-  try { return JSON.parse(localStorage.getItem('qastly_whatsapp_logs') || '[]') as WhatsAppLog[]; } catch { return []; }
+  try { return JSON.parse(localStorage.getItem('paynex_whatsapp_logs') || '[]') as WhatsAppLog[]; } catch { return []; }
 }
 
 /**

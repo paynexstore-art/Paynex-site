@@ -689,8 +689,8 @@ export default function OrderFormPage() {
 
               <p className="text-lg text-slate-600 mb-6 leading-relaxed">
                 {t(
-                  'سيقوم أحد مشرفي قسطلي بالتواصل معك في أقرب وقت لتأكيد الطلب.',
-                  'One of our Qastly supervisors will contact you soon to confirm your order.'
+                  'سيقوم أحد مشرفي باينكس بالتواصل معك في أقرب وقت لتأكيد الطلب.',
+                  'One of our PayNex supervisors will contact you soon to confirm your order.'
                 )}
               </p>
 

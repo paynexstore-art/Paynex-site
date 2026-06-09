@@ -1,5 +1,5 @@
 /**
- * LazyAd — Qastly Ad Revenue Optimization
+ * LazyAd — PayNex Ad Revenue Optimization
  *
  * Lazy-loads ad slots via IntersectionObserver to prevent
  * layout shift (CLS) and speed up initial page paint.

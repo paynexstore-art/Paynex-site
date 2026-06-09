@@ -1,5 +1,5 @@
 /**
- * Pricing Engine for Qastly Platform
+ * Pricing Engine for PayNex Platform
  * Calculates monthly installments based on admin-configurable parameters
  */
 
@@ -79,7 +79,7 @@ export function calculateMonthlyInstallment(
  */
 export function getActivePricingConfig(): PricingConfig {
   try {
-    const stored = localStorage.getItem('qastly_pricing_config');
+    const stored = localStorage.getItem('paynex_pricing_config');
     if (stored) {
       return { ...DEFAULT_PRICING_CONFIG, ...JSON.parse(stored) };
     }
@@ -93,7 +93,7 @@ export function getActivePricingConfig(): PricingConfig {
  * Save pricing config (admin only)
  */
 export function savePricingConfig(config: PricingConfig): void {
-  localStorage.setItem('qastly_pricing_config', JSON.stringify(config));
+  localStorage.setItem('paynex_pricing_config', JSON.stringify(config));
 }
 
 /**

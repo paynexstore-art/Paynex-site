@@ -1,5 +1,5 @@
 /**
- * E-Signature Utilities — Qastly
+ * E-Signature Utilities — PayNex
  *
  * Captures a digital signature from customer (canvas) and embeds it
  * into the order record with metadata (IP, timestamp, user-agent).

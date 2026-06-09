@@ -1,5 +1,5 @@
 {
-  "name": "qastly-site",
+  "name": "paynex-site",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -65,12 +65,13 @@
     "jspdf": "^3.0.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.462.0",
+    "next": "^16.2.7",
     "next-themes": "^0.3.0",
     "qrcode": "^1.5.4",
-    "react": "^18.3.1",
+    "react": "^19.2.7",
     "react-calendar": "^6.0.0",
     "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.7",
     "react-dropzone": "^14.3.8",
     "react-helmet-async": "^2.0.5",
     "react-hook-form": "^7.53.0",
@@ -93,8 +94,8 @@
   "devDependencies": {
     "@eslint/js": "^9.9.0",
     "@tailwindcss/typography": "^0.5.15",
-    "@types/node": "^22.5.5",
-    "@types/react": "^18.3.3",
+    "@types/node": "^22.19.20",
+    "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.20",
@@ -104,7 +105,7 @@
     "globals": "^15.9.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
-    "typescript": "^5.5.3",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
   }

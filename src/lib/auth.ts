@@ -9,8 +9,8 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const AUTH_KEY   = 'qastly_auth_user';
-const USERS_KEY  = 'qastly_users';
+const AUTH_KEY   = 'paynex_auth_user';
+const USERS_KEY  = 'paynex_users';
 
 export function getCurrentUser(): User | null {
   const stored = localStorage.getItem(AUTH_KEY);
@@ -34,8 +34,8 @@ export function saveUsers(users: User[]): void {
 
 function getSupervisors(): Supervisor[] {
   try {
-    // Must match KEY.supervisors in storage.ts ('qastly_supervisors')
-    const stored = localStorage.getItem('qastly_supervisors');
+    // Must match KEY.supervisors in storage.ts ('paynex_supervisors')
+    const stored = localStorage.getItem('paynex_supervisors');
     if (stored) return JSON.parse(stored) as Supervisor[];
   } catch (err) {
     console.warn('Failed to parse supervisors from storage:', err);
@@ -43,7 +43,7 @@ function getSupervisors(): Supervisor[] {
   return MOCK_SUPERVISORS;
 }
 function getPasswords(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem('qastly_sup_passwords') ?? '{}'); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem('paynex_sup_passwords') ?? '{}'); } catch { return {}; }
 }
 
 /**
@@ -156,7 +156,7 @@ export async function loginWithEmail(
   const allUsers = getStoredUsers();
   const customer = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (customer) {
-    const storedHash = localStorage.getItem(`qastly_pass_${customer.id}`);
+    const storedHash = localStorage.getItem(`paynex_pass_${customer.id}`);
     if (storedHash === password) {
       setCurrentUser(customer);
       logLogin(customer.id, customer.name, 'customer', true);
@@ -214,12 +214,13 @@ export async function registerUser(data: {
     phone: data.phone || undefined,
     role: 'customer',
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`,
+    createdAt: new Date().toISOString(),
   };
 
   // Save to localStorage for session
   const updated = [...allUsers, newUser];
   saveUsers(updated);
-  localStorage.setItem(`qastly_pass_${newUser.id}`, data.password);
+  localStorage.setItem(`paynex_pass_${newUser.id}`, data.password);
 
   // Save to Supabase for persistence
   try {

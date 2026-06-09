@@ -59,7 +59,7 @@ export default function AdminSocialExport() {
     if (selectedProduct) {
       const price = selectedProduct.price?.toLocaleString('ar-EG') || '';
       const name = selectedProduct.nameAr || selectedProduct.name;
-      const autoContent = `🛍️ ${name}\n\n💰 السعر: ${price} ج.م\n📦 تقسيط يبدأ من 0 مقدم و 0% فائدة!\n\n🌟 قسطلي - Qastly\nأفضل حلول التقسيط في مصر\n\n#قسطلي #Qastly #تقسيط #${selectedProduct.category}`;
+      const autoContent = `🛍️ ${name}\n\n💰 السعر: ${price} ج.م\n📦 تقسيط يبدأ من 0 مقدم و 0% فائدة!\n\n🌟 باينكس - PayNex\nأفضل حلول التقسيط في مصر\n\n#باينكس #PayNex #تقسيط #${selectedProduct.category}`;
       setContent(autoContent);
     }
   }, [selectedProduct]);

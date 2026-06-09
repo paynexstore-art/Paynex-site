@@ -98,11 +98,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex">
       {/* Left panel - hero image */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <img src={heroBanner} alt="قسطلي" className="w-full h-full object-cover" />
+        <img src={heroBanner} alt="باينكس" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-[#0f2460]/90 to-[#0f2460]/70" />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-12">
-          <img src={logoImg} alt="قسطلي" className="w-20 h-20 mb-6" />
-          <h1 className="text-4xl font-black mb-4">قسطلي</h1>
+          <img src={logoImg} alt="باينكس" className="w-20 h-20 mb-6" />
+          <h1 className="text-4xl font-black mb-4">باينكس</h1>
           <p className="text-white/80 text-lg text-center leading-relaxed">
             التقسيط الذكي في مصر<br />اشتري أي منتج بأقساط مريحة
           </p>
@@ -121,8 +121,8 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <img src={logoImg} alt="قسطلي" className="w-10 h-10" />
-            <span className="text-2xl font-black text-[#0f2460]">قسطلي</span>
+            <img src={logoImg} alt="باينكس" className="w-10 h-10" />
+            <span className="text-2xl font-black text-[#0f2460]">باينكس</span>
           </div>
 
           {/* Tabs */}

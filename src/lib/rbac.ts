@@ -1,5 +1,5 @@
 // ============================================================
-// RBAC (Role-Based Access Control) — Qastly Platform
+// RBAC (Role-Based Access Control) — PayNex Platform
 // ============================================================
 
 import { UserRoleType, Permission, ROLE_PERMISSIONS_MAP, PAGE_ACCESS_CONTROL, UserPermissions } from '@/types/permissions';

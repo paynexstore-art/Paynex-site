@@ -1,5 +1,5 @@
 // ============================================================
-// Admin User Helper — Qastly Platform
+// Admin User Helper — PayNex Platform
 // ============================================================
 
 import { SPECIAL_ADMINS, ADMIN_ROLES } from '@/constants/roles';
@@ -61,5 +61,5 @@ export function ensureAdminPermissions(userId: string, userName: string, email: 
  * Verify user has admin access before showing admin pages
  */
 export function requiresAdminAccess(email: string, role: string): boolean {
-  return isSpecialAdmin(email) || ADMIN_ROLES.includes(role as UserRoleType);
+  return isSpecialAdmin(email) || ADMIN_ROLES.includes(role as 'super_admin' | 'admin');
 }

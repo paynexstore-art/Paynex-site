@@ -1,5 +1,5 @@
 /**
- * Aman Store Product Scraper — Qastly
+ * Aman Store Product Scraper — PayNex
  *
  * Server-side Node.js / Puppeteer scraper (conceptual for Vite frontend).
  * In production this runs as a Supabase Edge Function or cron job.
@@ -99,7 +99,7 @@ export function isValidPriceUpdate(current: number, incoming: number | null): bo
  */
 export async function scrapeAmanStoreCatalog(): Promise<ScrapedProduct[]> {
   // Simulate a 24-hour cron sync by returning cached data if < 24h.
-  const cacheKey = 'qastly_aman_cache';
+  const cacheKey = 'paynex_aman_cache';
   const cached = localStorage.getItem(cacheKey);
   if (cached) {
     try {

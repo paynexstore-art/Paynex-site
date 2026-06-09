@@ -1,5 +1,5 @@
 /**
- * Internal Credit Scoring Engine — Qastly
+ * Internal Credit Scoring Engine — PayNex
  *
  * Generates a 0–100 risk score to assist admin decision-making.
  * Score is advisory only — final decision is always made by the Super Admin.

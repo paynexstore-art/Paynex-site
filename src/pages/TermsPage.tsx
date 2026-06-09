@@ -11,7 +11,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-white" dir="rtl">
       <SEOHead
         title={t('الشروط والأحكام', 'Terms and Conditions')}
-        description={t('الشروط والأحكام لاستخدام Qastly', 'Terms and conditions for using Qastly')}
+        description={t('الشروط والأحكام لاستخدام PayNex', 'Terms and conditions for using PayNex')}
       />
       <Navbar />
 
@@ -31,7 +31,7 @@ export default function TermsPage() {
             {
               icon: CheckCircle,
               title: 'قبول الشروط',
-              text: 'باستخدامك لموقع Qastly فإنك توافق على جميع الشروط والأحكام المذكورة هنا. إذا كنت لا توافق على أي من هذه الشروط، يُرجى عدم استخدام الموقع.',
+              text: 'باستخدامك لموقع PayNex فإنك توافق على جميع الشروط والأحكام المذكورة هنا. إذا كنت لا توافق على أي من هذه الشروط، يُرجى عدم استخدام الموقع.',
             },
             {
               icon: Scale,

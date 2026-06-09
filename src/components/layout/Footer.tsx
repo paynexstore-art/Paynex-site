@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube, Twitter } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
-import qastlyLogo from '@/assets/qastly-logo.png';
+import paynexLogo from '@/assets/paynex-logo.png';
+const logoSrc = typeof paynexLogo === 'string' ? paynexLogo : (paynexLogo as unknown as { src: string }).src;
 
 export default function Footer() {
   const { t, settings } = useApp();
@@ -14,7 +15,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <img src={qastlyLogo} alt="Qastly" className="h-11 w-11 object-contain rounded-xl" />
+              <img src={logoSrc} alt="PayNex" className="h-11 w-11 object-contain rounded-xl" />
               <div>
                 <div className="font-black text-2xl text-white tracking-tight">{settings.siteNameEn}</div>
                 <div className="text-[#00d4ff] text-xs font-semibold tracking-widest uppercase mt-0.5">
@@ -24,8 +25,8 @@ export default function Footer() {
             </div>
             <p className="text-slate-400 text-sm leading-relaxed mb-5">
               {t(
-                'قسطلي — منظومة التمويل الذكي للجيل القادم. اشتري منتجاتك المفضلة بأقساط شهرية ميسرة بدون فوائد خفية.',
-                "Qastly — Smart financing for the next generation. Buy your favorites with easy monthly installments and no hidden fees."
+                'باينكس — منظومة التمويل الذكي للجيل القادم. اشتري منتجاتك المفضلة بأقساط شهرية ميسرة بدون فوائد خفية.',
+                "PayNex — Smart financing for the next generation. Buy your favorites with easy monthly installments and no hidden fees."
               )}
             </p>
             <div className="flex gap-3">

@@ -31,8 +31,8 @@ export default function AdminMarketing() {
     const product = products.find(p => p.id === selectedProduct);
     if (tab === 'post') {
       const mockPost = product
-        ? `🛒 احصل على ${product.nameAr} بأقساط مريحة!\n💰 السعر: ${formatCurrency(product.price)} فقط\n✅ بدون فوائد - بدون مقدم\n📞 تواصل معنا الآن وقدم طلبك\n#قسطلي #تقسيط #${product.brand}`
-        : `🌟 عروض قسطلي الحصرية!\n💳 اشتري الآن وادفع بعدين\n✅ تقسيط بدون فوائد على جميع المنتجات\n📱 زيارة موقعنا الآن\n#قسطلي #تقسيط_ذكي`;
+        ? `🛒 احصل على ${product.nameAr} بأقساط مريحة!\n💰 السعر: ${formatCurrency(product.price)} فقط\n✅ بدون فوائد - بدون مقدم\n📞 تواصل معنا الآن وقدم طلبك\n#باينكس #تقسيط #${product.brand}`
+        : `🌟 عروض باينكس الحصرية!\n💳 اشتري الآن وادفع بعدين\n✅ تقسيط بدون فوائد على جميع المنتجات\n📱 زيارة موقعنا الآن\n#باينكس #تقسيط_ذكي`;
       setPostText(mockPost);
     } else {
       setGenerated(`https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=800&fit=crop&t=${Date.now()}`);
@@ -151,7 +151,7 @@ export default function AdminMarketing() {
                 <button onClick={handleCopyPost} className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm">
                   <Copy size={14} />{t('نسخ', 'Copy')}
                 </button>
-                <button onClick={() => { const el = document.createElement('a'); el.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(postText); el.download = 'qastly-post.txt'; el.click(); }}
+                <button onClick={() => { const el = document.createElement('a'); el.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(postText); el.download = 'paynex-post.txt'; el.click(); }}
                   className="btn-outline flex-1 flex items-center justify-center gap-2 text-sm">
                   <Download size={14} />{t('تحميل', 'Download')}
                 </button>
@@ -162,7 +162,7 @@ export default function AdminMarketing() {
               <div className="rounded-2xl overflow-hidden mb-4 bg-gradient-to-br from-[#0f2460] to-[#d4a339] aspect-square relative">
                 <img src={generated} alt="generated" className="w-full h-full object-cover opacity-70" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6">
-                  <div className="text-3xl font-black mb-2">قسطلي</div>
+                  <div className="text-3xl font-black mb-2">باينكس</div>
                   <div className="text-lg font-semibold">اشتري الآن بالتقسيط</div>
                   <div className="badge-gold mt-3">بدون فوائد</div>
                 </div>
