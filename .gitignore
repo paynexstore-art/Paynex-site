@@ -5,11 +5,8 @@ build
 dist
 .env
 .env.local
-.env.production
 .npm
 .cache
-*.log
 package-lock.json
 pnpm-lock.yaml
 bun.lock
-.vercel
