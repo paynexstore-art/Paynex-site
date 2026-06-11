@@ -82,9 +82,9 @@ export default function AdminProductsPage() {
               </TableRow>
             ) : (
               products.map((product) => {
-                // Fix image handling: images is often a JSON array in DB
-                const imagesArray = Array.isArray(product.images) ? product.images : [];
-                const mainImage = imagesArray[0] || null;
+                // FIX: Use getProductImages to safely handle JSON vs Array vs String
+                const productImages = getProductImages(product.images, product.category);
+                const mainImage = productImages[0];
                 
                 return (
                   <TableRow key={product.id} className="hover:bg-gray-50 transition-colors">

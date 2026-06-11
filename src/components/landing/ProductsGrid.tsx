@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { calculateInstallment } from "@/lib/pricing";
-import { getProductImageUrl } from "@/lib/image";
+import { getProductImageUrl, getProductImages } from "@/lib/image";
 import Link from "next/link";
 
 export default function ProductsGrid() {
@@ -49,6 +49,10 @@ export default function ProductsGrid() {
               inquiryFee: 100
             });
 
+            // FIX: Use getProductImages to safely handle JSON vs Array vs String
+            const productImages = getProductImages(product.images, product.category);
+            const mainImage = productImages[0];
+
             return (
               <motion.div
                 key={product.id}
@@ -59,7 +63,7 @@ export default function ProductsGrid() {
               >
                 <Link href={`/orders/new?productId=${product.id}`} className="block">
                   <img 
-                  src={getProductImageUrl(product.images?.[0] || product.image)} 
+                  src={getProductImageUrl(mainImage)} 
                   alt={product.name_ar || product.nameEn}
                   className="w-full h-48 object-cover mb-4 rounded-xl border border-gray-100/50 group-hover:scale-[1.02] transition-transform duration-300 cursor-pointer"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/300x300/eee/999?text=No+Image'; }}
