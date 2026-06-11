@@ -40,17 +40,17 @@ export default function AdminSupervisorsPage() {
             {supervisors.map((s) => (
               <TableRow key={s.id}>
                 <TableCell>
-                  <div className="font-bold">{s.user?.full_name}</div>
+                  <div className="font-bold">{s.user?.full_name || s.user?.fullName}</div>
                   <div className="text-xs text-gray-400">{s.user?.email}</div>
                 </TableCell>
-                <TableCell>{s.assigned_governorate}</TableCell>
-                <TableCell>{s.base_salary} ج.م</TableCell>
+                <TableCell>{s.assigned_governorate || s.assignedGovernorate}</TableCell>
+                <TableCell>{s.base_salary || s.baseSalary} ج.م</TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">
-                    <span className={`px-2 py-1 rounded text-[10px] w-fit font-bold ${s.is_checked_in ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {s.is_checked_in ? 'مُسجل حضور' : 'غير متصل'}
+                    <span className={`px-2 py-1 rounded text-[10px] w-fit font-bold ${s.is_checked_in || s.isCheckedIn ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {s.is_checked_in || s.isCheckedIn ? 'مُسجل حضور' : 'غير متصل'}
                     </span>
-                    {s.user?.is_locked && <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] w-fit font-bold flex items-center gap-1"><Lock size={10} /> مقفل مالياً</span>}
+                    {s.user?.is_locked || s.user?.isLocked ? <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] w-fit font-bold flex items-center gap-1"><Lock size={10} /> مقفل مالياً</span> : null}
                   </div>
                 </TableCell>
                 <TableCell className="flex gap-2">

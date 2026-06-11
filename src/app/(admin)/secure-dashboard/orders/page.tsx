@@ -51,10 +51,10 @@ export default function AdminOrdersPage() {
           <TableBody>
             {orders.map((order) => (
               <TableRow key={order.id}>
-                <TableCell className="font-bold">{order.order_number}</TableCell>
-                <TableCell>{order.customer_name}</TableCell>
-                <TableCell>{order.product?.name_ar}</TableCell>
-                <TableCell>{order.customer_governorate}</TableCell>
+                <TableCell className="font-bold">{order.order_number || order.orderNumber}</TableCell>
+                <TableCell>{order.customer_name || order.customerName}</TableCell>
+                <TableCell>{order.product?.name_ar || order.product?.nameAr}</TableCell>
+                <TableCell>{order.customer_governorate || order.customerGovernorate}</TableCell>
                 <TableCell>{getStatusBadge(order.status)}</TableCell>
                 <TableCell className="flex gap-2">
                   <Button variant="ghost" size="icon" title="عرض التفاصيل"><Eye size={16} /></Button>

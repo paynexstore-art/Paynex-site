@@ -41,14 +41,14 @@ export default function AdminProductsPage() {
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-3">
                     <img src={getProductImageUrl(product.images?.[0])} className="w-10 h-10 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/40x40/eee/999?text=No"; }} />
-                    {product.name_ar}
+                    {product.name_ar || product.nameAr}
                   </div>
                 </TableCell>
                 <TableCell>{product.category}</TableCell>
-                <TableCell>{product.display_price || product.original_price} ج.م</TableCell>
+                <TableCell>{product.display_price || product.original_price || product.originalPrice} ج.م</TableCell>
                 <TableCell>
-                  <span className={`px-2 py-1 rounded text-xs ${product.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {product.is_active ? 'نشط' : 'ملغى'}
+                  <span className={`px-2 py-1 rounded text-xs ${product.is_active || product.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {product.is_active || product.isActive ? 'نشط' : 'ملغى'}
                   </span>
                 </TableCell>
                 <TableCell className="flex gap-2">
