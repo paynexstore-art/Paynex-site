@@ -6,6 +6,7 @@ import { LayoutDashboard, ShoppingCart, Users, Package, Settings, BarChart3, Shi
 import { getCurrentUser, clearCurrentUser } from "@/lib/auth";
 
 const menuItems = [
+  { label: "مركز التحكم", icon: <Shield size={20} />, href: "/secure-dashboard/command-center" },
   { label: "الرئيسية", icon: <LayoutDashboard size={20} />, href: "/secure-dashboard" },
   { label: "الطلبات", icon: <ShoppingCart size={20} />, href: "/secure-dashboard/orders" },
   { label: "المشرفين", icon: <Users size={20} />, href: "/secure-dashboard/supervisors" },
