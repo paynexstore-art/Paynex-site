@@ -3,11 +3,13 @@ import { ADMIN_CREDENTIALS, MOCK_SUPERVISORS } from '@/constants/data';
 import { generateId } from './utils';
 import { logLogin } from './auditLog';
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 // Supabase client - created locally, no external imports
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 const AUTH_KEY   = 'paynex_auth_user';
 const USERS_KEY  = 'paynex_users';
@@ -104,8 +106,18 @@ export async function loginWithEmail(
         };
       }
       // Check password from database (default to '000000')
-      const correctPassword = dbSupervisor.password || '000000';
-      if (password === correctPassword) {
+      const dbPassword = dbSupervisor.password || '000000';
+      let isPasswordCorrect = false;
+
+      if (dbPassword.startsWith('$2')) {
+        // It's a bcrypt hash
+        isPasswordCorrect = await bcrypt.compare(password, dbPassword);
+      } else {
+        // It's plain text
+        isPasswordCorrect = password === dbPassword;
+      }
+
+      if (isPasswordCorrect) {
         const supervisorUser: User = {
           id: dbSupervisor.id,
           name: dbSupervisor.name,
