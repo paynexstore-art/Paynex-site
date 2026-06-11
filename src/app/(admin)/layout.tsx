@@ -46,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen bg-gray-50 font-cairo">
       {/* Modern Sidebar - matching new UI style */}
-      <aside className="w-64 bg-[#0A1628] text-white h-screen fixed right-0 top-0 overflow-y-auto z-50 shadow-2xl">
+      <aside className="w-64 bg-[#0A1628] text-white h-screen fixed right-0 top-0 overflow-y-auto z-50 shadow-2xl transition-all duration-300">
         <div className="p-6 border-b border-gray-800 flex items-center gap-3">
           <div className="w-9 h-9 bg-[#C9A84C] rounded-2xl flex items-center justify-center">
             <span className="text-[#0A1628] font-bold text-xl">P</span>
@@ -85,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-grow mr-64 p-8">
+      <main className="flex-grow mr-64 p-8 transition-all duration-300">
         <header className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-2xl font-bold text-[#0A1628]">لوحة تحكم Paynix</h2>
