@@ -14,7 +14,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 401 });
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!user.isActive) {
+      return NextResponse.json({ error: 'هذا الحساب غير مفعل. يرجى التواصل مع الإدارة.' }, { status: 403 });
+    }
+
+    // Handle both bcrypt hashes and plain text passwords (for legacy supervisors)
+    let passwordMatch = false;
+    if (user.passwordHash && user.passwordHash.startsWith('$2')) {
+      passwordMatch = await bcrypt.compare(password, user.passwordHash);
+    } else {
+      passwordMatch = password === user.passwordHash;
+    }
+
+    if (!passwordMatch) {
+      return NextResponse.json({ error: 'كلمة المرور غير صحيحة' }, { status: 401 });
+    }
 
     if (!passwordMatch) {
       return NextResponse.json({ error: 'كلمة المرور غير صحيحة' }, { status: 401 });
