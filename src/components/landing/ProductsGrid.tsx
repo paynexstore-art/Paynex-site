@@ -65,6 +65,7 @@ export default function ProductsGrid() {
                   <img 
                   src={getProductImageUrl(product.images?.[0] || product.image)} 
                   alt={product.name_ar || product.nameEn}
+                  referrerPolicy="no-referrer"
                   className="w-full h-48 object-cover mb-4 rounded-xl border border-gray-100/50 group-hover:scale-[1.02] transition-transform duration-300 cursor-pointer"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/300x300/eee/999?text=No+Image'; }}
                 />

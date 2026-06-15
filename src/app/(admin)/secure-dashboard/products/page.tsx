@@ -90,14 +90,15 @@ export default function AdminProductsPage() {
                   <TableRow key={product.id} className="hover:bg-gray-50 transition-colors">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 bg-gray-100 rounded-lg overflow-hidden border">
-                      <img 
-                        src={getProductImageUrl(product.images?.[0] || product.image, product.category)} 
-                        className="w-full h-full object-contain" 
-                        alt={product.name_ar}
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/48x48?text=No+Img"; }} 
-                      />
-                    </div>
+                        <div className="relative w-12 h-12 bg-gray-100 rounded-lg overflow-hidden border">
+                          <img 
+                            src={getProductImageUrl(product.images?.[0] || product.image, product.category)} 
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-contain" 
+                            alt={product.name_ar}
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/48x48?text=No+Img"; }} 
+                          />
+                        </div>
                         <div className="font-medium text-sm">
                           {product.name_ar || product.nameAr}
                         </div>

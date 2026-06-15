@@ -62,6 +62,7 @@ export default function ProductDetailPage() {
             <div className="bg-white rounded-3xl overflow-hidden border aspect-square flex items-center justify-center p-6">
               <img 
               src={images[selectedImage]} 
+              referrerPolicy="no-referrer"
               alt={product.name_ar} 
               className="max-h-[420px] object-contain" 
               onError={(e) => { 
