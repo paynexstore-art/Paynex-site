@@ -1,10 +1,7 @@
 // src/lib/image.ts
-// Utility for handling product images from Supabase or external URLs
-// Modern fallbacks for when DB has no images (common for 4510 products)
+import { supabase } from './supabase';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kgkijgyzargmfyeyztgy.supabase.co';
-
-// Category-based modern Unsplash fallbacks (high quality, relevant to product type)
+// Fallback images based on category to ensure the site always looks professional
 const CATEGORY_FALLBACKS: Record<string, string> = {
   phones: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=600&fit=crop&auto=format',
   laptops: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&h=600&fit=crop&auto=format',
@@ -14,22 +11,53 @@ const CATEGORY_FALLBACKS: Record<string, string> = {
   default: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&h=600&fit=crop&auto=format',
 };
 
+/**
+ * Generates a public URL for a product image.
+ * Handles multiple formats: Full URLs, bucket/path, or just path.
+ */
 export function getProductImageUrl(image: string | null | undefined, category?: string, fallback?: string): string {
-  if (image && typeof image === 'string') {
-    // If already a full URL (http or https), use it directly (most real DB images are like this)
-    if (image.startsWith('http://') || image.startsWith('https://')) {
-      return image;
-    }
-
-    // If it's a relative path or filename, try Supabase storage with common buckets
-    const cleanPath = image.replace(/^\//, '');
-    const bucketsToTry = ['products', 'public', 'images', 'product-images'];
-    
-    // Return the first likely URL; browser will handle if 404 via onError in <img>
-    return `${SUPABASE_URL}/storage/v1/object/public/${bucketsToTry[0]}/${cleanPath}`;
+  if (!image || typeof image !== 'string') {
+    return getFallbackImage(category, fallback);
   }
 
-  // Smart fallback based on category for modern look (used when no image or broken)
+  // 1. If it's already a full URL, return it directly
+  if (image.startsWith('http://') || image.startsWith('https://')) {
+    return image;
+  }
+
+  // 2. Handle paths that might include the bucket name (e.g., "products/image.jpg")
+  // Supabase storage paths can be "bucket/path/to/file.jpg" or just "path/to/file.jpg"
+  let bucket = 'products'; // Default bucket
+  let path = image;
+
+  // Try to detect if the image string contains a bucket name
+  // We check if the first part of the path matches common bucket names
+  const commonBuckets = ['products', 'product-images', 'public', 'images'];
+  const parts = image.split('/');
+  
+  if (parts.length > 1 && commonBuckets.includes(parts[0])) {
+    bucket = parts[0];
+    path = parts.slice(1).join('/');
+  }
+
+  // 3. Use Supabase Client to get the official public URL
+  // This is more reliable than manual string concatenation
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  
+  if (data?.publicUrl) {
+    return data.publicUrl;
+  }
+
+  // Final fallback if Supabase client fails
+  return getFallbackImage(category, fallback);
+}
+
+/**
+ * Helper to provide category-specific fallback images
+ */
+function getFallbackImage(category?: string, fallback?: string): string {
+  if (fallback) return fallback;
+  
   const cat = (category || '').toLowerCase();
   if (cat.includes('phone') || cat.includes('موبايل')) return CATEGORY_FALLBACKS.phones;
   if (cat.includes('laptop') || cat.includes('لابتوب')) return CATEGORY_FALLBACKS.laptops;
@@ -37,9 +65,12 @@ export function getProductImageUrl(image: string | null | undefined, category?: 
   if (cat.includes('wash') || cat.includes('غسالة') || cat.includes('appliance') || cat.includes('منزلي')) return CATEGORY_FALLBACKS.appliances;
   if (cat.includes('game') || cat.includes('بلاي') || cat.includes('gaming')) return CATEGORY_FALLBACKS.gaming;
 
-  return fallback || CATEGORY_FALLBACKS.default;
+  return CATEGORY_FALLBACKS.default;
 }
 
+/**
+ * Safely converts image data (JSON/Array/String) into a list of valid URLs
+ */
 export function getProductImages(images: any, category?: string, fallback?: string): string[] {
   if (!images) {
     return [getProductImageUrl(null, category, fallback)];
@@ -50,15 +81,27 @@ export function getProductImages(images: any, category?: string, fallback?: stri
     arr = images;
   } else if (typeof images === 'string') {
     try {
-      arr = JSON.parse(images);
+      // Try parsing as JSON array first
+      const parsed = JSON.parse(images);
+      if (Array.isArray(parsed)) {
+        arr = parsed;
+      } else {
+        arr = [images];
+      }
     } catch {
+      // Not JSON, treat as a single image path
       arr = [images];
     }
+  } else if (typeof images === 'object') {
+    // If it's an object, try to find a URL or path inside it
+    const possibleUrl = images.url || images.path || images.src;
+    arr = possibleUrl ? [possibleUrl] : [];
   }
 
   if (arr.length > 0) {
     return arr.map(img => getProductImageUrl(img, category, fallback));
   }
+  
   return [getProductImageUrl(null, category, fallback)];
 }
 
