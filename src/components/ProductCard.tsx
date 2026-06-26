@@ -35,7 +35,7 @@ export default function ProductCard({
   return (
     <Link 
       href={`/orders/new?productId=${id}`} 
-      className="group block bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 flex-shrink-0 w-[260px] md:w-full"
+      className="group block bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 flex-shrink-0 w-full"
     >
       <div className="relative">
         {/* Product Image */}

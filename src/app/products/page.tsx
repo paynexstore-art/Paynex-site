@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
-import { getProductImageUrl } from "@/lib/image";
+import { getProductImages } from "@/lib/image";
 import { Search } from "lucide-react";
 
 interface Product {
@@ -133,12 +133,14 @@ export default function ProductsPage() {
               {products.length > 0 ? (
                 products.map((product) => {
                   const price = Number(product.display_price || product.original_price);
+                  const images = getProductImages(product.images, product.category);
+                  const firstImage = images[0] || '';
                   return (
                     <ProductCard
                       key={product.id}
                       id={product.id}
                       name={product.name_ar}
-                      image={product.images?.[0] || ''}
+                      image={firstImage}
                       originalPrice={product.original_price}
                       displayPrice={price}
                       installmentText={`قسط من ${Math.round(price / 12)} جنيه/شهر`}

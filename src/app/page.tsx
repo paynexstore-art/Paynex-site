@@ -262,7 +262,7 @@ export default function PaynexHome() {
 
         <div className="flex gap-4 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide -mx-1 px-1">
           {flashSaleProducts.map((product) => (
-            <div key={product.id} className="snap-start">
+            <div key={product.id} className="snap-start flex-shrink-0 w-[260px]">
               <ProductCard {...product} />
             </div>
           ))}

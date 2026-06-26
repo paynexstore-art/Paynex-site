@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Camera, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
 import { calculateDistance } from "@/lib/geofencing";
+import { getProductImages } from "@/lib/image";
 import { toast } from "sonner";
 
 export default function SupervisorOrderDetailPage() {
@@ -119,7 +120,7 @@ export default function SupervisorOrderDetailPage() {
         <Card className="bg-[#111d2f] border-gray-800 text-white">
           <CardHeader><CardTitle>بيانات المنتج</CardTitle></CardHeader>
           <CardContent className="flex gap-4">
-            <img src={order.product?.images?.[0]} className="w-20 h-20 object-contain rounded bg-white" />
+            <img src={order.product?.images ? getProductImages(order.product.images)[0] : ''} className="w-20 h-20 object-contain rounded bg-white" />
             <div>
               <p className="font-bold">{order.product?.name_ar}</p>
               <p className="text-[#C9A84C]">{order.product?.display_price} ج.م</p>

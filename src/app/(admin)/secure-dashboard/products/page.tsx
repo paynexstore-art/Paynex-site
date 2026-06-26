@@ -92,7 +92,7 @@ export default function AdminProductsPage() {
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12 bg-gray-100 rounded-lg overflow-hidden border">
                           <img 
-                            src={getProductImageUrl(product.images?.[0] || product.image, product.category)} 
+                            src={getProductImageUrl(Array.isArray(product.images) ? product.images[0] : (typeof product.images === 'string' && product.images.startsWith('[') ? JSON.parse(product.images)[0] : product.images), product.category)} 
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-contain" 
                             alt={product.name_ar}
